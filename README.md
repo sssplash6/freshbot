@@ -163,3 +163,4 @@ Pending scheduled jobs (follow-ups and meeting reminders) are stored in the `sch
                     └── 10m before meeting → remind user + PERSON_Y
 ```
 # freshbot
+# freshbot
