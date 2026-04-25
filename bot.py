@@ -39,7 +39,7 @@ def _action_keyboard() -> ReplyKeyboardMarkup:
 
 def _resolved_keyboard() -> ReplyKeyboardMarkup:
     return ReplyKeyboardMarkup(
-        [[msg.BTN_YES_RESOLVED, msg.BTN_NO_RESOLVED]],
+        [[msg.BTN_YES_RESOLVED, msg.BTN_NO_RESOLVED], [msg.BTN_START]],
         resize_keyboard=True,
         one_time_keyboard=True,
     )
@@ -47,7 +47,7 @@ def _resolved_keyboard() -> ReplyKeyboardMarkup:
 
 def _booked_keyboard() -> ReplyKeyboardMarkup:
     return ReplyKeyboardMarkup(
-        [[msg.BTN_YES_BOOKED], [msg.BTN_NO_BOOKED], [msg.BTN_BACK]],
+        [[msg.BTN_YES_BOOKED], [msg.BTN_NO_BOOKED], [msg.BTN_BACK], [msg.BTN_START]],
         resize_keyboard=True,
         one_time_keyboard=True,
     )
@@ -55,7 +55,7 @@ def _booked_keyboard() -> ReplyKeyboardMarkup:
 
 def _back_keyboard() -> ReplyKeyboardMarkup:
     return ReplyKeyboardMarkup(
-        [[msg.BTN_BACK]],
+        [[msg.BTN_BACK], [msg.BTN_START]],
         resize_keyboard=True,
         one_time_keyboard=True,
     )
@@ -65,6 +65,7 @@ def _start_keyboard() -> ReplyKeyboardMarkup:
     return ReplyKeyboardMarkup(
         [[msg.BTN_START]],
         resize_keyboard=True,
+        is_persistent=True,
     )
 
 
