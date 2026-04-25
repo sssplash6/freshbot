@@ -162,7 +162,7 @@ async def _handle_ask_question(
 
     await update.message.reply_text(
         msg.CONTACT_MESSAGE.format(contact_info=msg.CONTACT_INFO),
-        reply_markup=_back_keyboard(),
+        reply_markup=_start_keyboard(),
     )
 
     # Schedule 10-hour follow-up
