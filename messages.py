@@ -90,7 +90,7 @@ BTN_ADMISSIONS = "Admissions Program"
 BTN_FULL_SUPPORT = "Full Support Program"
 
 BTN_ASK_QUESTION = "Ask a Question"
-BTN_REGISTER = "Register / Book a Meeting"
+BTN_REGISTER = "Book an Interview"
 
 BTN_YES_RESOLVED = "Yes \u2705"
 BTN_NO_RESOLVED = "No \u274c"
