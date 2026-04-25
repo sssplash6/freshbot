@@ -28,6 +28,18 @@ async def init_db() -> None:
                 sent      INTEGER DEFAULT 0
             )
         """)
+        await db.execute("""
+            CREATE TABLE IF NOT EXISTS questions (
+                id                INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_chat_id      INTEGER,
+                program           TEXT,
+                question_text     TEXT,
+                expert_chat_id    INTEGER,
+                expert_message_id INTEGER,
+                status            TEXT DEFAULT 'pending',
+                created_at        TEXT
+            )
+        """)
         await db.commit()
 
 
@@ -169,3 +181,54 @@ async def get_pending_jobs() -> list[dict]:
         ) as cursor:
             rows = await cursor.fetchall()
             return [dict(r) for r in rows]
+
+
+# ---------------------------------------------------------------------------
+# Question operations
+# ---------------------------------------------------------------------------
+
+async def save_question(user_chat_id: int, program: str, question_text: str) -> int:
+    now = datetime.now(timezone.utc).isoformat()
+    async with aiosqlite.connect(DB_PATH) as db:
+        cursor = await db.execute(
+            """INSERT INTO questions (user_chat_id, program, question_text, created_at)
+               VALUES (?, ?, ?, ?)""",
+            (user_chat_id, program, question_text, now),
+        )
+        await db.commit()
+        return cursor.lastrowid
+
+
+async def set_question_expert_message(
+    question_id: int, expert_chat_id: int, expert_message_id: int
+) -> None:
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute(
+            """UPDATE questions SET expert_chat_id = ?, expert_message_id = ?
+               WHERE id = ?""",
+            (expert_chat_id, expert_message_id, question_id),
+        )
+        await db.commit()
+
+
+async def get_question_by_expert_message(
+    expert_chat_id: int, expert_message_id: int
+) -> dict | None:
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute(
+            """SELECT * FROM questions
+               WHERE expert_chat_id = ? AND expert_message_id = ? AND status = 'pending'""",
+            (expert_chat_id, expert_message_id),
+        ) as cursor:
+            row = await cursor.fetchone()
+            return dict(row) if row else None
+
+
+async def mark_question_answered(question_id: int) -> None:
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute(
+            "UPDATE questions SET status = 'answered' WHERE id = ?",
+            (question_id,),
+        )
+        await db.commit()

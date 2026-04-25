@@ -124,8 +124,8 @@ async def send_followup(bot: Bot, chat_id: int, job_id: int) -> None:
         await db.mark_job_sent(job_id)
         return
 
-    # Guard: already resolved or escalated — don't re-send
-    if user.get("status") in ("resolved", "escalated"):
+    # Guard: already resolved, escalated, or answered — don't re-send
+    if user.get("status") in ("resolved", "escalated", "answered"):
         await db.mark_job_sent(job_id)
         return
 

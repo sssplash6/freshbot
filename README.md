@@ -42,12 +42,17 @@ cp .env.example .env
 | Variable | Where to get it |
 |---|---|
 | `TELEGRAM_BOT_TOKEN` | [@BotFather](https://t.me/BotFather) → `/newbot` |
-| `PERSON_X_CHAT_ID` | Send a message to [@userinfobot](https://t.me/userinfobot) from that person's account |
-| `PERSON_Y_CHAT_ID` | Same as above |
+| `PERSON_X_CHAT_ID` | Send a message to [@userinfobot](https://t.me/userinfobot) from that person's account — fallback escalation contact |
+| `PERSON_Y_CHAT_ID` | Same as above — receives meeting reminders |
+| `SAT_MAN_CHAT_ID` | Chat ID of the SAT program expert (receives SAT student questions) |
+| `AP_MAN_CHAT_ID` | Chat ID of the Admissions Program expert |
+| `FS_MAN_CHAT_ID` | Chat ID of the Full Support program expert |
 | `GOOGLE_SERVICE_ACCOUNT_FILE` | Path to your downloaded service account JSON key (e.g. `credentials.json`) |
-| `GOOGLE_CALENDAR_ID` | The calendar to watch — use `primary` for your main calendar, or paste the calendar's email address from Google Calendar settings |
-| `GOOGLE_BOOKING_URL` | Your Google Calendar Appointment Scheduling link (the shareable booking page URL) |
-| `GOOGLE_WEBHOOK_TOKEN` | Any random secret string you invent — Google will echo it back so you can verify requests |
+| `GOOGLE_CALENDAR_ID` | The calendar to watch — use `primary` or paste the calendar email from Google Calendar settings |
+| `GOOGLE_BOOKING_URL_SAT` | Booking page URL for the SAT program |
+| `GOOGLE_BOOKING_URL_AP` | Booking page URL for the Admissions program |
+| `GOOGLE_BOOKING_URL_FS` | Booking page URL for the Full Support program |
+| `GOOGLE_WEBHOOK_TOKEN` | Any random secret string you invent — Google echoes it back so you can verify requests |
 | `WEBHOOK_HOST` | Your public URL, e.g. `https://yourdomain.com` or your ngrok URL |
 | `WEBHOOK_PORT` | Port uvicorn listens on (default: `8000`) |
 
@@ -103,15 +108,20 @@ Press `Ctrl+C` to stop. The bot shuts down gracefully.
 
 ---
 
-## Editing Contact Info
+## Editing the FAQ
 
-Open `messages.py` and update this line:
+Open `messages.py` and update the `FAQ_ITEMS` list near the top. Each item is a `(question, answer)` tuple. No other file needs to change.
 
-```python
-CONTACT_INFO = "[CONTACT INFO — TO BE FILLED IN LATER]"
-```
+---
 
-No other file needs to change.
+## How Expert Q&A Works
+
+1. Student taps **Ask a question** → receives the FAQ.
+2. If the FAQ didn't help, student taps **No, I have another question ❌** and types their question.
+3. The question is forwarded to the correct expert (SAT man, AP man, or FS man) based on the program the student selected.
+4. The expert sees the question in their private chat with the bot.
+5. The expert **replies** (using Telegram's reply feature) to that message.
+6. The bot detects the reply, looks up the original student, and forwards the answer to them.
 
 ---
 
@@ -147,13 +157,18 @@ Pending scheduled jobs (follow-ups and meeting reminders) are stored in the `sch
 /start
   └── Choose program (SAT / Admissions / Full Support)
         └── Ask a Question
-              ├── Contact info sent
-              └── 10h later: "Was your issue resolved?"
-                    ├── Yes → resolved
-                    └── No  → escalate to PERSON_X
+              ├── FAQ shown
+              ├── Yes, answered → resolved
+              └── No, have another question
+                    └── Student types question
+                          └── Forwarded to SAT/AP/FS man
+                                └── Expert replies in bot → answer sent to student
+                                └── 10h later (if no answer yet): "Did you get an answer?"
+                                      ├── Yes → resolved
+                                      └── No  → escalate to PERSON_X
 
         └── Register / Book a Meeting
-              ├── Google Calendar booking link sent
+              ├── Program-specific Google Calendar booking link sent
               ├── "Have you completed your booking?"
               │     ├── Not yet → resend link
               │     └── Yes     → awaiting_match

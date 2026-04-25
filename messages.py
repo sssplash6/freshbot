@@ -2,11 +2,6 @@
 # Use .format(**kwargs) when sending — never hardcode these elsewhere.
 
 # ---------------------------------------------------------------------------
-# Contact info placeholder — edit this when ready
-# ---------------------------------------------------------------------------
-CONTACT_INFO = "[CONTACT INFO]"
-
-# ---------------------------------------------------------------------------
 # /start
 # ---------------------------------------------------------------------------
 WELCOME = "Hi {first_name}! Welcome to Freshman Academy . Please choose the program of interest:"
@@ -34,12 +29,72 @@ PROGRAM_DESCRIPTIONS = {
 PROGRAM_CHOSEN = "Great choice!\n\n{description}\n\nWhat would you like to do?"
 
 # ---------------------------------------------------------------------------
+# FAQ — edit questions and answers below as needed
+# ---------------------------------------------------------------------------
+FAQ_ITEMS = [
+    (
+        "What programs do you offer?",
+        "We offer three programs: SAT Prep, University Admissions (AP), and Full Support (FS).",
+    ),
+    (
+        "How long does the program last?",
+        "Duration varies by package. Book a consultation to get personalized information.",
+    ),
+    (
+        "How much does it cost?",
+        "Pricing depends on the program and package you choose. Book a free consultation for details.",
+    ),
+    (
+        "How do I book a session?",
+        "Tap 'Book an interview' in the menu to schedule a session via our calendar.",
+    ),
+    (
+        "Can I switch programs?",
+        "Yes! Reach out to our team and we will help you transition.",
+    ),
+]
+
+_faq_lines = "\n\n".join(
+    f"{i + 1}. {q}\n{a}" for i, (q, a) in enumerate(FAQ_ITEMS)
+)
+FAQ_MESSAGE = (
+    "Here are some frequently asked questions:\n\n"
+    + _faq_lines
+    + "\n\n───\nDid this answer your question?"
+)
+
+FAQ_TYPE_QUESTION = (
+    "Please type your question below and our team will get back to you shortly:"
+)
+
+QUESTION_FORWARDED = (
+    "✅ Your question has been forwarded to our team! You will receive an answer here shortly."
+)
+
+EXPERT_QUESTION = (
+    "❓ New question from {first_name}{username_part} (Program: {program}):\n\n"
+    "{question}\n\n"
+    "Reply to this message to send your answer to the student."
+)
+
+ANSWER_FROM_EXPERT = "\U0001f4ac Our team answered your question:\n\n{answer}"
+
+EXPERT_REPLY_SENT = "✅ Your answer has been sent to the student."
+
+EXPERT_REPLY_NOT_FOUND = (
+    "Could not find the question you are replying to. It may have already been answered."
+)
+
+EXPERT_USE_REPLY = (
+    "To answer a student’s question, please use Telegram’s reply feature "
+    "on the question message."
+)
+
+# ---------------------------------------------------------------------------
 # Ask a Question flow
 # ---------------------------------------------------------------------------
-CONTACT_MESSAGE = "You can reach us at: {contact_info}"
-
 FOLLOWUP_QUESTION = (
-    "Hi {first_name}, was your issue resolved?"
+    "Hi {first_name}, did you receive an answer to your question?"
 )
 
 RESOLVED_YES_REPLY = (
@@ -111,6 +166,9 @@ BTN_FULL_SUPPORT = "Full Support Program"
 
 BTN_ASK_QUESTION = "Ask a question"
 BTN_REGISTER = "Book an interview"
+
+BTN_FAQ_YES = "Yes, it's answered \u2705"
+BTN_FAQ_NO = "No, I have another question \u274c"
 
 BTN_YES_RESOLVED = "Yes \u2705"
 BTN_NO_RESOLVED = "No \u274c"
