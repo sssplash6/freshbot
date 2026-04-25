@@ -2,7 +2,7 @@ import logging
 from datetime import datetime, timezone
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
-from telegram import Bot, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram import Bot, ReplyKeyboardMarkup
 
 import database as db
 import messages as msg
@@ -130,12 +130,11 @@ async def send_followup(bot: Bot, chat_id: int, job_id: int) -> None:
         return
 
     first_name = user.get("first_name") or "there"
-    keyboard = InlineKeyboardMarkup([
-        [
-            InlineKeyboardButton(msg.BTN_YES_RESOLVED, callback_data="resolved_yes"),
-            InlineKeyboardButton(msg.BTN_NO_RESOLVED, callback_data="resolved_no"),
-        ]
-    ])
+    keyboard = ReplyKeyboardMarkup(
+        [[msg.BTN_YES_RESOLVED, msg.BTN_NO_RESOLVED]],
+        resize_keyboard=True,
+        one_time_keyboard=True,
+    )
 
     try:
         await bot.send_message(

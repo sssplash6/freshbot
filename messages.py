@@ -97,3 +97,5 @@ BTN_NO_RESOLVED = "No \u274c"
 
 BTN_YES_BOOKED = "Yes, I booked \u2705"
 BTN_NO_BOOKED = "Not yet \u274c"
+
+BTN_BACK = "\u2b05\ufe0f Back"

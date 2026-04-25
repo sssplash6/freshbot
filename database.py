@@ -57,7 +57,7 @@ async def set_program(chat_id: int, program: str) -> None:
         await db.commit()
 
 
-async def set_flow(chat_id: int, flow: str) -> None:
+async def set_flow(chat_id: int, flow: str | None) -> None:
     async with aiosqlite.connect(DB_PATH) as db:
         await db.execute(
             "UPDATE users SET flow = ? WHERE chat_id = ?",
@@ -66,7 +66,7 @@ async def set_flow(chat_id: int, flow: str) -> None:
         await db.commit()
 
 
-async def set_status(chat_id: int, status: str) -> None:
+async def set_status(chat_id: int, status: str | None) -> None:
     async with aiosqlite.connect(DB_PATH) as db:
         await db.execute(
             "UPDATE users SET status = ? WHERE chat_id = ?",
