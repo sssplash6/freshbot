@@ -475,7 +475,7 @@ async def _handle_back(update: Update, chat_id: int) -> None:
         await db.set_flow(chat_id, None)
         await db.set_status(chat_id, None)
         await update.message.reply_text(
-            msg.PROGRAM_CHOSEN.format(description=description),
+            msg.PROGRAM_BACK.format(description=description),
             reply_markup=_action_keyboard(),
         )
     else:

@@ -27,6 +27,7 @@ PROGRAM_DESCRIPTIONS = {
 }
 
 PROGRAM_CHOSEN = "Great choice!\n\n{description}\n\nWhat would you like to do?"
+PROGRAM_BACK = "{description}\n\nWhat would you like to do?"
 
 # ---------------------------------------------------------------------------
 # FAQ — edit questions and answers below as needed
