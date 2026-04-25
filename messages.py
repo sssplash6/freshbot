@@ -99,4 +99,4 @@ BTN_YES_BOOKED = "Yes, I booked \u2705"
 BTN_NO_BOOKED = "Not yet \u274c"
 
 BTN_BACK = "\u2b05\ufe0f Back"
-BTN_START = "/start"
+BTN_START = "Fresh Start"

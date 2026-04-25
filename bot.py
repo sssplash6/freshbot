@@ -39,7 +39,7 @@ def _action_keyboard() -> ReplyKeyboardMarkup:
 
 def _resolved_keyboard() -> ReplyKeyboardMarkup:
     return ReplyKeyboardMarkup(
-        [[msg.BTN_YES_RESOLVED, msg.BTN_NO_RESOLVED], [msg.BTN_START]],
+        [[msg.BTN_YES_RESOLVED, msg.BTN_NO_RESOLVED]],
         resize_keyboard=True,
         one_time_keyboard=True,
     )
@@ -47,7 +47,7 @@ def _resolved_keyboard() -> ReplyKeyboardMarkup:
 
 def _booked_keyboard() -> ReplyKeyboardMarkup:
     return ReplyKeyboardMarkup(
-        [[msg.BTN_YES_BOOKED], [msg.BTN_NO_BOOKED], [msg.BTN_BACK], [msg.BTN_START]],
+        [[msg.BTN_YES_BOOKED], [msg.BTN_NO_BOOKED], [msg.BTN_BACK]],
         resize_keyboard=True,
         one_time_keyboard=True,
     )
@@ -55,7 +55,7 @@ def _booked_keyboard() -> ReplyKeyboardMarkup:
 
 def _back_keyboard() -> ReplyKeyboardMarkup:
     return ReplyKeyboardMarkup(
-        [[msg.BTN_BACK], [msg.BTN_START]],
+        [[msg.BTN_BACK]],
         resize_keyboard=True,
         one_time_keyboard=True,
     )
@@ -128,11 +128,8 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         await _handle_booked_no(update, chat_id)
     elif text == msg.BTN_BACK:
         await _handle_back(update, chat_id)
-    else:
-        await update.message.reply_text(
-            "Tap the button below to get started.",
-            reply_markup=_start_keyboard(),
-        )
+    elif text == msg.BTN_START:
+        await start(update, context)
 
 
 # ---------------------------------------------------------------------------
