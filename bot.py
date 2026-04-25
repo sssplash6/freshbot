@@ -53,6 +53,21 @@ def _booked_keyboard() -> ReplyKeyboardMarkup:
     )
 
 
+def _back_keyboard() -> ReplyKeyboardMarkup:
+    return ReplyKeyboardMarkup(
+        [[msg.BTN_BACK]],
+        resize_keyboard=True,
+        one_time_keyboard=True,
+    )
+
+
+def _start_keyboard() -> ReplyKeyboardMarkup:
+    return ReplyKeyboardMarkup(
+        [[msg.BTN_START]],
+        resize_keyboard=True,
+    )
+
+
 # ---------------------------------------------------------------------------
 # /start
 # ---------------------------------------------------------------------------
@@ -80,7 +95,7 @@ async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     await db.reset_user(chat_id)
     await update.message.reply_text(
         msg.CANCEL_REPLY,
-        reply_markup=ReplyKeyboardRemove(),
+        reply_markup=_start_keyboard(),
     )
 
 
@@ -112,6 +127,11 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         await _handle_booked_no(update, chat_id)
     elif text == msg.BTN_BACK:
         await _handle_back(update, chat_id)
+    else:
+        await update.message.reply_text(
+            "Tap the button below to get started.",
+            reply_markup=_start_keyboard(),
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -144,7 +164,7 @@ async def _handle_ask_question(
 
     await update.message.reply_text(
         msg.CONTACT_MESSAGE.format(contact_info=msg.CONTACT_INFO),
-        reply_markup=ReplyKeyboardRemove(),
+        reply_markup=_back_keyboard(),
     )
 
     # Schedule 10-hour follow-up
@@ -197,7 +217,7 @@ async def _handle_resolved_yes(update: Update, chat_id: int) -> None:
     await db.set_status(chat_id, "resolved")
     await update.message.reply_text(
         msg.RESOLVED_YES_REPLY,
-        reply_markup=ReplyKeyboardRemove(),
+        reply_markup=_start_keyboard(),
     )
 
 
@@ -232,7 +252,7 @@ async def _handle_resolved_no(update: Update, chat_id: int) -> None:
     await update.get_bot().send_message(chat_id=PERSON_X_CHAT_ID, text=escalation_text)
     await update.message.reply_text(
         msg.RESOLVED_NO_USER_REPLY,
-        reply_markup=ReplyKeyboardRemove(),
+        reply_markup=_start_keyboard(),
     )
 
 
@@ -250,7 +270,7 @@ async def _handle_booked_yes(update: Update, chat_id: int) -> None:
     await db.set_status(chat_id, "awaiting_match")
     await update.message.reply_text(
         msg.BOOKING_CONFIRMED_REPLY,
-        reply_markup=ReplyKeyboardRemove(),
+        reply_markup=_start_keyboard(),
     )
 
 
@@ -276,8 +296,8 @@ async def _handle_back(update: Update, chat_id: int) -> None:
     user = await db.get_user(chat_id)
     flow = user.get("flow") if user else None
 
-    if flow == "booking":
-        # Back from booking confirmation → return to action selection
+    if flow in ("booking", "question"):
+        # Back from booking confirmation or question flow → return to action selection
         await db.set_flow(chat_id, None)
         await db.set_status(chat_id, None)
         await update.message.reply_text(
