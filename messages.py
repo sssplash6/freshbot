@@ -9,12 +9,29 @@ CONTACT_INFO = "[CONTACT INFO]"
 # ---------------------------------------------------------------------------
 # /start
 # ---------------------------------------------------------------------------
-WELCOME = "Hi {first_name}! Welcome. Please choose your program:"
+WELCOME = "Hi {first_name}! Welcome to Freshman Academy . Please choose the program of interest:"
 
 # ---------------------------------------------------------------------------
 # Program chosen
 # ---------------------------------------------------------------------------
-PROGRAM_CHOSEN = "Great choice! What would you like to do?"
+
+# Edit each description below when ready — keep the dict keys matching the button labels exactly
+PROGRAM_DESCRIPTIONS = {
+    "SAT Program": (
+        "Lorem ipsum dolor sit amet, consectetur adipiscing elit. "
+        "Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua."
+    ),
+    "Admissions Program": (
+        "Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris "
+        "nisi ut aliquip ex ea commodo consequat."
+    ),
+    "Full Support Program": (
+        "Duis aute irure dolor in reprehenderit in voluptate velit esse cillum "
+        "dolore eu fugiat nulla pariatur."
+    ),
+}
+
+PROGRAM_CHOSEN = "Great choice!\n\n{description}\n\nWhat would you like to do?"
 
 # ---------------------------------------------------------------------------
 # Ask a Question flow
@@ -62,6 +79,7 @@ BOOKING_CONFIRMED_REPLY = (
 # ---------------------------------------------------------------------------
 REMINDER_TO_USER = (
     "\u23f0 Reminder: Your meeting is in {minutes} minutes!\n"
+    "Program: {program}\n"
     "See you soon, {first_name}."
 )
 
@@ -70,11 +88,13 @@ REMINDER_TO_USER = (
 # ---------------------------------------------------------------------------
 REMINDER_TO_PERSON_Y = (
     "\U0001f4c5 Meeting in {minutes} minutes with @{username} ({first_name}).\n"
+    "Program: {program}\n"
     "Chat ID: {chat_id}."
 )
 
 REMINDER_TO_PERSON_Y_NO_USERNAME = (
-    "\U0001f4c5 Meeting in {minutes} minutes with {first_name} (ID: {chat_id})."
+    "\U0001f4c5 Meeting in {minutes} minutes with {first_name} (ID: {chat_id}).\n"
+    "Program: {program}"
 )
 
 # ---------------------------------------------------------------------------
@@ -89,8 +109,8 @@ BTN_SAT = "SAT Program"
 BTN_ADMISSIONS = "Admissions Program"
 BTN_FULL_SUPPORT = "Full Support Program"
 
-BTN_ASK_QUESTION = "Ask a Question"
-BTN_REGISTER = "Book an Interview"
+BTN_ASK_QUESTION = "Ask a question"
+BTN_REGISTER = "Book an interview"
 
 BTN_YES_RESOLVED = "Yes \u2705"
 BTN_NO_RESOLVED = "No \u274c"
@@ -100,3 +120,4 @@ BTN_NO_BOOKED = "Not yet \u274c"
 
 BTN_BACK = "\u2b05\ufe0f Back"
 BTN_START = "Fresh Start"
+

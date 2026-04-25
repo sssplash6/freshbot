@@ -159,6 +159,7 @@ async def send_meeting_reminder(
 
     first_name = user.get("first_name") or "there"
     raw_username = user.get("username")
+    program = user.get("program") or "N/A"
 
     # Message to user
     try:
@@ -167,6 +168,7 @@ async def send_meeting_reminder(
             text=msg.REMINDER_TO_USER.format(
                 minutes=minutes,
                 first_name=first_name,
+                program=program,
             ),
         )
     except Exception:
@@ -180,12 +182,14 @@ async def send_meeting_reminder(
                 username=raw_username,
                 first_name=first_name,
                 chat_id=chat_id,
+                program=program,
             )
         else:
             text = msg.REMINDER_TO_PERSON_Y_NO_USERNAME.format(
                 minutes=minutes,
                 first_name=first_name,
                 chat_id=chat_id,
+                program=program,
             )
         await bot.send_message(chat_id=PERSON_Y_CHAT_ID, text=text)
     except Exception:

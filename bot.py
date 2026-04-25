@@ -138,8 +138,9 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 
 async def _handle_program(update: Update, chat_id: int, program: str) -> None:
     await db.set_program(chat_id, program)
+    description = msg.PROGRAM_DESCRIPTIONS.get(program, "")
     await update.message.reply_text(
-        msg.PROGRAM_CHOSEN,
+        msg.PROGRAM_CHOSEN.format(description=description),
         reply_markup=_action_keyboard(),
     )
 
