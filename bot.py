@@ -332,11 +332,7 @@ async def _handle_expert_message(
 
     user_chat_id = question["user_chat_id"]
     question_id = question["id"]
-
-    user = await db.get_user(user_chat_id)
-    if user and user.get("status") == "answered":
-        await update.message.reply_text(msg.EXPERT_ALREADY_ANSWERED)
-        return
+    question_text = question["question_text"]
 
     try:
         await update.get_bot().send_message(
@@ -344,6 +340,7 @@ async def _handle_expert_message(
             text=msg.ANSWER_FROM_EXPERT.format(answer=text),
         )
         await db.mark_question_answered(question_id)
+        await db.mark_sibling_questions_answered(user_chat_id, question_text)
         await db.set_status(user_chat_id, "answered")
         await update.message.reply_text(msg.EXPERT_REPLY_SENT)
     except Exception:

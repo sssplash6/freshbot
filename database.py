@@ -232,3 +232,14 @@ async def mark_question_answered(question_id: int) -> None:
             (question_id,),
         )
         await db.commit()
+
+
+async def mark_sibling_questions_answered(user_chat_id: int, question_text: str) -> None:
+    """Mark all other pending records for the same question (sent to multiple experts) as answered."""
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute(
+            """UPDATE questions SET status = 'answered'
+               WHERE user_chat_id = ? AND question_text = ? AND status = 'pending'""",
+            (user_chat_id, question_text),
+        )
+        await db.commit()
