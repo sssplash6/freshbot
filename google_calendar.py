@@ -108,11 +108,19 @@ def _extract_telegram_username(description: str) -> str | None:
     """
     if not description:
         return None
-    for line in description.splitlines():
-        if "telegram" in line.lower() and ":" in line:
-            answer = line.split(":", 1)[1].strip()
-            if answer:
-                return answer
+    lines = description.splitlines()
+    for i, line in enumerate(lines):
+        if "telegram" in line.lower():
+            # Answer on the same line after a colon
+            if ":" in line:
+                answer = line.split(":", 1)[1].strip()
+                if answer:
+                    return answer
+            # Answer on the next line (Google Calendar's multi-line format)
+            if i + 1 < len(lines):
+                next_line = lines[i + 1].strip()
+                if next_line:
+                    return next_line
     return None
 
 
@@ -136,6 +144,7 @@ async def _handle_new_booking(bot: Bot, event: dict) -> None:
         return
 
     description = event.get("description", "")
+    logger.info("Booking event %s description: %r", event_id, description)
     raw_username = _extract_telegram_username(description)
 
     if not raw_username:
