@@ -25,8 +25,8 @@ from config import (
 
 logger = logging.getLogger(__name__)
 
-# Map each program to its expert and booking URL
-_PROGRAM_EXPERT: dict[str, int] = {
+# Map each program to its experts and booking URL
+_PROGRAM_EXPERT: dict[str, list[int]] = {
     msg.BTN_SAT: SAT_MAN_CHAT_ID,
     msg.BTN_ADMISSIONS: AP_MAN_CHAT_ID,
     msg.BTN_FULL_SUPPORT: FS_MAN_CHAT_ID,
@@ -39,7 +39,7 @@ _PROGRAM_BOOKING_URL: dict[str, str] = {
 }
 
 _EXPERT_CHAT_IDS: frozenset[int] = frozenset(
-    {SAT_MAN_CHAT_ID, AP_MAN_CHAT_ID, FS_MAN_CHAT_ID}
+    id for ids in _PROGRAM_EXPERT.values() for id in ids
 )
 
 
@@ -261,8 +261,8 @@ async def _handle_question_text(
     first_name = user["first_name"] if user else "Unknown"
     raw_username = user.get("username") if user else None
 
-    expert_chat_id = _PROGRAM_EXPERT.get(program or "")
-    if not expert_chat_id:
+    expert_chat_ids = _PROGRAM_EXPERT.get(program or "")
+    if not expert_chat_ids:
         logger.warning("No expert found for program '%s' (chat_id=%d)", program, chat_id)
         await update.message.reply_text(
             msg.QUESTION_FORWARDED,
@@ -280,14 +280,15 @@ async def _handle_question_text(
         question=text,
     )
 
-    try:
-        sent = await context.bot.send_message(chat_id=expert_chat_id, text=expert_text)
-        question_id = await db.save_question(chat_id, program or "", text)
-        await db.set_question_expert_message(question_id, expert_chat_id, sent.message_id)
-    except Exception:
-        logger.exception(
-            "Failed to forward question from chat_id=%d to expert %d", chat_id, expert_chat_id
-        )
+    for expert_chat_id in expert_chat_ids:
+        try:
+            sent = await context.bot.send_message(chat_id=expert_chat_id, text=expert_text)
+            question_id = await db.save_question(chat_id, program or "", text)
+            await db.set_question_expert_message(question_id, expert_chat_id, sent.message_id)
+        except Exception:
+            logger.exception(
+                "Failed to forward question from chat_id=%d to expert %d", chat_id, expert_chat_id
+            )
 
     await db.set_flow(chat_id, None)
     await db.set_status(chat_id, "question_pending")
@@ -331,6 +332,11 @@ async def _handle_expert_message(
 
     user_chat_id = question["user_chat_id"]
     question_id = question["id"]
+
+    user = await db.get_user(user_chat_id)
+    if user and user.get("status") == "answered":
+        await update.message.reply_text(msg.EXPERT_ALREADY_ANSWERED)
+        return
 
     try:
         await update.get_bot().send_message(

@@ -82,6 +82,8 @@ ANSWER_FROM_EXPERT = "\U0001f4ac Our team answered your question:\n\n{answer}"
 
 EXPERT_REPLY_SENT = "✅ Your answer has been sent to the student."
 
+EXPERT_ALREADY_ANSWERED = "ℹ️ This question has already been answered by another person."
+
 EXPERT_REPLY_NOT_FOUND = (
     "Could not find the question you are replying to. It may have already been answered."
 )

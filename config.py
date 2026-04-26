@@ -11,15 +11,19 @@ def _require(name: str) -> str:
     return value
 
 
+def _require_int_list(name: str) -> list[int]:
+    return [int(x.strip()) for x in _require(name).split(",") if x.strip()]
+
+
 TELEGRAM_BOT_TOKEN: str = _require("TELEGRAM_BOT_TOKEN")
 
 PERSON_X_CHAT_ID: int = int(_require("PERSON_X_CHAT_ID"))
 PERSON_Y_CHAT_ID: int = int(_require("PERSON_Y_CHAT_ID"))
 
-# Expert chat IDs for each program's question routing
-SAT_MAN_CHAT_ID: int = int(_require("SAT_MAN_CHAT_ID"))
-AP_MAN_CHAT_ID: int = int(_require("AP_MAN_CHAT_ID"))
-FS_MAN_CHAT_ID: int = int(_require("FS_MAN_CHAT_ID"))
+# Expert chat IDs for each program's question routing (comma-separated for multiple)
+SAT_MAN_CHAT_ID: list[int] = _require_int_list("SAT_MAN_CHAT_ID")
+AP_MAN_CHAT_ID: list[int] = _require_int_list("AP_MAN_CHAT_ID")
+FS_MAN_CHAT_ID: list[int] = _require_int_list("FS_MAN_CHAT_ID")
 
 GOOGLE_SERVICE_ACCOUNT_FILE: str = _require("GOOGLE_SERVICE_ACCOUNT_FILE")
 GOOGLE_CALENDAR_ID: str = _require("GOOGLE_CALENDAR_ID")
