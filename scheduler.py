@@ -55,7 +55,7 @@ def _register_job(bot: Bot, job: dict, run_at: datetime) -> None:
             replace_existing=True,
         )
     elif job_type in ("reminder_60m", "reminder_10m"):
-        minutes = 60 if job_type == "reminder_60m" else 10
+        minutes = 60 if job_type == "reminder_60m" else 3
         scheduler.add_job(
             send_meeting_reminder,
             trigger="date",
@@ -91,7 +91,7 @@ async def schedule_followup(
 async def schedule_meeting_reminders(bot: Bot, chat_id: int, meeting_time: datetime) -> None:
     from datetime import timedelta
 
-    for minutes, job_type in ((60, "reminder_60m"), (10, "reminder_10m")):
+    for minutes, job_type in ((60, "reminder_60m"), (3, "reminder_10m")):
         run_at = meeting_time - timedelta(minutes=minutes)
         if run_at <= datetime.now(timezone.utc):
             logger.info(
