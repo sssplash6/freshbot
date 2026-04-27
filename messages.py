@@ -4,7 +4,7 @@
 # ---------------------------------------------------------------------------
 # /start
 # ---------------------------------------------------------------------------
-WELCOME = "Hi {first_name}! Welcome to Freshman Academy . Please choose the program of interest:"
+WELCOME = "Hi {first_name}! Welcome to Freshman Academy. Please choose the program of interest:"
 
 # ---------------------------------------------------------------------------
 # Program chosen
@@ -35,7 +35,7 @@ PROGRAM_BACK = "{description}\n\nWhat would you like to do?"
 FAQ_ITEMS = [
     (
         "What programs do you offer?",
-        "We offer three programs: SAT Prep, University Admissions (AP), and Full Support (FS).",
+        "We offer three programs: SAT Prep, Admissions Program (AP), and Full Support (FS).",
     ),
     (
         "How long does the program last?",
@@ -159,7 +159,6 @@ REMINDER_TO_USER = (
 REMINDER_TO_PERSON_Y = (
     "\U0001f4c5 Meeting in {minutes} minutes with @{username} ({first_name}).\n"
     "Program: {program}\n"
-    "Chat ID: {chat_id}."
 )
 
 REMINDER_TO_PERSON_Y_NO_USERNAME = (
