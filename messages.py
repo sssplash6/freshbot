@@ -93,6 +93,18 @@ EXPERT_USE_REPLY = (
     "on the question message."
 )
 
+EXPERT_CLARIFY_USE_REPLY = (
+    "To send a clarification, reply to the original question message first, then send /clarify."
+)
+
+EXPERT_CLARIFY_READY = (
+    "Got it! Send your clarification message now (just type it — no need to reply)."
+)
+
+EXPERT_CLARIFY_SENT = "✅ Clarification sent to the student."
+
+CLARIFICATION_FROM_EXPERT = "📝 Clarification from our team:\n\n{answer}"
+
 # ---------------------------------------------------------------------------
 # Ask a Question flow
 # ---------------------------------------------------------------------------

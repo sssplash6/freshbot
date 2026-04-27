@@ -225,6 +225,20 @@ async def get_question_by_expert_message(
             return dict(row) if row else None
 
 
+async def get_question_by_expert_message_any_status(
+    expert_chat_id: int, expert_message_id: int
+) -> dict | None:
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute(
+            """SELECT * FROM questions
+               WHERE expert_chat_id = ? AND expert_message_id = ?""",
+            (expert_chat_id, expert_message_id),
+        ) as cursor:
+            row = await cursor.fetchone()
+            return dict(row) if row else None
+
+
 async def mark_question_answered(question_id: int) -> None:
     async with aiosqlite.connect(DB_PATH) as db:
         await db.execute(

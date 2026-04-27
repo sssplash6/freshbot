@@ -42,6 +42,10 @@ _EXPERT_CHAT_IDS: frozenset[int] = frozenset(
     id for ids in _PROGRAM_EXPERT.values() for id in ids
 )
 
+# Tracks experts who have sent /clarify and are waiting to type their clarification text.
+# Maps expert_chat_id → user_chat_id to route the follow-up message.
+_expert_clarification_state: dict[int, int] = {}
+
 
 def _get_booking_url(program: str | None) -> str:
     return _PROGRAM_BOOKING_URL.get(program or "", GOOGLE_BOOKING_URL_SAT)
@@ -310,12 +314,57 @@ async def _handle_question_text(
 
 
 # ---------------------------------------------------------------------------
+# /clarify — expert flags intent to send a follow-up to an already-answered question
+# ---------------------------------------------------------------------------
+
+async def clarify_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    expert_chat_id = update.effective_chat.id
+
+    if expert_chat_id not in _EXPERT_CHAT_IDS:
+        return
+
+    reply_to = update.message.reply_to_message
+    if reply_to is None:
+        await update.message.reply_text(msg.EXPERT_CLARIFY_USE_REPLY)
+        return
+
+    question = await db.get_question_by_expert_message_any_status(
+        expert_chat_id, reply_to.message_id
+    )
+
+    if not question:
+        await update.message.reply_text(msg.EXPERT_REPLY_NOT_FOUND)
+        return
+
+    _expert_clarification_state[expert_chat_id] = question["user_chat_id"]
+    await update.message.reply_text(msg.EXPERT_CLARIFY_READY)
+
+
+# ---------------------------------------------------------------------------
 # Expert sends a message — route reply back to the student
 # ---------------------------------------------------------------------------
 
 async def _handle_expert_message(
     update: Update, expert_chat_id: int, text: str
 ) -> None:
+    # If expert previously sent /clarify, this message is the clarification text.
+    if expert_chat_id in _expert_clarification_state and update.message.reply_to_message is None:
+        user_chat_id = _expert_clarification_state.pop(expert_chat_id)
+        try:
+            await update.get_bot().send_message(
+                chat_id=user_chat_id,
+                text=msg.CLARIFICATION_FROM_EXPERT.format(answer=text),
+            )
+            await update.message.reply_text(msg.EXPERT_CLARIFY_SENT)
+        except Exception:
+            logger.exception(
+                "Failed to send clarification to user chat_id=%d", user_chat_id
+            )
+        return
+
+    # Expert started a new reply while in clarification mode — discard stale state.
+    _expert_clarification_state.pop(expert_chat_id, None)
+
     reply_to = update.message.reply_to_message
 
     if reply_to is None:
@@ -506,6 +555,7 @@ def build_app() -> Application:
 
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("cancel", cancel))
+    app.add_handler(CommandHandler("clarify", clarify_command))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
 
     return app
