@@ -4,7 +4,9 @@
 # ---------------------------------------------------------------------------
 # /start
 # ---------------------------------------------------------------------------
-WELCOME = "Hi {first_name}! Welcome to Freshman Academy. Please choose the program of interest:"
+WELCOME = "Hi {first_name}! Welcome to Freshman Academy. What would you like to do?"
+
+CHOOSE_PROGRAM = "Please choose the program you're interested in:"
 
 # ---------------------------------------------------------------------------
 # Program chosen
@@ -174,6 +176,9 @@ CANCEL_REPLY = "Session reset. Type /start to begin."
 # ---------------------------------------------------------------------------
 # Button labels
 # ---------------------------------------------------------------------------
+BTN_PROGRAMS = "📚 Programs"
+BTN_GET_LINK = "🔗 Get Event Link"
+
 BTN_SAT = "SAT Program"
 BTN_ADMISSIONS = "Admissions Program"
 BTN_FULL_SUPPORT = "Full Support Program"
@@ -192,4 +197,53 @@ BTN_NO_BOOKED = "Not yet \u274c"
 
 BTN_BACK = "\u2b05\ufe0f Back"
 BTN_START = "Fresh Start"
+
+# ---------------------------------------------------------------------------
+# Event gate \u2014 student flow
+# ---------------------------------------------------------------------------
+EG_NOT_MEMBER = (
+    "To access this event, you need to join the following first:\n"
+    "{links}\n\n"
+    "Once you've joined, tap the button below."
+)
+
+EG_CHECK_AGAIN_BUTTON = "I've joined \u2014 check again \u2705"
+
+EG_NO_ACTIVE_EVENT = "There is no active event at the moment. Check back soon!"
+
+EG_INVITE_SENT = (
+    "Here is your personal link to join the event group "
+    "(valid for {expiry_hours} hours, one use only):\n"
+    "{link}\n\n"
+    "Do not share this link \u2014 it will only work once."
+)
+
+EG_MISSING_CHAT = "\u2022 {name} \u2192 {invite}"
+
+# ---------------------------------------------------------------------------
+# Event gate \u2014 admin flow (PERSON_X only)
+# ---------------------------------------------------------------------------
+EG_EVENT_ACTIVATED = (
+    "\u2705 Event activated! Students who tap 'Get Event Link' will receive the event "
+    "post and a unique invite link. The previous event (if any) has been deactivated."
+)
+
+EG_ADMIN_STATUS_TEMPLATE = (
+    "\ud83d\udccc Current event:\n"
+    "Status: {status}\n"
+    "Post set: {post_set}\n"
+    "Last updated: {last_updated}\n"
+    "Links issued: {links_issued}\n"
+    "Join approvals: {join_approvals}"
+)
+
+EG_ADMIN_EVENT_CLEARED = "Event cleared. Students will see 'no active event'."
+
+EG_ADMIN_HELP = (
+    "Event gate admin commands:\n"
+    "/status \u2014 show current event status and stats\n"
+    "/clearevent \u2014 deactivate current event\n"
+    "/help \u2014 show this message\n\n"
+    "To set a new event: send any message (text, photo, video, forwarded post)."
+)
 

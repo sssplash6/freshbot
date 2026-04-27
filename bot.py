@@ -1,9 +1,13 @@
 import logging
+import time
 from datetime import datetime, timedelta, timezone
 
-from telegram import ReplyKeyboardMarkup, ReplyKeyboardRemove, Update
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardMarkup, ReplyKeyboardRemove, Update
+from telegram.error import TelegramError
 from telegram.ext import (
     Application,
+    CallbackQueryHandler,
+    ChatJoinRequestHandler,
     CommandHandler,
     ContextTypes,
     MessageHandler,
@@ -14,11 +18,17 @@ import database as db
 import messages as msg
 from config import (
     AP_MAN_CHAT_ID,
+    EVENT_GROUP_ID,
     FS_MAN_CHAT_ID,
     GOOGLE_BOOKING_URL_AP,
     GOOGLE_BOOKING_URL_FS,
     GOOGLE_BOOKING_URL_SAT,
+    LINK_EXPIRY_HOURS,
     PERSON_X_CHAT_ID,
+    REQUIRED_CHANNEL_IDS,
+    REQUIRED_CHANNEL_INVITES,
+    REQUIRED_GROUP_IDS,
+    REQUIRED_GROUP_INVITES,
     SAT_MAN_CHAT_ID,
     TELEGRAM_BOT_TOKEN,
 )
@@ -54,6 +64,14 @@ def _get_booking_url(program: str | None) -> str:
 # ---------------------------------------------------------------------------
 # Keyboards
 # ---------------------------------------------------------------------------
+
+def _main_keyboard() -> ReplyKeyboardMarkup:
+    return ReplyKeyboardMarkup(
+        [[msg.BTN_PROGRAMS], [msg.BTN_GET_LINK]],
+        resize_keyboard=True,
+        one_time_keyboard=True,
+    )
+
 
 def _program_keyboard() -> ReplyKeyboardMarkup:
     return ReplyKeyboardMarkup(
@@ -118,6 +136,10 @@ def _start_keyboard() -> ReplyKeyboardMarkup:
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     user = update.effective_user
     chat_id = update.effective_chat.id
+
+    if chat_id == PERSON_X_CHAT_ID:
+        return
+
     first_name = user.first_name or "there"
     username = user.username
 
@@ -125,7 +147,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
     await update.message.reply_text(
         msg.WELCOME.format(first_name=first_name),
-        reply_markup=_program_keyboard(),
+        reply_markup=_main_keyboard(),
     )
 
 
@@ -150,6 +172,11 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     text = update.message.text
     chat_id = update.effective_chat.id
 
+    # Event gate admin routing
+    if chat_id == PERSON_X_CHAT_ID:
+        await _eg_admin_message_handler(update, context)
+        return
+
     # Expert reply routing — intercept before normal button handling
     if chat_id in _EXPERT_CHAT_IDS:
         await _handle_expert_message(update, chat_id, text)
@@ -161,7 +188,11 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         await _handle_question_text(update, chat_id, text, context)
         return
 
-    if text == msg.BTN_SAT:
+    if text == msg.BTN_PROGRAMS:
+        await _handle_programs(update, chat_id)
+    elif text == msg.BTN_GET_LINK:
+        await _eg_student_get_link(update, chat_id, context)
+    elif text == msg.BTN_SAT:
         await _handle_program(update, chat_id, msg.BTN_SAT)
     elif text == msg.BTN_ADMISSIONS:
         await _handle_program(update, chat_id, msg.BTN_ADMISSIONS)
@@ -187,6 +218,17 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         await _handle_back(update, chat_id)
     elif text == msg.BTN_START:
         await start(update, context)
+
+
+# ---------------------------------------------------------------------------
+# Main menu → Programs
+# ---------------------------------------------------------------------------
+
+async def _handle_programs(update: Update, chat_id: int) -> None:
+    await update.message.reply_text(
+        msg.CHOOSE_PROGRAM,
+        reply_markup=_program_keyboard(),
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -520,23 +562,241 @@ async def _handle_back(update: Update, chat_id: int) -> None:
     flow = user.get("flow") if user else None
     program = user.get("program") if user else None
     description = msg.PROGRAM_DESCRIPTIONS.get(program or "", "")
+    first_name = user["first_name"] if user else "there"
 
     if flow in ("booking", "question") or (
         user and user.get("status") in ("faq_shown", "awaiting_question_text")
     ):
+        # Deep flow → back to action keyboard
         await db.set_flow(chat_id, None)
         await db.set_status(chat_id, None)
         await update.message.reply_text(
             msg.PROGRAM_BACK.format(description=description),
             reply_markup=_action_keyboard(),
         )
-    else:
-        await db.reset_user(chat_id)
-        first_name = user["first_name"] if user else "there"
+    elif program:
+        # Action keyboard → back to program list
+        await db.set_program(chat_id, None)
+        await db.set_flow(chat_id, None)
+        await db.set_status(chat_id, None)
         await update.message.reply_text(
-            msg.WELCOME.format(first_name=first_name),
+            msg.CHOOSE_PROGRAM,
             reply_markup=_program_keyboard(),
         )
+    else:
+        # Program list → back to main menu
+        await update.message.reply_text(
+            msg.WELCOME.format(first_name=first_name),
+            reply_markup=_main_keyboard(),
+        )
+
+
+# ---------------------------------------------------------------------------
+# Event gate — student flow
+# ---------------------------------------------------------------------------
+
+_EG_MEMBER_STATUSES = {"member", "administrator", "creator"}
+
+
+async def _eg_check_membership(bot, user_id: int) -> tuple[list[bool], list[bool]]:
+    """Returns (group_results, channel_results). Fails open on API error."""
+    group_results: list[bool] = []
+    for gid in REQUIRED_GROUP_IDS:
+        try:
+            member = await bot.get_chat_member(gid, user_id)
+            group_results.append(member.status in _EG_MEMBER_STATUSES)
+        except TelegramError:
+            logger.warning("Cannot check membership in %s. Failing open.", gid)
+            group_results.append(True)
+
+    channel_results: list[bool] = []
+    for cid in REQUIRED_CHANNEL_IDS:
+        try:
+            member = await bot.get_chat_member(cid, user_id)
+            channel_results.append(member.status in _EG_MEMBER_STATUSES)
+        except TelegramError:
+            logger.warning("Cannot check membership in %s. Failing open.", cid)
+            channel_results.append(True)
+
+    return group_results, channel_results
+
+
+def _eg_build_missing_links(group_results: list[bool], channel_results: list[bool]) -> list[str]:
+    missing = []
+    for i, ok in enumerate(group_results):
+        if not ok:
+            invite = REQUIRED_GROUP_INVITES[i] if i < len(REQUIRED_GROUP_INVITES) else "?"
+            missing.append(msg.EG_MISSING_CHAT.format(name=f"Required Group {i + 1}", invite=invite))
+    for i, ok in enumerate(channel_results):
+        if not ok:
+            invite = REQUIRED_CHANNEL_INVITES[i] if i < len(REQUIRED_CHANNEL_INVITES) else "?"
+            missing.append(msg.EG_MISSING_CHAT.format(name=f"Required Channel {i + 1}", invite=invite))
+    return missing
+
+
+async def _eg_send_missing_message(update: Update, missing: list[str]) -> None:
+    keyboard = [[InlineKeyboardButton(msg.EG_CHECK_AGAIN_BUTTON, callback_data="check_membership")]]
+    await update.effective_message.reply_text(
+        msg.EG_NOT_MEMBER.format(links="\n".join(missing)),
+        reply_markup=InlineKeyboardMarkup(keyboard),
+    )
+
+
+async def _eg_deliver_event_post(chat_id: int, event: dict, bot) -> None:
+    if event.get("post_message_id") and event.get("post_chat_id"):
+        await bot.forward_message(
+            chat_id=chat_id,
+            from_chat_id=event["post_chat_id"],
+            message_id=event["post_message_id"],
+        )
+    elif event.get("post_text"):
+        await bot.send_message(chat_id=chat_id, text=event["post_text"])
+
+
+async def _eg_send_invite(
+    update: Update, context: ContextTypes.DEFAULT_TYPE, student_id: int, event: dict
+) -> None:
+    expire_date = datetime.utcnow() + timedelta(hours=LINK_EXPIRY_HOURS)
+    link_name = f"student_{student_id}_{int(time.time())}"
+
+    invite = await context.bot.create_chat_invite_link(
+        chat_id=EVENT_GROUP_ID,
+        member_limit=1,
+        expire_date=expire_date,
+        name=link_name,
+    )
+
+    await db.eg_store_issued_link(
+        event_id=event["id"],
+        student_chat_id=student_id,
+        invite_link=invite.invite_link,
+        expires_at=expire_date.isoformat(),
+    )
+
+    await _eg_deliver_event_post(update.effective_chat.id, event, context.bot)
+    await update.effective_message.reply_text(
+        msg.EG_INVITE_SENT.format(expiry_hours=LINK_EXPIRY_HOURS, link=invite.invite_link)
+    )
+
+
+async def _eg_student_get_link(
+    update: Update, chat_id: int, context: ContextTypes.DEFAULT_TYPE
+) -> None:
+    group_results, channel_results = await _eg_check_membership(context.bot, chat_id)
+    missing = _eg_build_missing_links(group_results, channel_results)
+
+    if missing:
+        await _eg_send_missing_message(update, missing)
+        return
+
+    event = await db.eg_get_active_event()
+    if not event:
+        await update.message.reply_text(msg.EG_NO_ACTIVE_EVENT)
+        return
+
+    await _eg_send_invite(update, context, chat_id, event)
+
+
+async def _eg_check_membership_callback(
+    update: Update, context: ContextTypes.DEFAULT_TYPE
+) -> None:
+    query = update.callback_query
+    await query.answer()
+    user = update.effective_user
+
+    group_results, channel_results = await _eg_check_membership(context.bot, user.id)
+    missing = _eg_build_missing_links(group_results, channel_results)
+
+    if missing:
+        await _eg_send_missing_message(update, missing)
+        return
+
+    event = await db.eg_get_active_event()
+    if not event:
+        await query.edit_message_text(msg.EG_NO_ACTIVE_EVENT)
+        return
+
+    await _eg_send_invite(update, context, user.id, event)
+
+
+async def _eg_join_request_handler(
+    update: Update, context: ContextTypes.DEFAULT_TYPE
+) -> None:
+    request = update.chat_join_request
+    if request.chat.id != EVENT_GROUP_ID:
+        return
+
+    await context.bot.approve_chat_join_request(EVENT_GROUP_ID, request.from_user.id)
+
+    event = await db.eg_get_active_event()
+    if event:
+        await db.eg_log_join_approval(event["id"], request.from_user.id)
+
+    logger.info("Approved join request from user %s", request.from_user.id)
+
+
+# ---------------------------------------------------------------------------
+# Event gate — admin flow (PERSON_X only)
+# ---------------------------------------------------------------------------
+
+async def _eg_admin_message_handler(
+    update: Update, context: ContextTypes.DEFAULT_TYPE
+) -> None:
+    msg_obj = update.message
+    if msg_obj.forward_from_chat:
+        post_chat_id = msg_obj.forward_from_chat.id
+        post_message_id = msg_obj.forward_from_message_id
+        post_text = None
+    elif msg_obj.forward_from:
+        post_chat_id = msg_obj.forward_from.id
+        post_message_id = msg_obj.forward_from_message_id
+        post_text = None
+    else:
+        post_chat_id = msg_obj.chat_id
+        post_message_id = msg_obj.message_id
+        post_text = msg_obj.text or msg_obj.caption
+
+    await db.eg_save_event(post_chat_id, post_message_id, post_text)
+    await msg_obj.reply_text(msg.EG_EVENT_ACTIVATED)
+
+
+async def _eg_admin_status(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    if update.effective_user.id != PERSON_X_CHAT_ID:
+        return
+
+    event = await db.eg_get_active_event()
+    if event:
+        links = await db.eg_count_issued_links(event["id"])
+        approvals = await db.eg_count_join_approvals(event["id"])
+        text = msg.EG_ADMIN_STATUS_TEMPLATE.format(
+            status="Active",
+            post_set="Yes",
+            last_updated=event["created_at"],
+            links_issued=links,
+            join_approvals=approvals,
+        )
+    else:
+        text = msg.EG_ADMIN_STATUS_TEMPLATE.format(
+            status="No active event",
+            post_set="No",
+            last_updated="—",
+            links_issued=0,
+            join_approvals=0,
+        )
+    await update.message.reply_text(text)
+
+
+async def _eg_admin_clearevent(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    if update.effective_user.id != PERSON_X_CHAT_ID:
+        return
+    await db.eg_deactivate_event()
+    await update.message.reply_text(msg.EG_ADMIN_EVENT_CLEARED)
+
+
+async def _eg_admin_help(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    if update.effective_user.id != PERSON_X_CHAT_ID:
+        return
+    await update.message.reply_text(msg.EG_ADMIN_HELP)
 
 
 # ---------------------------------------------------------------------------
@@ -556,6 +816,11 @@ def build_app() -> Application:
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("cancel", cancel))
     app.add_handler(CommandHandler("clarify", clarify_command))
-    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
+    app.add_handler(CommandHandler("status", _eg_admin_status))
+    app.add_handler(CommandHandler("clearevent", _eg_admin_clearevent))
+    app.add_handler(CommandHandler("help", _eg_admin_help))
+    app.add_handler(CallbackQueryHandler(_eg_check_membership_callback, pattern="^check_membership$"))
+    app.add_handler(MessageHandler(filters.ALL & ~filters.COMMAND, handle_message))
+    app.add_handler(ChatJoinRequestHandler(_eg_join_request_handler))
 
     return app

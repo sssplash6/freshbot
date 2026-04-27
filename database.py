@@ -40,6 +40,36 @@ async def init_db() -> None:
                 created_at        TEXT
             )
         """)
+        await db.execute("""
+            CREATE TABLE IF NOT EXISTS eg_events (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                status TEXT NOT NULL,
+                post_chat_id INTEGER,
+                post_message_id INTEGER,
+                post_text TEXT,
+                created_at TEXT NOT NULL
+            )
+        """)
+        await db.execute("""
+            CREATE TABLE IF NOT EXISTS eg_issued_links (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                event_id INTEGER NOT NULL,
+                student_chat_id INTEGER NOT NULL,
+                invite_link TEXT NOT NULL,
+                expires_at TEXT NOT NULL,
+                created_at TEXT NOT NULL,
+                FOREIGN KEY (event_id) REFERENCES eg_events(id)
+            )
+        """)
+        await db.execute("""
+            CREATE TABLE IF NOT EXISTS eg_join_approvals (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                event_id INTEGER NOT NULL,
+                student_chat_id INTEGER NOT NULL,
+                approved_at TEXT NOT NULL,
+                FOREIGN KEY (event_id) REFERENCES eg_events(id)
+            )
+        """)
         await db.commit()
 
 
@@ -257,3 +287,87 @@ async def mark_sibling_questions_answered(user_chat_id: int, question_text: str)
             (user_chat_id, question_text),
         )
         await db.commit()
+
+
+# ---------------------------------------------------------------------------
+# Event gate operations
+# ---------------------------------------------------------------------------
+
+async def eg_save_event(
+    post_chat_id: int | None,
+    post_message_id: int | None,
+    post_text: str | None,
+) -> int:
+    now = datetime.now(timezone.utc).isoformat()
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute("UPDATE eg_events SET status = 'inactive' WHERE status = 'active'")
+        cursor = await db.execute(
+            "INSERT INTO eg_events (status, post_chat_id, post_message_id, post_text, created_at) "
+            "VALUES ('active', ?, ?, ?, ?)",
+            (post_chat_id, post_message_id, post_text, now),
+        )
+        event_id = cursor.lastrowid
+        await db.commit()
+    return event_id
+
+
+async def eg_get_active_event() -> dict | None:
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute(
+            "SELECT * FROM eg_events WHERE status = 'active' ORDER BY id DESC LIMIT 1"
+        ) as cursor:
+            row = await cursor.fetchone()
+            return dict(row) if row else None
+
+
+async def eg_deactivate_event() -> None:
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute("UPDATE eg_events SET status = 'inactive' WHERE status = 'active'")
+        await db.commit()
+
+
+async def eg_store_issued_link(
+    event_id: int,
+    student_chat_id: int,
+    invite_link: str,
+    expires_at: str,
+) -> None:
+    now = datetime.now(timezone.utc).isoformat()
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute(
+            "INSERT INTO eg_issued_links "
+            "(event_id, student_chat_id, invite_link, expires_at, created_at) "
+            "VALUES (?, ?, ?, ?, ?)",
+            (event_id, student_chat_id, invite_link, expires_at, now),
+        )
+        await db.commit()
+
+
+async def eg_log_join_approval(event_id: int, student_chat_id: int) -> None:
+    now = datetime.now(timezone.utc).isoformat()
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute(
+            "INSERT INTO eg_join_approvals (event_id, student_chat_id, approved_at) "
+            "VALUES (?, ?, ?)",
+            (event_id, student_chat_id, now),
+        )
+        await db.commit()
+
+
+async def eg_count_issued_links(event_id: int) -> int:
+    async with aiosqlite.connect(DB_PATH) as db:
+        async with db.execute(
+            "SELECT COUNT(*) FROM eg_issued_links WHERE event_id = ?", (event_id,)
+        ) as cursor:
+            row = await cursor.fetchone()
+            return row[0]
+
+
+async def eg_count_join_approvals(event_id: int) -> int:
+    async with aiosqlite.connect(DB_PATH) as db:
+        async with db.execute(
+            "SELECT COUNT(*) FROM eg_join_approvals WHERE event_id = ?", (event_id,)
+        ) as cursor:
+            row = await cursor.fetchone()
+            return row[0]

@@ -34,3 +34,16 @@ GOOGLE_WEBHOOK_TOKEN: str = _require("GOOGLE_WEBHOOK_TOKEN")
 
 WEBHOOK_HOST: str = _require("WEBHOOK_HOST")
 WEBHOOK_PORT: int = int(os.getenv("WEBHOOK_PORT", "8000"))
+
+
+def _require_str_list(name: str) -> list[str]:
+    return [x.strip() for x in _require(name).split(",") if x.strip()]
+
+
+# Event gate
+REQUIRED_GROUP_IDS: list[int] = _require_int_list("REQUIRED_GROUP_IDS")
+REQUIRED_GROUP_INVITES: list[str] = _require_str_list("REQUIRED_GROUP_INVITES")
+REQUIRED_CHANNEL_IDS: list[int] = _require_int_list("REQUIRED_CHANNEL_IDS")
+REQUIRED_CHANNEL_INVITES: list[str] = _require_str_list("REQUIRED_CHANNEL_INVITES")
+EVENT_GROUP_ID: int = int(_require("EVENT_GROUP_ID"))
+LINK_EXPIRY_HOURS: int = int(os.getenv("LINK_EXPIRY_HOURS", "24"))
