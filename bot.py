@@ -770,18 +770,9 @@ async def _eg_admin_message_handler(
         return
 
     if step == "awaiting_post":
-        if msg_obj.forward_from_chat:
-            post_chat_id = msg_obj.forward_from_chat.id
-            post_message_id = msg_obj.forward_from_message_id
-            post_text = None
-        elif msg_obj.forward_from:
-            post_chat_id = msg_obj.forward_from.id
-            post_message_id = msg_obj.forward_from_message_id
-            post_text = None
-        else:
-            post_chat_id = msg_obj.chat_id
-            post_message_id = msg_obj.message_id
-            post_text = msg_obj.text or msg_obj.caption
+        post_chat_id = msg_obj.chat_id
+        post_message_id = msg_obj.message_id
+        post_text = msg_obj.text or msg_obj.caption
 
         await db.eg_save_event(
             _eg_admin_state["event_group_id"],
