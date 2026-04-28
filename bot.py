@@ -806,13 +806,18 @@ async def _eg_admin_message_handler(
         if event:
             chat_ids = await db.get_all_chat_ids()
             sent = 0
+            failed = 0
             for cid in chat_ids:
                 try:
                     await _eg_deliver_event_post(cid, event, context.bot)
                     sent += 1
-                except Exception:
-                    pass
-            await msg_obj.reply_text(f"📢 Broadcast sent to {sent} user(s).")
+                except Exception as e:
+                    logger.warning("Broadcast failed for chat_id=%d: %s", cid, e)
+                    failed += 1
+            await msg_obj.reply_text(
+                f"📢 Broadcast: {sent} sent, {failed} failed "
+                f"({len(chat_ids)} total users in DB)."
+            )
         return
 
     # No active setup — hint to use /event
