@@ -687,7 +687,6 @@ async def _eg_send_invite(
         expires_at=expire_date.isoformat(),
     )
 
-    await _eg_deliver_event_post(update.effective_chat.id, event, context.bot)
     await update.effective_message.reply_text(
         msg.EG_INVITE_SENT.format(expiry_hours=LINK_EXPIRY_HOURS, link=invite.invite_link)
     )
@@ -696,16 +695,19 @@ async def _eg_send_invite(
 async def _eg_student_get_link(
     update: Update, chat_id: int, context: ContextTypes.DEFAULT_TYPE
 ) -> None:
+    event = await db.eg_get_active_event()
+    if not event:
+        await update.message.reply_text(msg.EG_NO_ACTIVE_EVENT)
+        return
+
+    # Deliver the event post immediately on button tap
+    await _eg_deliver_event_post(chat_id, event, context.bot)
+
     group_results, channel_results = await _eg_check_membership(context.bot, chat_id)
     missing = _eg_build_missing_links(group_results, channel_results)
 
     if missing:
         await _eg_send_missing_message(update, missing)
-        return
-
-    event = await db.eg_get_active_event()
-    if not event:
-        await update.message.reply_text(msg.EG_NO_ACTIVE_EVENT)
         return
 
     await _eg_send_invite(update, context, chat_id, event)
@@ -798,6 +800,19 @@ async def _eg_admin_message_handler(
         _eg_admin_state["step"] = None
         _eg_admin_state["event_group_id"] = None
         await msg_obj.reply_text(msg.EG_EVENT_ACTIVATED)
+
+        # Broadcast event post to all known bot users
+        event = await db.eg_get_active_event()
+        if event:
+            chat_ids = await db.get_all_chat_ids()
+            sent = 0
+            for cid in chat_ids:
+                try:
+                    await _eg_deliver_event_post(cid, event, context.bot)
+                    sent += 1
+                except Exception:
+                    pass
+            await msg_obj.reply_text(f"📢 Broadcast sent to {sent} user(s).")
         return
 
     # No active setup — hint to use /event

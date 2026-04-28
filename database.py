@@ -380,3 +380,10 @@ async def eg_count_join_approvals(event_id: int) -> int:
         ) as cursor:
             row = await cursor.fetchone()
             return row[0]
+
+
+async def get_all_chat_ids() -> list[int]:
+    async with aiosqlite.connect(DB_PATH) as db:
+        async with db.execute("SELECT chat_id FROM users") as cursor:
+            rows = await cursor.fetchall()
+            return [row[0] for row in rows]
