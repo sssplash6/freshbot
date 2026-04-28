@@ -44,12 +44,19 @@ async def init_db() -> None:
             CREATE TABLE IF NOT EXISTS eg_events (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 status TEXT NOT NULL,
+                event_group_id INTEGER,
                 post_chat_id INTEGER,
                 post_message_id INTEGER,
                 post_text TEXT,
                 created_at TEXT NOT NULL
             )
         """)
+        # Add event_group_id column to existing deployments that predate this field
+        try:
+            await db.execute("ALTER TABLE eg_events ADD COLUMN event_group_id INTEGER")
+            await db.commit()
+        except Exception:
+            pass
         await db.execute("""
             CREATE TABLE IF NOT EXISTS eg_issued_links (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -294,6 +301,7 @@ async def mark_sibling_questions_answered(user_chat_id: int, question_text: str)
 # ---------------------------------------------------------------------------
 
 async def eg_save_event(
+    event_group_id: int,
     post_chat_id: int | None,
     post_message_id: int | None,
     post_text: str | None,
@@ -302,9 +310,10 @@ async def eg_save_event(
     async with aiosqlite.connect(DB_PATH) as db:
         await db.execute("UPDATE eg_events SET status = 'inactive' WHERE status = 'active'")
         cursor = await db.execute(
-            "INSERT INTO eg_events (status, post_chat_id, post_message_id, post_text, created_at) "
-            "VALUES ('active', ?, ?, ?, ?)",
-            (post_chat_id, post_message_id, post_text, now),
+            "INSERT INTO eg_events "
+            "(status, event_group_id, post_chat_id, post_message_id, post_text, created_at) "
+            "VALUES ('active', ?, ?, ?, ?, ?)",
+            (event_group_id, post_chat_id, post_message_id, post_text, now),
         )
         event_id = cursor.lastrowid
         await db.commit()

@@ -18,7 +18,6 @@ import database as db
 import messages as msg
 from config import (
     AP_MAN_CHAT_ID,
-    EVENT_GROUP_ID,
     FS_MAN_CHAT_ID,
     GOOGLE_BOOKING_URL_AP,
     GOOGLE_BOOKING_URL_FS,
@@ -660,7 +659,7 @@ async def _eg_send_invite(
     link_name = f"student_{student_id}_{int(time.time())}"
 
     invite = await context.bot.create_chat_invite_link(
-        chat_id=EVENT_GROUP_ID,
+        chat_id=event["event_group_id"],
         member_limit=1,
         expire_date=expire_date,
         name=link_name,
@@ -723,15 +722,12 @@ async def _eg_join_request_handler(
     update: Update, context: ContextTypes.DEFAULT_TYPE
 ) -> None:
     request = update.chat_join_request
-    if request.chat.id != EVENT_GROUP_ID:
+    event = await db.eg_get_active_event()
+    if not event or request.chat.id != event["event_group_id"]:
         return
 
-    await context.bot.approve_chat_join_request(EVENT_GROUP_ID, request.from_user.id)
-
-    event = await db.eg_get_active_event()
-    if event:
-        await db.eg_log_join_approval(event["id"], request.from_user.id)
-
+    await context.bot.approve_chat_join_request(event["event_group_id"], request.from_user.id)
+    await db.eg_log_join_approval(event["id"], request.from_user.id)
     logger.info("Approved join request from user %s", request.from_user.id)
 
 
@@ -739,25 +735,67 @@ async def _eg_join_request_handler(
 # Event gate — admin flow (PERSON_X only)
 # ---------------------------------------------------------------------------
 
+# In-memory state for the two-step /event setup (only one admin, no DB needed)
+_eg_admin_state: dict = {"step": None, "event_group_id": None}
+
+
+async def _eg_admin_event_command(
+    update: Update, context: ContextTypes.DEFAULT_TYPE
+) -> None:
+    if update.effective_user.id != PERSON_X_CHAT_ID:
+        return
+    _eg_admin_state["step"] = "awaiting_group_id"
+    _eg_admin_state["event_group_id"] = None
+    await update.message.reply_text(
+        "Send me the event group ID (the negative integer, e.g. -1001234567890)."
+    )
+
+
 async def _eg_admin_message_handler(
     update: Update, context: ContextTypes.DEFAULT_TYPE
 ) -> None:
     msg_obj = update.message
-    if msg_obj.forward_from_chat:
-        post_chat_id = msg_obj.forward_from_chat.id
-        post_message_id = msg_obj.forward_from_message_id
-        post_text = None
-    elif msg_obj.forward_from:
-        post_chat_id = msg_obj.forward_from.id
-        post_message_id = msg_obj.forward_from_message_id
-        post_text = None
-    else:
-        post_chat_id = msg_obj.chat_id
-        post_message_id = msg_obj.message_id
-        post_text = msg_obj.text or msg_obj.caption
+    step = _eg_admin_state.get("step")
 
-    await db.eg_save_event(post_chat_id, post_message_id, post_text)
-    await msg_obj.reply_text(msg.EG_EVENT_ACTIVATED)
+    if step == "awaiting_group_id":
+        raw = (msg_obj.text or "").strip()
+        try:
+            group_id = int(raw)
+        except ValueError:
+            await msg_obj.reply_text("That doesn't look like a valid group ID. Send a negative integer.")
+            return
+        _eg_admin_state["event_group_id"] = group_id
+        _eg_admin_state["step"] = "awaiting_post"
+        await msg_obj.reply_text("Got it! Now send the event post — any message (text, photo, or forwarded post).")
+        return
+
+    if step == "awaiting_post":
+        if msg_obj.forward_from_chat:
+            post_chat_id = msg_obj.forward_from_chat.id
+            post_message_id = msg_obj.forward_from_message_id
+            post_text = None
+        elif msg_obj.forward_from:
+            post_chat_id = msg_obj.forward_from.id
+            post_message_id = msg_obj.forward_from_message_id
+            post_text = None
+        else:
+            post_chat_id = msg_obj.chat_id
+            post_message_id = msg_obj.message_id
+            post_text = msg_obj.text or msg_obj.caption
+
+        await db.eg_save_event(
+            _eg_admin_state["event_group_id"],
+            post_chat_id,
+            post_message_id,
+            post_text,
+        )
+        _eg_admin_state["step"] = None
+        _eg_admin_state["event_group_id"] = None
+        await msg_obj.reply_text(msg.EG_EVENT_ACTIVATED)
+        return
+
+    # No active setup — hint to use /event
+    await msg_obj.reply_text("Use /event to set up a new event.")
 
 
 async def _eg_admin_status(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -789,6 +827,8 @@ async def _eg_admin_status(update: Update, context: ContextTypes.DEFAULT_TYPE) -
 async def _eg_admin_clearevent(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if update.effective_user.id != PERSON_X_CHAT_ID:
         return
+    _eg_admin_state["step"] = None
+    _eg_admin_state["event_group_id"] = None
     await db.eg_deactivate_event()
     await update.message.reply_text(msg.EG_ADMIN_EVENT_CLEARED)
 
@@ -816,6 +856,7 @@ def build_app() -> Application:
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("cancel", cancel))
     app.add_handler(CommandHandler("clarify", clarify_command))
+    app.add_handler(CommandHandler("event", _eg_admin_event_command))
     app.add_handler(CommandHandler("status", _eg_admin_status))
     app.add_handler(CommandHandler("clearevent", _eg_admin_clearevent))
     app.add_handler(CommandHandler("help", _eg_admin_help))

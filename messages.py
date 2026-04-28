@@ -241,9 +241,9 @@ EG_ADMIN_EVENT_CLEARED = "Event cleared. Students will see 'no active event'."
 
 EG_ADMIN_HELP = (
     "Event gate admin commands:\n"
+    "/event \u2014 set up a new event (will ask for group ID then post)\n"
     "/status \u2014 show current event status and stats\n"
     "/clearevent \u2014 deactivate current event\n"
-    "/help \u2014 show this message\n\n"
-    "To set a new event: send any message (text, photo, video, forwarded post)."
+    "/help \u2014 show this message"
 )
 
