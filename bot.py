@@ -171,14 +171,26 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     text = update.message.text
     chat_id = update.effective_chat.id
 
-    # Event gate admin routing
+    # Event gate admin routing.
+    # If mid-event-setup OR not a reply to a known question, route to admin handler.
+    # If PERSON_X is also an expert and is replying (reply_to_message is set),
+    # let the expert handler run so student questions get answered.
     if chat_id == PERSON_X_CHAT_ID:
-        await _eg_admin_message_handler(update, context)
-        return
+        in_setup = _eg_admin_state.get("step") is not None
+        is_reply = update.message.reply_to_message is not None
+        if in_setup or not (chat_id in _EXPERT_CHAT_IDS and is_reply and text):
+            await _eg_admin_message_handler(update, context)
+            return
+        # Fall through to expert handler below
 
     # Expert reply routing — intercept before normal button handling
     if chat_id in _EXPERT_CHAT_IDS:
-        await _handle_expert_message(update, chat_id, text)
+        if text is not None:
+            await _handle_expert_message(update, chat_id, text)
+        return
+
+    # Ignore non-text messages from regular users
+    if text is None:
         return
 
     # Capture free-text question from user
@@ -299,8 +311,11 @@ async def _handle_faq_no(update: Update, chat_id: int) -> None:
 # ---------------------------------------------------------------------------
 
 async def _handle_question_text(
-    update: Update, chat_id: int, text: str, context: ContextTypes.DEFAULT_TYPE
+    update: Update, chat_id: int, text: str | None, context: ContextTypes.DEFAULT_TYPE
 ) -> None:
+    if not text:
+        await update.message.reply_text(msg.FAQ_TYPE_QUESTION, reply_markup=_back_keyboard())
+        return
     user = await db.get_user(chat_id)
     program = user.get("program") if user else None
     first_name = user["first_name"] if user else "Unknown"
