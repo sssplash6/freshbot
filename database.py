@@ -79,6 +79,13 @@ async def init_db() -> None:
                 FOREIGN KEY (event_id) REFERENCES eg_events(id)
             )
         """)
+        await db.execute("""
+            CREATE TABLE IF NOT EXISTS program_videos (
+                program    TEXT PRIMARY KEY,
+                file_id    TEXT NOT NULL,
+                created_at TEXT NOT NULL
+            )
+        """)
         await db.commit()
 
 
@@ -382,6 +389,28 @@ async def eg_count_join_approvals(event_id: int) -> int:
         ) as cursor:
             row = await cursor.fetchone()
             return row[0]
+
+
+async def upsert_program_video(program: str, file_id: str) -> None:
+    now = datetime.now(timezone.utc).isoformat()
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute("""
+            INSERT INTO program_videos (program, file_id, created_at)
+            VALUES (?, ?, ?)
+            ON CONFLICT(program) DO UPDATE SET
+                file_id    = excluded.file_id,
+                created_at = excluded.created_at
+        """, (program, file_id, now))
+        await db.commit()
+
+
+async def get_program_video(program: str) -> str | None:
+    async with aiosqlite.connect(DB_PATH) as db:
+        async with db.execute(
+            "SELECT file_id FROM program_videos WHERE program = ?", (program,)
+        ) as cursor:
+            row = await cursor.fetchone()
+            return row[0] if row else None
 
 
 async def get_all_chat_ids() -> list[int]:

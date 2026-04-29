@@ -88,7 +88,7 @@ def _program_keyboard() -> ReplyKeyboardMarkup:
         [
             [msg.BTN_SAT, msg.BTN_ADMISSIONS],
             [msg.BTN_FULL_SUPPORT, msg.BTN_ADV_PLACEMENT],
-            [msg.BTN_IMKON],
+            [msg.BTN_IMKON, msg.BTN_HOME],
         ],
         resize_keyboard=True,
         one_time_keyboard=True,
@@ -191,6 +191,9 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     # If PERSON_X is also an expert and is replying (reply_to_message is set),
     # let the expert handler run so student questions get answered.
     if chat_id == PERSON_X_CHAT_ID:
+        if _video_admin_state.get("step") is not None:
+            await _video_admin_message_handler(update, context)
+            return
         in_setup = _eg_admin_state.get("step") is not None
         is_reply = update.message.reply_to_message is not None
         if in_setup or not (chat_id in _EXPERT_CHAT_IDS and is_reply and text):
@@ -246,6 +249,16 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         await _handle_booked_no(update, chat_id)
     elif text == msg.BTN_BACK:
         await _handle_back(update, chat_id)
+    elif text == msg.BTN_HOME:
+        user = await db.get_user(chat_id)
+        first_name = user["first_name"] if user else "there"
+        await db.set_program(chat_id, None)
+        await db.set_flow(chat_id, None)
+        await db.set_status(chat_id, None)
+        await update.message.reply_text(
+            msg.WELCOME.format(first_name=first_name),
+            reply_markup=_main_keyboard(),
+        )
     elif text == msg.BTN_START:
         await start(update, context)
     else:
@@ -276,10 +289,16 @@ async def _handle_programs(update: Update, chat_id: int) -> None:
 async def _handle_program(update: Update, chat_id: int, program: str) -> None:
     await db.set_program(chat_id, program)
     description = msg.PROGRAM_DESCRIPTIONS.get(program, "")
-    await update.message.reply_text(
-        msg.PROGRAM_CHOSEN.format(description=description),
-        reply_markup=_action_keyboard(),
-    )
+    file_id = await db.get_program_video(program)
+
+    if file_id:
+        await update.message.reply_text(msg.PROGRAM_CHOSEN.format(description=description))
+        await update.message.reply_video(file_id, reply_markup=_action_keyboard())
+    else:
+        await update.message.reply_text(
+            msg.PROGRAM_CHOSEN.format(description=description),
+            reply_markup=_action_keyboard(),
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -796,6 +815,9 @@ async def _eg_join_request_handler(
 # In-memory state for the two-step /event setup (only one admin, no DB needed)
 _eg_admin_state: dict = {"step": None, "event_group_id": None}
 
+# In-memory state for /setvideo admin flow
+_video_admin_state: dict = {"step": None, "program": None}
+
 
 async def _eg_admin_event_command(
     update: Update, context: ContextTypes.DEFAULT_TYPE
@@ -907,6 +929,54 @@ async def _eg_admin_help(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 
 
 # ---------------------------------------------------------------------------
+# /setvideo — admin flow (PERSON_X only)
+# ---------------------------------------------------------------------------
+
+async def _video_admin_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    if update.effective_user.id != PERSON_X_CHAT_ID:
+        return
+    _video_admin_state["step"] = "awaiting_program"
+    _video_admin_state["program"] = None
+    keyboard = [
+        [InlineKeyboardButton(p, callback_data=f"setvideo_{p}")]
+        for p in msg.PROGRAM_DESCRIPTIONS.keys()
+    ]
+    await update.message.reply_text(
+        msg.SETVIDEO_CHOOSE_PROGRAM,
+        reply_markup=InlineKeyboardMarkup(keyboard),
+    )
+
+
+async def _video_admin_program_callback(
+    update: Update, context: ContextTypes.DEFAULT_TYPE
+) -> None:
+    query = update.callback_query
+    await query.answer()
+    if update.effective_user.id != PERSON_X_CHAT_ID:
+        return
+    program = query.data[len("setvideo_"):]
+    _video_admin_state["step"] = "awaiting_video"
+    _video_admin_state["program"] = program
+    await query.edit_message_text(msg.SETVIDEO_SEND_VIDEO.format(program=program))
+
+
+async def _video_admin_message_handler(
+    update: Update, context: ContextTypes.DEFAULT_TYPE
+) -> None:
+    if _video_admin_state.get("step") != "awaiting_video":
+        return
+    video = update.message.video
+    if not video:
+        await update.message.reply_text(msg.SETVIDEO_NOT_VIDEO)
+        return
+    program = _video_admin_state["program"]
+    await db.upsert_program_video(program, video.file_id)
+    _video_admin_state["step"] = None
+    _video_admin_state["program"] = None
+    await update.message.reply_text(msg.SETVIDEO_SAVED.format(program=program))
+
+
+# ---------------------------------------------------------------------------
 # App builder
 # ---------------------------------------------------------------------------
 
@@ -927,7 +997,9 @@ def build_app() -> Application:
     app.add_handler(CommandHandler("status", _eg_admin_status))
     app.add_handler(CommandHandler("clearevent", _eg_admin_clearevent))
     app.add_handler(CommandHandler("help", _eg_admin_help))
+    app.add_handler(CommandHandler("setvideo", _video_admin_command))
     app.add_handler(CallbackQueryHandler(_eg_check_membership_callback, pattern="^check_membership$"))
+    app.add_handler(CallbackQueryHandler(_video_admin_program_callback, pattern="^setvideo_"))
     app.add_handler(MessageHandler(filters.ALL & ~filters.COMMAND, handle_message))
     app.add_handler(ChatJoinRequestHandler(_eg_join_request_handler))
 

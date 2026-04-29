@@ -211,6 +211,7 @@ BTN_YES_BOOKED = "Yes, I booked \u2705"
 BTN_NO_BOOKED = "Not yet \u274c"
 
 BTN_BACK = "\u2b05\ufe0f Back"
+BTN_HOME = "\U0001f3e0 Home"
 BTN_START = "Fresh Start"
 
 # ---------------------------------------------------------------------------
@@ -253,6 +254,11 @@ EG_ADMIN_STATUS_TEMPLATE = (
 )
 
 EG_ADMIN_EVENT_CLEARED = "Event cleared. Students will see 'no active event'."
+
+SETVIDEO_CHOOSE_PROGRAM = "Which program do you want to set the intro video for?"
+SETVIDEO_SEND_VIDEO = "Got it! Now send the video for *{program}*."
+SETVIDEO_SAVED = "✅ Intro video saved for {program}."
+SETVIDEO_NOT_VIDEO = "That doesn't look like a video file. Please send a video."
 
 EG_ADMIN_HELP = (
     "Event gate admin commands:\n"
