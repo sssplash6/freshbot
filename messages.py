@@ -60,7 +60,7 @@ FAQ_ITEMS = [
     ),
     (
         "How do I book a session?",
-        "Tap 'Book an interview' in the menu to schedule a session via our calendar.",
+        "Tap 'Reserve a spot' in the menu to schedule a session via our calendar.",
     ),
     (
         "Can I switch programs?",
@@ -199,7 +199,7 @@ BTN_ADV_PLACEMENT = "Advanced Placement"
 BTN_IMKON = "Imkon"
 
 BTN_ASK_QUESTION = "Ask a question"
-BTN_REGISTER = "Book an interview"
+BTN_REGISTER = "Reserve a spot"
 
 BTN_FAQ_YES = "Yes, it's answered \u2705"
 BTN_FAQ_NO = "No, I have another question \u274c"
