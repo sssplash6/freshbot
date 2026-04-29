@@ -248,6 +248,14 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         await _handle_back(update, chat_id)
     elif text == msg.BTN_START:
         await start(update, context)
+    else:
+        # Unrecognized text — likely an old cached button. Push a fresh keyboard.
+        user = await db.get_user(chat_id)
+        first_name = user["first_name"] if user else "there"
+        await update.message.reply_text(
+            msg.WELCOME.format(first_name=first_name),
+            reply_markup=_main_keyboard(),
+        )
 
 
 # ---------------------------------------------------------------------------
