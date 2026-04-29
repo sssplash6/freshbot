@@ -6,8 +6,6 @@
 # ---------------------------------------------------------------------------
 WELCOME = "Hi {first_name}! Welcome to Freshman Academy. What would you like to do?"
 
-CHOOSE_PROGRAM = "Please choose the program you're interested in:"
-
 # ---------------------------------------------------------------------------
 # Program chosen
 # ---------------------------------------------------------------------------
@@ -15,18 +13,31 @@ CHOOSE_PROGRAM = "Please choose the program you're interested in:"
 # Edit each description below when ready — keep the dict keys matching the button labels exactly
 PROGRAM_DESCRIPTIONS = {
     "SAT Program": (
-        "Lorem ipsum dolor sit amet, consectetur adipiscing elit. "
-        "Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua."
+        "Lorem ipsum dolor sit amet, consectetur adipisicing elit. "
+        "Temporibus nemo iusto at autem similique reiciendis itaque esse quasi reprehenderit iure."
     ),
     "Admissions Program": (
-        "Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris "
-        "nisi ut aliquip ex ea commodo consequat."
+        "Lorem ipsum dolor sit, amet consectetur adipisicing elit. "
+        "Deleniti maxime esse eligendi cum iure repellat eos ducimus fugiat est expedita."
     ),
     "Full Support Program": (
-        "Duis aute irure dolor in reprehenderit in voluptate velit esse cillum "
-        "dolore eu fugiat nulla pariatur."
+        "Lorem ipsum dolor sit amet consectetur adipisicing elit. "
+        "Ipsa doloribus numquam maiores commodi quibusdam molestiae placeat ipsum eveniet dignissimos totam!"
+    ),
+    "Advanced Placement": (
+        "Lorem, ipsum dolor sit amet consectetur adipisicing elit. "
+        "Ullam tempore cumque soluta nemo nobis ipsa, perspiciatis officia doloremque earum ab."
+    ),
+    "Imkon": (
+        "Lorem ipsum dolor sit amet, consectetur adipisicing elit. "
+        "Voluptate, necessitatibus ex! Quia magni cupiditate mollitia ab impedit ad cum doloribus?"
     ),
 }
+
+_program_list = "\n\n".join(
+    f"{name}\n{desc}" for name, desc in PROGRAM_DESCRIPTIONS.items()
+)
+CHOOSE_PROGRAM = _program_list + "\n\nChoose your program:"
 
 PROGRAM_CHOSEN = "Great choice!\n\n{description}\n\nWhat would you like to do?"
 PROGRAM_BACK = "{description}\n\nWhat would you like to do?"
@@ -136,6 +147,8 @@ ESCALATION_TO_PERSON_X_NO_USERNAME = (
 # ---------------------------------------------------------------------------
 # Register / Book a Meeting flow
 # ---------------------------------------------------------------------------
+WEBSITE_LINK_INTRO = "Here is the relevant section of our website:"
+
 BOOKING_INTRO = "Please use the link below to book your session:"
 
 BOOKING_CONFIRM_PROMPT = "Have you completed your booking?"
@@ -182,6 +195,8 @@ BTN_GET_LINK = "🔗 Get Event Link"
 BTN_SAT = "SAT Program"
 BTN_ADMISSIONS = "Admissions Program"
 BTN_FULL_SUPPORT = "Full Support Program"
+BTN_ADV_PLACEMENT = "Advanced Placement"
+BTN_IMKON = "Imkon"
 
 BTN_ASK_QUESTION = "Ask a question"
 BTN_REGISTER = "Book an interview"

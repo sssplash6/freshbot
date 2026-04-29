@@ -17,11 +17,12 @@ from telegram.ext import (
 import database as db
 import messages as msg
 from config import (
+    ADV_PLACEMENT_MAN_CHAT_ID,
     AP_MAN_CHAT_ID,
     FS_MAN_CHAT_ID,
-    GOOGLE_BOOKING_URL_AP,
-    GOOGLE_BOOKING_URL_FS,
+    GOOGLE_BOOKING_URL_ADV_PLACEMENT,
     GOOGLE_BOOKING_URL_SAT,
+    IMKON_MAN_CHAT_ID,
     LINK_EXPIRY_HOURS,
     PERSON_X_CHAT_ID,
     REQUIRED_CHANNEL_IDS,
@@ -30,6 +31,9 @@ from config import (
     REQUIRED_GROUP_INVITES,
     SAT_MAN_CHAT_ID,
     TELEGRAM_BOT_TOKEN,
+    WEBSITE_URL_ADMISSIONS,
+    WEBSITE_URL_FULL_SUPPORT,
+    WEBSITE_URL_IMKON,
 )
 
 logger = logging.getLogger(__name__)
@@ -39,12 +43,19 @@ _PROGRAM_EXPERT: dict[str, list[int]] = {
     msg.BTN_SAT: SAT_MAN_CHAT_ID,
     msg.BTN_ADMISSIONS: AP_MAN_CHAT_ID,
     msg.BTN_FULL_SUPPORT: FS_MAN_CHAT_ID,
+    msg.BTN_ADV_PLACEMENT: ADV_PLACEMENT_MAN_CHAT_ID,
+    msg.BTN_IMKON: IMKON_MAN_CHAT_ID,
 }
 
 _PROGRAM_BOOKING_URL: dict[str, str] = {
     msg.BTN_SAT: GOOGLE_BOOKING_URL_SAT,
-    msg.BTN_ADMISSIONS: GOOGLE_BOOKING_URL_AP,
-    msg.BTN_FULL_SUPPORT: GOOGLE_BOOKING_URL_FS,
+    msg.BTN_ADV_PLACEMENT: GOOGLE_BOOKING_URL_ADV_PLACEMENT,
+}
+
+_PROGRAM_WEBSITE_URL: dict[str, str] = {
+    msg.BTN_ADMISSIONS: WEBSITE_URL_ADMISSIONS,
+    msg.BTN_FULL_SUPPORT: WEBSITE_URL_FULL_SUPPORT,
+    msg.BTN_IMKON: WEBSITE_URL_IMKON,
 }
 
 _EXPERT_CHAT_IDS: frozenset[int] = frozenset(
@@ -74,7 +85,11 @@ def _main_keyboard() -> ReplyKeyboardMarkup:
 
 def _program_keyboard() -> ReplyKeyboardMarkup:
     return ReplyKeyboardMarkup(
-        [[msg.BTN_SAT], [msg.BTN_ADMISSIONS], [msg.BTN_FULL_SUPPORT]],
+        [
+            [msg.BTN_SAT, msg.BTN_ADMISSIONS],
+            [msg.BTN_FULL_SUPPORT, msg.BTN_ADV_PLACEMENT],
+            [msg.BTN_IMKON],
+        ],
         resize_keyboard=True,
         one_time_keyboard=True,
     )
@@ -209,6 +224,10 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         await _handle_program(update, chat_id, msg.BTN_ADMISSIONS)
     elif text == msg.BTN_FULL_SUPPORT:
         await _handle_program(update, chat_id, msg.BTN_FULL_SUPPORT)
+    elif text == msg.BTN_ADV_PLACEMENT:
+        await _handle_program(update, chat_id, msg.BTN_ADV_PLACEMENT)
+    elif text == msg.BTN_IMKON:
+        await _handle_program(update, chat_id, msg.BTN_IMKON)
     elif text == msg.BTN_ASK_QUESTION:
         await _handle_ask_question(update, chat_id, context)
     elif text == msg.BTN_REGISTER:
@@ -465,6 +484,20 @@ async def _handle_register(update: Update, chat_id: int) -> None:
         return
 
     program = user.get("program") if user else None
+
+    # Programs that link to a website section — no booking confirmation needed
+    if program in _PROGRAM_WEBSITE_URL:
+        await update.message.reply_text(
+            msg.WEBSITE_LINK_INTRO,
+            reply_markup=ReplyKeyboardRemove(),
+        )
+        await update.message.reply_text(
+            _PROGRAM_WEBSITE_URL[program],
+            reply_markup=_action_keyboard(),
+        )
+        return
+
+    # Programs with Google Calendar booking flow
     booking_url = _get_booking_url(program)
 
     await db.set_flow(chat_id, "booking")
