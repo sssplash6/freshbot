@@ -987,17 +987,18 @@ def build_app() -> Application:
         .build()
     )
 
-    app.add_handler(CommandHandler("start", start))
-    app.add_handler(CommandHandler("cancel", cancel))
-    app.add_handler(CommandHandler("clarify", clarify_command))
-    app.add_handler(CommandHandler("event", _eg_admin_event_command))
-    app.add_handler(CommandHandler("status", _eg_admin_status))
-    app.add_handler(CommandHandler("clearevent", _eg_admin_clearevent))
-    app.add_handler(CommandHandler("help", _eg_admin_help))
-    app.add_handler(CommandHandler("setvideo", _video_admin_command))
+    _private = filters.ChatType.PRIVATE
+    app.add_handler(CommandHandler("start", start, filters=_private))
+    app.add_handler(CommandHandler("cancel", cancel, filters=_private))
+    app.add_handler(CommandHandler("clarify", clarify_command, filters=_private))
+    app.add_handler(CommandHandler("event", _eg_admin_event_command, filters=_private))
+    app.add_handler(CommandHandler("status", _eg_admin_status, filters=_private))
+    app.add_handler(CommandHandler("clearevent", _eg_admin_clearevent, filters=_private))
+    app.add_handler(CommandHandler("help", _eg_admin_help, filters=_private))
+    app.add_handler(CommandHandler("setvideo", _video_admin_command, filters=_private))
     app.add_handler(CallbackQueryHandler(_eg_check_membership_callback, pattern="^check_membership$"))
     app.add_handler(CallbackQueryHandler(_video_admin_program_callback, pattern="^setvideo_"))
-    app.add_handler(MessageHandler(filters.ALL & ~filters.COMMAND, handle_message))
+    app.add_handler(MessageHandler(_private & ~filters.COMMAND, handle_message))
     app.add_handler(ChatJoinRequestHandler(_eg_join_request_handler))
 
     return app
