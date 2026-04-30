@@ -802,7 +802,7 @@ async def _eg_send_missing_message(update: Update, missing: list[str]) -> None:
 
 async def _eg_deliver_event_post(chat_id: int, event: dict, bot) -> None:
     if event.get("post_message_id") and event.get("post_chat_id"):
-        await bot.forward_message(
+        await bot.copy_message(
             chat_id=chat_id,
             from_chat_id=event["post_chat_id"],
             message_id=event["post_message_id"],
