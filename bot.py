@@ -310,13 +310,7 @@ async def _handle_program(update: Update, chat_id: int, program: str) -> None:
 # ---------------------------------------------------------------------------
 
 async def _handle_general_inquiry(update: Update, chat_id: int) -> None:
-    user = await db.get_user(chat_id)
-    if user and user.get("flow") == "general_inquiry":
-        return
-    await db.set_flow(chat_id, "general_inquiry")
-    await db.set_status(chat_id, "faq_shown")
-    await update.message.reply_text(msg.GENERAL_INQUIRY_INTRO)
-    await update.message.reply_text(msg.FAQ_MESSAGE, reply_markup=_faq_keyboard())
+    await update.message.reply_text(msg.PROGRAMS_COMING_SOON)
 
 
 # ---------------------------------------------------------------------------
