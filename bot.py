@@ -276,10 +276,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 # ---------------------------------------------------------------------------
 
 async def _handle_programs(update: Update, chat_id: int) -> None:
-    await update.message.reply_text(
-        msg.CHOOSE_PROGRAM,
-        reply_markup=_program_keyboard(),
-    )
+    await update.message.reply_text(msg.PROGRAMS_COMING_SOON)
 
 
 # ---------------------------------------------------------------------------
