@@ -79,8 +79,33 @@ FAQ_MESSAGE = (
     + "\n\n───\nDid this answer your question?"
 )
 
+GENERAL_INQUIRY_INTRO = (
+    "You can browse our FAQs below, or ask our team directly if you still have a question."
+)
+
 FAQ_TYPE_QUESTION = (
     "Please type your question below and our team will get back to you shortly:"
+)
+
+FOLLOWUP_TYPE_QUESTION = (
+    "Please type your follow-up question and we'll get back to you shortly:"
+)
+
+FOLLOWUP_FORWARDED = (
+    "✅ Your follow-up has been forwarded! You will receive a reply here shortly."
+)
+
+FOLLOWUP_NO_PREVIOUS = (
+    "You don't have any previous answered questions to follow up on."
+)
+
+EXPERT_FOLLOWUP = (
+    "🔄 Follow-up from {first_name}{username_part} (Program: {program}):\n\n"
+    "{followup}\n\n"
+    "─── Previous conversation ───\n"
+    "❓ {original_question}\n"
+    "💬 {expert_answer}\n\n"
+    "Reply to this message to send your answer to the student."
 )
 
 QUESTION_FORWARDED = (
@@ -200,6 +225,7 @@ BTN_FULL_SUPPORT = "Full Support Program"
 BTN_ADV_PLACEMENT = "Advanced Placement"
 BTN_IMKON = "Imkon"
 
+BTN_GENERAL_INQUIRY = "💬 General Inquiry"
 BTN_ASK_QUESTION = "Ask a question"
 BTN_REGISTER = "Reserve a spot"
 

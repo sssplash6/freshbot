@@ -59,6 +59,12 @@ async def init_db() -> None:
             await db.commit()
         except Exception:
             pass
+        # Add answer_text column to existing deployments that predate this field
+        try:
+            await db.execute("ALTER TABLE questions ADD COLUMN answer_text TEXT")
+            await db.commit()
+        except Exception:
+            pass
         await db.execute("""
             CREATE TABLE IF NOT EXISTS eg_issued_links (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -285,13 +291,26 @@ async def get_question_by_expert_message_any_status(
             return dict(row) if row else None
 
 
-async def mark_question_answered(question_id: int) -> None:
+async def mark_question_answered(question_id: int, answer_text: str | None = None) -> None:
     async with aiosqlite.connect(DB_PATH) as db:
         await db.execute(
-            "UPDATE questions SET status = 'answered' WHERE id = ?",
-            (question_id,),
+            "UPDATE questions SET status = 'answered', answer_text = ? WHERE id = ?",
+            (answer_text, question_id),
         )
         await db.commit()
+
+
+async def get_last_answered_question(user_chat_id: int) -> dict | None:
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute(
+            """SELECT * FROM questions
+               WHERE user_chat_id = ? AND status = 'answered'
+               ORDER BY id DESC LIMIT 1""",
+            (user_chat_id,),
+        ) as cursor:
+            row = await cursor.fetchone()
+            return dict(row) if row else None
 
 
 async def mark_sibling_questions_answered(user_chat_id: int, question_text: str) -> None:

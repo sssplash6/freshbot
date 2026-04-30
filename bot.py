@@ -20,6 +20,7 @@ from config import (
     ADV_PLACEMENT_MAN_CHAT_ID,
     AP_MAN_CHAT_ID,
     FS_MAN_CHAT_ID,
+    GENERAL_MAN_CHAT_ID,
     GOOGLE_BOOKING_URL_ADV_PLACEMENT,
     GOOGLE_BOOKING_URL_SAT,
     IMKON_MAN_CHAT_ID,
@@ -45,6 +46,7 @@ _PROGRAM_EXPERT: dict[str, list[int]] = {
     msg.BTN_FULL_SUPPORT: FS_MAN_CHAT_ID,
     msg.BTN_ADV_PLACEMENT: ADV_PLACEMENT_MAN_CHAT_ID,
     msg.BTN_IMKON: IMKON_MAN_CHAT_ID,
+    "General Inquiry": GENERAL_MAN_CHAT_ID,
 }
 
 _PROGRAM_BOOKING_URL: dict[str, str] = {
@@ -77,7 +79,7 @@ def _get_booking_url(program: str | None) -> str:
 
 def _main_keyboard() -> ReplyKeyboardMarkup:
     return ReplyKeyboardMarkup(
-        [[msg.BTN_PROGRAMS], [msg.BTN_GET_LINK]],
+        [[msg.BTN_PROGRAMS], [msg.BTN_GENERAL_INQUIRY], [msg.BTN_GET_LINK]],
         resize_keyboard=True,
         one_time_keyboard=True,
     )
@@ -211,14 +213,19 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     if text is None:
         return
 
-    # Capture free-text question from user
+    # Capture free-text input from user
     user = await db.get_user(chat_id)
     if user and user.get("status") == "awaiting_question_text":
         await _handle_question_text(update, chat_id, text, context)
         return
+    if user and user.get("status") == "awaiting_followup_text":
+        await _handle_followup_text(update, chat_id, text, context)
+        return
 
     if text == msg.BTN_PROGRAMS:
         await _handle_programs(update, chat_id)
+    elif text == msg.BTN_GENERAL_INQUIRY:
+        await _handle_general_inquiry(update, chat_id)
     elif text == msg.BTN_GET_LINK:
         await _eg_student_get_link(update, chat_id, context)
     elif text == msg.BTN_SAT:
@@ -299,6 +306,20 @@ async def _handle_program(update: Update, chat_id: int, program: str) -> None:
 
 
 # ---------------------------------------------------------------------------
+# General Inquiry — main-menu FAQ/question flow (no program context)
+# ---------------------------------------------------------------------------
+
+async def _handle_general_inquiry(update: Update, chat_id: int) -> None:
+    user = await db.get_user(chat_id)
+    if user and user.get("flow") == "general_inquiry":
+        return
+    await db.set_flow(chat_id, "general_inquiry")
+    await db.set_status(chat_id, "faq_shown")
+    await update.message.reply_text(msg.GENERAL_INQUIRY_INTRO)
+    await update.message.reply_text(msg.FAQ_MESSAGE, reply_markup=_faq_keyboard())
+
+
+# ---------------------------------------------------------------------------
 # Ask a Question — shows FAQ then routes to expert if needed
 # ---------------------------------------------------------------------------
 
@@ -360,7 +381,8 @@ async def _handle_question_text(
         await update.message.reply_text(msg.FAQ_TYPE_QUESTION, reply_markup=_back_keyboard())
         return
     user = await db.get_user(chat_id)
-    program = user.get("program") if user else None
+    flow = user.get("flow") if user else None
+    program = "General Inquiry" if flow == "general_inquiry" else (user.get("program") if user else None)
     first_name = user["first_name"] if user else "Unknown"
     raw_username = user.get("username") if user else None
 
@@ -487,7 +509,7 @@ async def _handle_expert_message(
             chat_id=user_chat_id,
             text=msg.ANSWER_FROM_EXPERT.format(answer=text),
         )
-        await db.mark_question_answered(question_id)
+        await db.mark_question_answered(question_id, text)
         await db.mark_sibling_questions_answered(user_chat_id, question_text)
         await db.set_status(user_chat_id, "answered")
         await update.message.reply_text(msg.EXPERT_REPLY_SENT)
@@ -635,7 +657,14 @@ async def _handle_back(update: Update, chat_id: int) -> None:
     description = msg.PROGRAM_DESCRIPTIONS.get(program or "", "")
     first_name = user["first_name"] if user else "there"
 
-    if flow in ("booking", "question") or (
+    if flow == "general_inquiry":
+        await db.set_flow(chat_id, None)
+        await db.set_status(chat_id, None)
+        await update.message.reply_text(
+            msg.WELCOME.format(first_name=first_name),
+            reply_markup=_main_keyboard(),
+        )
+    elif flow in ("booking", "question") or (
         user and user.get("status") in ("faq_shown", "awaiting_question_text")
     ):
         # Deep flow → back to action keyboard
@@ -660,6 +689,64 @@ async def _handle_back(update: Update, chat_id: int) -> None:
             msg.WELCOME.format(first_name=first_name),
             reply_markup=_main_keyboard(),
         )
+
+
+# ---------------------------------------------------------------------------
+# /followup — user sends a follow-up after receiving an answer
+# ---------------------------------------------------------------------------
+
+async def followup_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    chat_id = update.effective_chat.id
+    last_q = await db.get_last_answered_question(chat_id)
+    if not last_q:
+        await update.message.reply_text(msg.FOLLOWUP_NO_PREVIOUS)
+        return
+    await db.set_status(chat_id, "awaiting_followup_text")
+    await update.message.reply_text(msg.FOLLOWUP_TYPE_QUESTION, reply_markup=_back_keyboard())
+
+
+async def _handle_followup_text(
+    update: Update, chat_id: int, text: str | None, context: ContextTypes.DEFAULT_TYPE
+) -> None:
+    if not text:
+        await update.message.reply_text(msg.FOLLOWUP_TYPE_QUESTION, reply_markup=_back_keyboard())
+        return
+
+    last_q = await db.get_last_answered_question(chat_id)
+    if not last_q:
+        await update.message.reply_text(msg.FOLLOWUP_NO_PREVIOUS, reply_markup=_start_keyboard())
+        await db.set_status(chat_id, None)
+        return
+
+    user = await db.get_user(chat_id)
+    first_name = user["first_name"] if user else "Unknown"
+    raw_username = user.get("username") if user else None
+    username_part = f" (@{raw_username})" if raw_username else ""
+    program = last_q.get("program") or "General Inquiry"
+
+    expert_chat_ids = _PROGRAM_EXPERT.get(program, GENERAL_MAN_CHAT_ID)
+    expert_text = msg.EXPERT_FOLLOWUP.format(
+        first_name=first_name,
+        username_part=username_part,
+        program=program,
+        followup=text,
+        original_question=last_q["question_text"],
+        expert_answer=last_q.get("answer_text") or "—",
+    )
+
+    for expert_chat_id in expert_chat_ids:
+        try:
+            sent = await context.bot.send_message(chat_id=expert_chat_id, text=expert_text)
+            question_id = await db.save_question(chat_id, program, text)
+            await db.set_question_expert_message(question_id, expert_chat_id, sent.message_id)
+        except Exception:
+            logger.exception(
+                "Failed to forward follow-up from chat_id=%d to expert %d", chat_id, expert_chat_id
+            )
+
+    await db.set_flow(chat_id, None)
+    await db.set_status(chat_id, "question_pending")
+    await update.message.reply_text(msg.FOLLOWUP_FORWARDED, reply_markup=_start_keyboard())
 
 
 # ---------------------------------------------------------------------------
@@ -996,6 +1083,7 @@ def build_app() -> Application:
     app.add_handler(CommandHandler("clearevent", _eg_admin_clearevent, filters=_private))
     app.add_handler(CommandHandler("help", _eg_admin_help, filters=_private))
     app.add_handler(CommandHandler("setvideo", _video_admin_command, filters=_private))
+    app.add_handler(CommandHandler("followup", followup_command, filters=_private))
     app.add_handler(CallbackQueryHandler(_eg_check_membership_callback, pattern="^check_membership$"))
     app.add_handler(CallbackQueryHandler(_video_admin_program_callback, pattern="^setvideo_"))
     app.add_handler(MessageHandler(_private & ~filters.COMMAND, handle_message))
