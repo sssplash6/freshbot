@@ -1053,6 +1053,28 @@ async def _eg_admin_help(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     await update.message.reply_text(msg.EG_ADMIN_HELP)
 
 
+async def _broadcast_keyboard_command(
+    update: Update, context: ContextTypes.DEFAULT_TYPE
+) -> None:
+    if update.effective_user.id != PERSON_X_CHAT_ID:
+        return
+    chat_ids = await db.get_all_chat_ids()
+    sent = failed = 0
+    for cid in chat_ids:
+        try:
+            await context.bot.send_message(
+                chat_id=cid,
+                text=msg.BROADCAST_KEYBOARD_MESSAGE,
+                reply_markup=_main_keyboard(),
+            )
+            sent += 1
+        except Exception:
+            failed += 1
+    await update.message.reply_text(
+        msg.BROADCAST_KEYBOARD_DONE.format(sent=sent, failed=failed, total=len(chat_ids))
+    )
+
+
 # ---------------------------------------------------------------------------
 # /setvideo — admin flow (PERSON_X only)
 # ---------------------------------------------------------------------------
@@ -1123,6 +1145,7 @@ def build_app() -> Application:
     app.add_handler(CommandHandler("status", _eg_admin_status, filters=_private))
     app.add_handler(CommandHandler("clearevent", _eg_admin_clearevent, filters=_private))
     app.add_handler(CommandHandler("help", _eg_admin_help, filters=_private))
+    app.add_handler(CommandHandler("broadcastkeyboard", _broadcast_keyboard_command, filters=_private))
     app.add_handler(CommandHandler("setvideo", _video_admin_command, filters=_private))
     app.add_handler(CommandHandler("followup", followup_command, filters=_private))
     app.add_handler(CallbackQueryHandler(_eg_check_membership_callback, pattern="^check_membership$"))

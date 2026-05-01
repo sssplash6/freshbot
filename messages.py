@@ -337,6 +337,10 @@ EG_ADMIN_HELP = (
     "/event \u2014 set up a new event (will ask for group ID then post)\n"
     "/status \u2014 show current event status and stats\n"
     "/clearevent \u2014 deactivate current event\n"
+    "/broadcastkeyboard \u2014 push updated menu to all users\n"
     "/help \u2014 show this message"
 )
+
+BROADCAST_KEYBOARD_MESSAGE = "We've updated our menu! Here's what's available now \ud83d\udc47"
+BROADCAST_KEYBOARD_DONE = "Keyboard broadcast: {sent} sent, {failed} failed ({total} total users)."
 
