@@ -264,6 +264,16 @@ EG_INVITE_SENT = (
 
 EG_MISSING_CHAT = "\u2022 {name} \u2192 {invite}"
 
+EG_ALREADY_ISSUED = (
+    "You already have a link for this event:\n"
+    "{link}\n\n"
+    "Do not share it \u2014 it will only work once."
+)
+
+QUESTION_TOO_LONG = (
+    "Your message is too long (max 1000 characters). Please shorten it and try again."
+)
+
 # ---------------------------------------------------------------------------
 # Event gate \u2014 admin flow (PERSON_X only)
 # ---------------------------------------------------------------------------

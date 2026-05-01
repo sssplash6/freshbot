@@ -2,6 +2,9 @@ import logging
 import time
 from datetime import datetime, timedelta, timezone
 
+_RATE_LIMIT_SECONDS = 1.5
+_last_message_time: dict[int, float] = {}
+
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardMarkup, ReplyKeyboardRemove, Update
 from telegram.error import TelegramError
 from telegram.ext import (
@@ -188,6 +191,12 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     text = update.message.text
     chat_id = update.effective_chat.id
 
+    # Per-user rate limit — silently drop messages that arrive too fast
+    now = time.monotonic()
+    if now - _last_message_time.get(chat_id, 0) < _RATE_LIMIT_SECONDS:
+        return
+    _last_message_time[chat_id] = now
+
     # Event gate admin routing.
     # If mid-event-setup OR not a reply to a known question, route to admin handler.
     # If PERSON_X is also an expert and is replying (reply_to_message is set),
@@ -373,6 +382,9 @@ async def _handle_question_text(
 ) -> None:
     if not text:
         await update.message.reply_text(msg.FAQ_TYPE_QUESTION, reply_markup=_back_keyboard())
+        return
+    if len(text) > 1000:
+        await update.message.reply_text(msg.QUESTION_TOO_LONG, reply_markup=_back_keyboard())
         return
     user = await db.get_user(chat_id)
     flow = user.get("flow") if user else None
@@ -705,6 +717,9 @@ async def _handle_followup_text(
     if not text:
         await update.message.reply_text(msg.FOLLOWUP_TYPE_QUESTION, reply_markup=_back_keyboard())
         return
+    if len(text) > 1000:
+        await update.message.reply_text(msg.QUESTION_TOO_LONG, reply_markup=_back_keyboard())
+        return
 
     last_q = await db.get_last_answered_question(chat_id)
     if not last_q:
@@ -847,6 +862,14 @@ async def _eg_student_get_link(
 
     if missing:
         await _eg_send_missing_message(update, missing)
+        return
+
+    existing_link = await db.eg_get_issued_link(event["id"], chat_id)
+    if existing_link:
+        await update.effective_message.reply_text(
+            msg.EG_ALREADY_ISSUED.format(link=existing_link["invite_link"]),
+            reply_markup=_main_keyboard(),
+        )
         return
 
     await _eg_send_invite(update, context, chat_id, event)

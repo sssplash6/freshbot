@@ -392,6 +392,21 @@ async def eg_log_join_approval(event_id: int, student_chat_id: int) -> None:
         await db.commit()
 
 
+async def eg_get_issued_link(event_id: int, student_chat_id: int) -> dict | None:
+    """Return the most recent non-expired link for this user+event, or None."""
+    now = datetime.now(timezone.utc).isoformat()
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute(
+            """SELECT * FROM eg_issued_links
+               WHERE event_id = ? AND student_chat_id = ? AND expires_at > ?
+               ORDER BY id DESC LIMIT 1""",
+            (event_id, student_chat_id, now),
+        ) as cursor:
+            row = await cursor.fetchone()
+            return dict(row) if row else None
+
+
 async def eg_count_issued_links(event_id: int) -> int:
     async with aiosqlite.connect(DB_PATH) as db:
         async with db.execute(
