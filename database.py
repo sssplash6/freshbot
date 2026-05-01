@@ -447,6 +447,57 @@ async def get_program_video(program: str) -> str | None:
             return row[0] if row else None
 
 
+async def get_stats() -> dict:
+    async with aiosqlite.connect(DB_PATH) as db:
+        async def scalar(query, params=()):
+            async with db.execute(query, params) as cur:
+                row = await cur.fetchone()
+                return row[0] if row else 0
+
+        async def rows(query, params=()):
+            async with db.execute(query, params) as cur:
+                return await cur.fetchall()
+
+        total_users       = await scalar("SELECT COUNT(*) FROM users")
+        active_users_7d   = await scalar(
+            "SELECT COUNT(*) FROM users WHERE created_at >= datetime('now', '-7 days')"
+        )
+        users_in_flow     = await scalar(
+            "SELECT COUNT(*) FROM users WHERE flow IS NOT NULL"
+        )
+
+        total_questions   = await scalar("SELECT COUNT(*) FROM questions")
+        pending_questions = await scalar("SELECT COUNT(*) FROM questions WHERE status = 'pending'")
+        answered_questions = await scalar("SELECT COUNT(*) FROM questions WHERE status = 'answered'")
+
+        questions_by_program = await rows(
+            "SELECT program, COUNT(*) FROM questions GROUP BY program ORDER BY COUNT(*) DESC"
+        )
+
+        pending_jobs      = await scalar("SELECT COUNT(*) FROM scheduled_jobs WHERE sent = 0")
+
+        active_event      = await scalar("SELECT COUNT(*) FROM eg_events WHERE status = 'active'")
+        total_links       = await scalar("SELECT COUNT(*) FROM eg_issued_links")
+        total_approvals   = await scalar("SELECT COUNT(*) FROM eg_join_approvals")
+
+        videos_set        = await rows("SELECT program FROM program_videos")
+
+    return {
+        "total_users": total_users,
+        "active_users_7d": active_users_7d,
+        "users_in_flow": users_in_flow,
+        "total_questions": total_questions,
+        "pending_questions": pending_questions,
+        "answered_questions": answered_questions,
+        "questions_by_program": questions_by_program,
+        "pending_jobs": pending_jobs,
+        "active_event": active_event,
+        "total_links": total_links,
+        "total_approvals": total_approvals,
+        "videos_set": [r[0] for r in videos_set],
+    }
+
+
 async def get_all_chat_ids() -> list[int]:
     async with aiosqlite.connect(DB_PATH) as db:
         async with db.execute("SELECT chat_id FROM users") as cursor:

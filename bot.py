@@ -1054,6 +1054,40 @@ async def _eg_admin_help(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     await update.message.reply_text(msg.EG_ADMIN_HELP)
 
 
+async def _stats_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    if update.effective_user.id != PERSON_X_CHAT_ID:
+        return
+    s = await db.get_stats()
+
+    if s["questions_by_program"]:
+        lines = "\n".join(
+            f"    {program}: {count}" for program, count in s["questions_by_program"]
+        )
+        by_program = f"  By program:\n{lines}\n"
+    else:
+        by_program = ""
+
+    videos = ", ".join(s["videos_set"]) if s["videos_set"] else "none"
+    event_str = "Yes" if s["active_event"] else "No"
+
+    await update.message.reply_text(
+        msg.ADMIN_STATS.format(
+            total_users=s["total_users"],
+            active_users_7d=s["active_users_7d"],
+            users_in_flow=s["users_in_flow"],
+            total_questions=s["total_questions"],
+            pending_questions=s["pending_questions"],
+            answered_questions=s["answered_questions"],
+            questions_by_program=by_program,
+            active_event=event_str,
+            total_links=s["total_links"],
+            total_approvals=s["total_approvals"],
+            pending_jobs=s["pending_jobs"],
+            videos_set=videos,
+        )
+    )
+
+
 async def _broadcast_keyboard_command(
     update: Update, context: ContextTypes.DEFAULT_TYPE
 ) -> None:
@@ -1153,6 +1187,7 @@ def build_app() -> Application:
     app.add_handler(CommandHandler("clearevent", _eg_admin_clearevent, filters=_private))
     app.add_handler(CommandHandler("help", _eg_admin_help, filters=_private))
     app.add_handler(CommandHandler("broadcastkeyboard", _broadcast_keyboard_command, filters=_private))
+    app.add_handler(CommandHandler("stats", _stats_command, filters=_private))
     app.add_handler(CommandHandler("setvideo", _video_admin_command, filters=_private))
     app.add_handler(CommandHandler("followup", followup_command, filters=_private))
     app.add_handler(CallbackQueryHandler(_eg_check_membership_callback, pattern="^check_membership$"))

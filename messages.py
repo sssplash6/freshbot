@@ -344,3 +344,27 @@ EG_ADMIN_HELP = (
 BROADCAST_KEYBOARD_MESSAGE = "We\u2019ve updated our menu! Here\u2019s what\u2019s available now \U0001f447"
 BROADCAST_KEYBOARD_DONE = "Keyboard broadcast: {sent} sent, {failed} failed ({total} total users)."
 
+ADMIN_STATS = (
+    "\U0001f4ca Bot Stats\n"
+    "\n"
+    "\U0001f465 Users\n"
+    "  Total: {total_users}\n"
+    "  Joined last 7 days: {active_users_7d}\n"
+    "  Currently in a flow: {users_in_flow}\n"
+    "\n"
+    "❓ Questions\n"
+    "  Total: {total_questions}\n"
+    "  Pending: {pending_questions}\n"
+    "  Answered: {answered_questions}\n"
+    "{questions_by_program}"
+    "\n"
+    "\U0001f4c5 Event Gate\n"
+    "  Active event: {active_event}\n"
+    "  Links issued (all time): {total_links}\n"
+    "  Join approvals (all time): {total_approvals}\n"
+    "\n"
+    "⏰ Scheduled jobs pending: {pending_jobs}\n"
+    "\n"
+    "\U0001f3a5 Intro videos set: {videos_set}"
+)
+
