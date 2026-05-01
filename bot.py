@@ -1060,6 +1060,7 @@ async def _broadcast_keyboard_command(
         return
     chat_ids = await db.get_all_chat_ids()
     sent = failed = 0
+    first_error: str | None = None
     for cid in chat_ids:
         try:
             await context.bot.send_message(
@@ -1068,11 +1069,16 @@ async def _broadcast_keyboard_command(
                 reply_markup=_main_keyboard(),
             )
             sent += 1
-        except Exception:
+        except Exception as e:
+            if first_error is None:
+                first_error = f"{type(e).__name__}: {e}"
+            logger.warning("Broadcast failed for chat_id=%d: %s: %s", cid, type(e).__name__, e)
             failed += 1
-    await update.message.reply_text(
-        msg.BROADCAST_KEYBOARD_DONE.format(sent=sent, failed=failed, total=len(chat_ids))
-    )
+        await asyncio.sleep(0.05)
+    result = msg.BROADCAST_KEYBOARD_DONE.format(sent=sent, failed=failed, total=len(chat_ids))
+    if first_error:
+        result += f"\n\nFirst error: {first_error}"
+    await update.message.reply_text(result)
 
 
 # ---------------------------------------------------------------------------
