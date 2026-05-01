@@ -27,6 +27,7 @@ FS_MAN_CHAT_ID: list[int] = _require_int_list("FS_MAN_CHAT_ID")
 ADV_PLACEMENT_MAN_CHAT_ID: list[int] = _require_int_list("ADV_PLACEMENT_MAN_CHAT_ID")
 IMKON_MAN_CHAT_ID: list[int] = _require_int_list("IMKON_MAN_CHAT_ID")
 GENERAL_MAN_CHAT_ID: list[int] = _require_int_list("GENERAL_MAN_CHAT_ID")
+PARTNERSHIPS_MAN_CHAT_ID: list[int] = _require_int_list("PARTNERSHIPS_MAN_CHAT_ID")
 
 GOOGLE_SERVICE_ACCOUNT_FILE: str = _require("GOOGLE_SERVICE_ACCOUNT_FILE")
 GOOGLE_CALENDAR_ID: str = _require("GOOGLE_CALENDAR_ID")

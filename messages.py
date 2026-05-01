@@ -83,6 +83,39 @@ GENERAL_INQUIRY_INTRO = (
     "You can browse our FAQs below, or ask our team directly if you still have a question."
 )
 
+PARTNERSHIPS_FAQ_ITEMS = [
+    (
+        "What types of partnerships do you offer?",
+        "We collaborate with schools, tutoring centers, and educational organizations. "
+        "Reach out to discuss what kind of partnership fits your needs.",
+    ),
+    (
+        "How do I start a partnership with Freshman Academy?",
+        "Fill out a brief inquiry and our partnerships team will get back to you within 2 business days.",
+    ),
+    (
+        "Are there revenue-sharing or referral programs?",
+        "Yes — we have referral and co-branded program options. Our team can walk you through the details.",
+    ),
+    (
+        "What is the typical timeline to get a partnership started?",
+        "Most partnerships are set up within 1–2 weeks after initial alignment.",
+    ),
+    (
+        "Who do I contact for partnership questions?",
+        "Use this chat — our partnerships team monitors it directly.",
+    ),
+]
+
+_partnerships_faq_lines = "\n\n".join(
+    f"{i + 1}. {q}\n{a}" for i, (q, a) in enumerate(PARTNERSHIPS_FAQ_ITEMS)
+)
+PARTNERSHIPS_FAQ_MESSAGE = (
+    "Here are some frequently asked partnership questions:\n\n"
+    + _partnerships_faq_lines
+    + "\n\n───\nDid this answer your question?"
+)
+
 FAQ_TYPE_QUESTION = (
     "Please type your question below and our team will get back to you shortly:"
 )
@@ -226,6 +259,7 @@ BTN_ADV_PLACEMENT = "Advanced Placement"
 BTN_IMKON = "Imkon"
 
 BTN_GENERAL_INQUIRY = "💬 General Inquiry"
+BTN_PARTNERSHIPS = "🤝 Partnerships"
 BTN_ASK_QUESTION = "Ask a question"
 BTN_REGISTER = "Reserve a spot"
 

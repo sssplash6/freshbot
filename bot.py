@@ -24,6 +24,7 @@ from config import (
     AP_MAN_CHAT_ID,
     FS_MAN_CHAT_ID,
     GENERAL_MAN_CHAT_ID,
+    PARTNERSHIPS_MAN_CHAT_ID,
     GOOGLE_BOOKING_URL_ADV_PLACEMENT,
     GOOGLE_BOOKING_URL_SAT,
     IMKON_MAN_CHAT_ID,
@@ -50,6 +51,13 @@ _PROGRAM_EXPERT: dict[str, list[int]] = {
     msg.BTN_ADV_PLACEMENT: ADV_PLACEMENT_MAN_CHAT_ID,
     msg.BTN_IMKON: IMKON_MAN_CHAT_ID,
     "General Inquiry": GENERAL_MAN_CHAT_ID,
+    "Partnerships": PARTNERSHIPS_MAN_CHAT_ID,
+}
+
+# Maps flow names (for menu-level flows) to their program key in _PROGRAM_EXPERT
+_FLOW_PROGRAM: dict[str, str] = {
+    "general_inquiry": "General Inquiry",
+    "partnerships": "Partnerships",
 }
 
 _PROGRAM_BOOKING_URL: dict[str, str] = {
@@ -82,7 +90,12 @@ def _get_booking_url(program: str | None) -> str:
 
 def _main_keyboard() -> ReplyKeyboardMarkup:
     return ReplyKeyboardMarkup(
-        [[msg.BTN_PROGRAMS], [msg.BTN_GENERAL_INQUIRY], [msg.BTN_GET_LINK]],
+        [
+            [msg.BTN_PROGRAMS],
+            [msg.BTN_GENERAL_INQUIRY],
+            [msg.BTN_PARTNERSHIPS],
+            [msg.BTN_GET_LINK],
+        ],
         resize_keyboard=True,
         is_persistent=True,
     )
@@ -235,6 +248,8 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         await _handle_programs(update, chat_id)
     elif text == msg.BTN_GENERAL_INQUIRY:
         await _handle_general_inquiry(update, chat_id)
+    elif text == msg.BTN_PARTNERSHIPS:
+        await _handle_partnerships(update, chat_id)
     elif text == msg.BTN_GET_LINK:
         await _eg_student_get_link(update, chat_id, context)
     elif text == msg.BTN_SAT:
@@ -323,6 +338,14 @@ async def _handle_general_inquiry(update: Update, chat_id: int) -> None:
 
 
 # ---------------------------------------------------------------------------
+# Partnerships — main-menu FAQ/question flow
+# ---------------------------------------------------------------------------
+
+async def _handle_partnerships(update: Update, chat_id: int) -> None:
+    await update.message.reply_text(msg.PROGRAMS_COMING_SOON, reply_markup=_main_keyboard())
+
+
+# ---------------------------------------------------------------------------
 # Ask a Question — shows FAQ then routes to expert if needed
 # ---------------------------------------------------------------------------
 
@@ -388,7 +411,7 @@ async def _handle_question_text(
         return
     user = await db.get_user(chat_id)
     flow = user.get("flow") if user else None
-    program = "General Inquiry" if flow == "general_inquiry" else (user.get("program") if user else None)
+    program = _FLOW_PROGRAM.get(flow or "") or (user.get("program") if user else None)
     first_name = user["first_name"] if user else "Unknown"
     raw_username = user.get("username") if user else None
 
@@ -663,7 +686,7 @@ async def _handle_back(update: Update, chat_id: int) -> None:
     description = msg.PROGRAM_DESCRIPTIONS.get(program or "", "")
     first_name = user["first_name"] if user else "there"
 
-    if flow == "general_inquiry":
+    if flow in ("general_inquiry", "partnerships"):
         await db.set_flow(chat_id, None)
         await db.set_status(chat_id, None)
         await update.message.reply_text(
