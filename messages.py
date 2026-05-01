@@ -39,7 +39,7 @@ _program_list = "\n\n".join(
 )
 CHOOSE_PROGRAM = _program_list + "\n\nChoose your program:"
 
-PROGRAMS_COMING_SOON = "🚧 Programs section is coming soon. Stay tuned!"
+PROGRAMS_COMING_SOON = "🚧 This section is coming soon. Stay tuned!"
 
 PROGRAM_CHOSEN = "Great choice!\n\n{description}\n\nWhat would you like to do?"
 PROGRAM_BACK = "{description}\n\nWhat would you like to do?"
