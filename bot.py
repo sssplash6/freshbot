@@ -81,7 +81,7 @@ def _main_keyboard() -> ReplyKeyboardMarkup:
     return ReplyKeyboardMarkup(
         [[msg.BTN_PROGRAMS], [msg.BTN_GENERAL_INQUIRY], [msg.BTN_GET_LINK]],
         resize_keyboard=True,
-        one_time_keyboard=True,
+        is_persistent=True,
     )
 
 
@@ -283,7 +283,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 # ---------------------------------------------------------------------------
 
 async def _handle_programs(update: Update, chat_id: int) -> None:
-    await update.message.reply_text(msg.PROGRAMS_COMING_SOON)
+    await update.message.reply_text(msg.PROGRAMS_COMING_SOON, reply_markup=_main_keyboard())
 
 
 # ---------------------------------------------------------------------------
@@ -310,7 +310,7 @@ async def _handle_program(update: Update, chat_id: int, program: str) -> None:
 # ---------------------------------------------------------------------------
 
 async def _handle_general_inquiry(update: Update, chat_id: int) -> None:
-    await update.message.reply_text(msg.PROGRAMS_COMING_SOON)
+    await update.message.reply_text(msg.PROGRAMS_COMING_SOON, reply_markup=_main_keyboard())
 
 
 # ---------------------------------------------------------------------------
@@ -826,7 +826,8 @@ async def _eg_send_invite(
     )
 
     await update.effective_message.reply_text(
-        msg.EG_INVITE_SENT.format(expiry_hours=LINK_EXPIRY_HOURS, link=invite.invite_link)
+        msg.EG_INVITE_SENT.format(expiry_hours=LINK_EXPIRY_HOURS, link=invite.invite_link),
+        reply_markup=_main_keyboard(),
     )
 
 
@@ -835,7 +836,7 @@ async def _eg_student_get_link(
 ) -> None:
     event = await db.eg_get_active_event()
     if not event:
-        await update.message.reply_text(msg.EG_NO_ACTIVE_EVENT)
+        await update.message.reply_text(msg.EG_NO_ACTIVE_EVENT, reply_markup=_main_keyboard())
         return
 
     # Deliver the event post immediately on button tap
