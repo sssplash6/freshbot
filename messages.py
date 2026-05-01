@@ -341,6 +341,6 @@ EG_ADMIN_HELP = (
     "/help \u2014 show this message"
 )
 
-BROADCAST_KEYBOARD_MESSAGE = "We've updated our menu! Here's what's available now \ud83d\udc47"
+BROADCAST_KEYBOARD_MESSAGE = "We\u2019ve updated our menu! Here\u2019s what\u2019s available now \U0001f447"
 BROADCAST_KEYBOARD_DONE = "Keyboard broadcast: {sent} sent, {failed} failed ({total} total users)."
 
