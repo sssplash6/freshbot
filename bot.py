@@ -251,6 +251,11 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     if text is None:
         return
 
+    # Back always takes priority over free-text capture states
+    if text == msg.BTN_BACK:
+        await _handle_back(update, chat_id)
+        return
+
     # Capture free-text input from user
     user = await db.get_user(chat_id)
     if user and user.get("status") == "awaiting_question_text":
