@@ -36,7 +36,20 @@ def _build_service():
     # Prefer JSON env var (used on Render/Railway), fall back to local file
     raw_json = os.environ.get("GOOGLE_SERVICE_ACCOUNT_JSON", "").strip()
     if raw_json:
-        info = json.loads(raw_json)
+        try:
+            info = json.loads(raw_json)
+        except json.JSONDecodeError:
+            # Render sometimes stores multiline env vars with literal \n sequences
+            # instead of real newlines. Try unescaping and parse again.
+            try:
+                info = json.loads(raw_json.replace("\\n", "\n"))
+            except json.JSONDecodeError as e:
+                preview = raw_json[:120].replace("\n", "\\n")
+                raise ValueError(
+                    f"GOOGLE_SERVICE_ACCOUNT_JSON is not valid JSON. "
+                    f"Error: {e}. "
+                    f"First 120 chars: {preview!r}"
+                ) from e
         credentials = service_account.Credentials.from_service_account_info(
             info, scopes=SCOPES
         )
