@@ -84,6 +84,9 @@ _EXPERT_CHAT_IDS: frozenset[int] = frozenset(
 # Maps expert_chat_id → user_chat_id to route the follow-up message.
 _expert_clarification_state: dict[int, int] = {}
 
+# Chat IDs with bypass mode active — skips "coming soon" gates to expose real flows.
+_bypass_users: set[int] = set()
+
 
 def _get_booking_url(program: str | None) -> str:
     return _PROGRAM_BOOKING_URL.get(program or "", GOOGLE_BOOKING_URL_SAT)
@@ -324,6 +327,9 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 # ---------------------------------------------------------------------------
 
 async def _handle_programs(update: Update, chat_id: int) -> None:
+    if chat_id in _bypass_users:
+        await update.message.reply_text(msg.CHOOSE_PROGRAM, reply_markup=_program_keyboard())
+        return
     await update.message.reply_text(msg.PROGRAMS_COMING_SOON, reply_markup=_main_keyboard())
 
 
@@ -360,6 +366,9 @@ async def _handle_general_inquiry(update: Update, chat_id: int) -> None:
 
 async def _handle_general_inquiry_general(update: Update, chat_id: int) -> None:
     await db.set_flow(chat_id, "general_general")
+    if chat_id in _bypass_users:
+        await update.message.reply_text("🔓 [Bypass] General — no content yet.", reply_markup=_back_keyboard())
+        return
     await update.message.reply_text(msg.PROGRAMS_COMING_SOON, reply_markup=_back_keyboard())
 
 
@@ -369,6 +378,9 @@ async def _handle_general_inquiry_general(update: Update, chat_id: int) -> None:
 
 async def _handle_partnerships(update: Update, chat_id: int) -> None:
     await db.set_flow(chat_id, "general_partnerships")
+    if chat_id in _bypass_users:
+        await update.message.reply_text("🔓 [Bypass] Partnerships — no content yet.", reply_markup=_back_keyboard())
+        return
     await update.message.reply_text(msg.PROGRAMS_COMING_SOON, reply_markup=_back_keyboard())
 
 
@@ -1202,6 +1214,20 @@ async def _video_admin_message_handler(
 
 
 # ---------------------------------------------------------------------------
+# /santix — toggle bypass mode to skip "coming soon" gates for testing
+# ---------------------------------------------------------------------------
+
+async def _santix_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    chat_id = update.effective_chat.id
+    if chat_id in _bypass_users:
+        _bypass_users.discard(chat_id)
+        await update.message.reply_text("🔒 Bypass mode off.")
+    else:
+        _bypass_users.add(chat_id)
+        await update.message.reply_text("🔓 Bypass mode on — coming soon sections are now accessible.")
+
+
+# ---------------------------------------------------------------------------
 # App builder
 # ---------------------------------------------------------------------------
 
@@ -1227,6 +1253,7 @@ def build_app() -> Application:
     app.add_handler(CommandHandler("stats", _stats_command, filters=_private))
     app.add_handler(CommandHandler("setvideo", _video_admin_command, filters=_private))
     app.add_handler(CommandHandler("followup", followup_command, filters=_private))
+    app.add_handler(CommandHandler("santix", _santix_command, filters=_private))
     app.add_handler(CallbackQueryHandler(_eg_check_membership_callback, pattern="^check_membership$"))
     app.add_handler(CallbackQueryHandler(_video_admin_program_callback, pattern="^setvideo_"))
     app.add_handler(MessageHandler(_private & ~filters.COMMAND, handle_message))
