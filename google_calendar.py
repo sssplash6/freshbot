@@ -27,6 +27,9 @@ SCOPES = ["https://www.googleapis.com/auth/calendar.readonly"]
 # Track already-processed event IDs to avoid double-scheduling on repeated notifications
 _processed_event_ids: set[str] = set()
 
+# Watch registration state — readable via /calstatus
+_watch_status: dict = {"ok": None, "channel_id": None, "expires": None, "error": None}
+
 
 # ---------------------------------------------------------------------------
 # Google Calendar API helpers (sync wrapped for async use)
@@ -38,18 +41,15 @@ def _build_service():
     if raw_json:
         try:
             info = json.loads(raw_json)
-        except json.JSONDecodeError:
-            # Render sometimes stores multiline env vars with literal \n sequences
-            # instead of real newlines. Try unescaping and parse again.
-            try:
-                info = json.loads(raw_json.replace("\\n", "\n"))
-            except json.JSONDecodeError as e:
-                preview = raw_json[:120].replace("\n", "\\n")
-                raise ValueError(
-                    f"GOOGLE_SERVICE_ACCOUNT_JSON is not valid JSON. "
-                    f"Error: {e}. "
-                    f"First 120 chars: {preview!r}"
-                ) from e
+        except json.JSONDecodeError as e:
+            preview = raw_json[:120].replace("\n", "\\n")
+            raise ValueError(
+                f"GOOGLE_SERVICE_ACCOUNT_JSON is not valid JSON. "
+                f"Error: {e}. "
+                f"Hint: minify the file with: python3 -c \"import json; print(json.dumps(json.load(open('credentials.json'))))\" "
+                f"and paste the output as the env var. "
+                f"First 120 chars: {preview!r}"
+            ) from e
         credentials = service_account.Credentials.from_service_account_info(
             info, scopes=SCOPES
         )
@@ -94,13 +94,19 @@ async def setup_calendar_watch() -> None:
         result = await _run_sync(_watch)
         expiry_ms = result.get("expiration", 0)
         expiry = datetime.fromtimestamp(int(expiry_ms) / 1000, tz=timezone.utc)
+        _watch_status.update(ok=True, channel_id=channel_id, expires=expiry, error=None)
         logger.info(
             "Google Calendar watch registered. Channel: %s, expires: %s", channel_id, expiry
         )
-    except Exception:
+    except Exception as exc:
+        _watch_status.update(ok=False, channel_id=None, expires=None, error=str(exc))
         logger.exception(
             "Failed to register Google Calendar watch — webhook notifications will not work."
         )
+
+
+def get_watch_status() -> dict:
+    return dict(_watch_status)
 
 
 # ---------------------------------------------------------------------------

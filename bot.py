@@ -20,6 +20,7 @@ from telegram.ext import (
 
 import database as db
 import messages as msg
+from google_calendar import get_watch_status
 from config import (
     ADV_PLACEMENT_MAN_CHAT_ID,
     AP_MAN_CHAT_ID,
@@ -1219,6 +1220,25 @@ async def _video_admin_message_handler(
 
 
 # ---------------------------------------------------------------------------
+# /calstatus — show Google Calendar watch registration state
+# ---------------------------------------------------------------------------
+
+async def _calstatus_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    s = get_watch_status()
+    if s["ok"] is None:
+        text = "📅 Calendar watch: not yet attempted (bot just started?)."
+    elif s["ok"]:
+        text = (
+            f"✅ Calendar watch active.\n"
+            f"Channel: {s['channel_id']}\n"
+            f"Expires: {s['expires'].strftime('%Y-%m-%d %H:%M UTC')}"
+        )
+    else:
+        text = f"❌ Calendar watch failed.\nError: {s['error']}"
+    await update.message.reply_text(text)
+
+
+# ---------------------------------------------------------------------------
 # /santix — toggle bypass mode to skip "coming soon" gates for testing
 # ---------------------------------------------------------------------------
 
@@ -1259,6 +1279,7 @@ def build_app() -> Application:
     app.add_handler(CommandHandler("setvideo", _video_admin_command, filters=_private))
     app.add_handler(CommandHandler("followup", followup_command, filters=_private))
     app.add_handler(CommandHandler("santix", _santix_command, filters=_private))
+    app.add_handler(CommandHandler("calstatus", _calstatus_command, filters=_private))
     app.add_handler(CallbackQueryHandler(_eg_check_membership_callback, pattern="^check_membership$"))
     app.add_handler(CallbackQueryHandler(_video_admin_program_callback, pattern="^setvideo_"))
     app.add_handler(MessageHandler(_private & ~filters.COMMAND, handle_message))
