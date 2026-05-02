@@ -32,6 +32,10 @@ PROGRAM_DESCRIPTIONS = {
         "Lorem ipsum dolor sit amet, consectetur adipisicing elit. "
         "Voluptate, necessitatibus ex! Quia magni cupiditate mollitia ab impedit ad cum doloribus?"
     ),
+    "Research Institute": (
+        "Lorem ipsum dolor sit amet, consectetur adipisicing elit. "
+        "Temporibus nemo iusto at autem similique reiciendis itaque esse quasi reprehenderit iure."
+    ),
 }
 
 _program_list = "\n\n".join(
@@ -47,41 +51,141 @@ PROGRAM_BACK = "{description}\n\nWhat would you like to do?"
 # ---------------------------------------------------------------------------
 # FAQ — edit questions and answers below as needed
 # ---------------------------------------------------------------------------
-FAQ_ITEMS = [
+
+def _build_faq_message(items: list[tuple[str, str]]) -> str:
+    lines = "\n\n".join(
+        f"<b>{i + 1}. {q}</b>\n{a}" for i, (q, a) in enumerate(items)
+    )
+    return "<b>Frequently Asked Questions</b>\n\n" + lines + "\n\n───\nDid this answer your question?"
+
+
+SAT_FAQ_ITEMS = [
     (
-        "What programs do you offer?",
-        "We offer three programs: SAT Prep, Admissions Program (AP), and Full Support (FS).",
+        "When does the program start and end?",
+        "The program runs on a rolling basis, so you can join anytime. The first 2 months focus on core concepts and strategy. After that, Padawan students take a mock test—those who pass move up to the Jedi group, where the focus shifts heavily to advanced practice and score maximization. There, students will be perfecting their test-taking skills for the two following months.",
     ),
     (
-        "How long does the program last?",
-        "Duration varies by package. Book a consultation to get personalized information.",
+        "Who is this program for?",
+        "This program is for students who want more than just SAT prep. You'll be in an environment with admissions-focused mentors and driven peers, gaining early exposure to the college admissions world while improving your SAT.",
     ),
     (
-        "How much does it cost?",
-        "Pricing depends on the program and package you choose. Book a free consultation for details.",
+        "Are the classes held online or offline?",
+        "All classes are conducted in person at the Freshman's Office in the <a href=\"https://maps.app.goo.gl/YZRGrhNwbjwyfB3U7\">NestOne building</a>.",
     ),
     (
-        "How do I book a session?",
-        "Tap 'Reserve a spot' in the menu to schedule a session via our calendar.",
+        "Who are the mentors?",
+        "Mentors are Freshman alumni with more than 1.5+ years of teaching experience and with hundreds of successful students, helping them achieve high SAT results.",
     ),
     (
-        "Can I switch programs?",
-        "Yes! Reach out to our team and we will help you transition.",
+        "What is the program structure?",
+        "Both groups last for two months. There are 12 classes a month, each 1.5 hours long.",
+    ),
+    (
+        "How do you decide which group I fit into?",
+        "Our placement is based on a short interview. We consider your academic background, past SAT experience, and mindset to place you in either Padawan or Jedi groups.",
+    ),
+    (
+        "What subjects do you cover?",
+        "In the Padawan group, we focus on covering the theory of Math and EBRW. In the Jedi group, we additionally run Critical Reading sessions where you explore advanced texts and essays to strengthen critical thinking and reading comprehension.",
+    ),
+    (
+        "How much time do I need to commit weekly?",
+        "It varies from case to case, but you should expect to dedicate at least 20 hours per week outside of class, depending on your starting point, goals, and efficiency.",
+    ),
+    (
+        "How much does the program cost?",
+        "Freshman SAT Program is on a promotional price right now, so it costs $120 instead of $240.",
     ),
 ]
 
-_faq_lines = "\n\n".join(
-    f"{i + 1}. {q}\n{a}" for i, (q, a) in enumerate(FAQ_ITEMS)
-)
-FAQ_MESSAGE = (
-    "Here are some frequently asked questions:\n\n"
-    + _faq_lines
-    + "\n\n───\nDid this answer your question?"
-)
+FS_FAQ_ITEMS = [
+    (
+        "Why is Full Support so expensive/cheap?",
+        "Interestingly, we receive both questions equally often.\n\n"
+        "The reason behind Full Support's low prices, relative to companies with similar track record to ours, lies in our passionate team. We work at a discounted rate to assist the students from the post-Soviet space in their admissions aspirations.\n\n"
+        "However, we still need to fairly compensate our highly skilled consultants. Running Full Support demands a large amount of resources, which are used to fund our team and also ensure that we overdeliver on our promises, supporting you beyond the application deadlines.",
+    ),
+    (
+        "How do you select students?",
+        "Although aspects like test scores are crucial, we typically look beyond academics into your life story.\n\n"
+        "Ideally, we seek academically stellar students with a solid extracurricular list and a track record of discipline, relentlessness, high integrity, and a commitment to excellence in whatever they do.\n\n"
+        "However, every student we admitted had areas that required improvement. Many lacked extracurricular activities when they joined, but showcased immense potential to develop their various involvements.\n\n"
+        "Even if you are unsure, you can still apply. Our team will be happy to evaluate your application and offer you other options—Private Consultations or Admissions Programs—to support your educational endeavors.",
+    ),
+    (
+        "How long does the program last?",
+        "As the \"Full Support\" name suggests, our program lasts until the admissions process is fully finalized.\n\n"
+        "Our work typically extends until March of the following year, when you have your interviews.",
+    ),
+    (
+        "What is the deadline for the program?",
+        "Our priority deadline is April 1, during which we typically admit 4–7 students.\n\n"
+        "After the deadline passes, we will accept applications on a rolling basis until August.",
+    ),
+    (
+        "How hard is it to be accepted to Full Support?",
+        "In the last admissions cycle, we received over 200 applications, out of which we selected 15 students. We plan to admit 15 in 2026 as well.",
+    ),
+    (
+        "My family can afford Full Support. Can I still apply for Co-op assistance?",
+        "Co-op Assistance is strictly for families who truly cannot afford Full Support.\n\n"
+        "During the application, we will require proof of income and bank statements to verify the applicant's financial status.\n\n"
+        "As our resources are limited, we trust applicants who can afford the program will have the integrity to enable low-income families a potentially life-changing opportunity.",
+    ),
+]
 
-GENERAL_INQUIRY_INTRO = (
-    "You can browse our FAQs below, or ask our team directly if you still have a question."
-)
+RI_FAQ_ITEMS = [
+    (
+        "I have no research experience, should I still apply?",
+        "Yes, absolutely. This program is designed to support those with little to no research experience. We tailor the program and individual consultations directly to your academic needs.",
+    ),
+    (
+        "Will our meetings be offline or online?",
+        "For students based in Tashkent, we offer offline or hybrid formats for our lectures and consultations.",
+    ),
+    (
+        "Will I be expelled if I miss a lesson or homework submission?",
+        "Missing a class or assignment without appropriate justification would result in expulsion without a refund.\n\n"
+        "Our programs have historically attracted some of Central Asia's most academically talented and ambitious students. This rule aims to ensure that the participants get the most out of the Program, transforming their applications before university deadlines.",
+    ),
+    (
+        "I'm unsure if research is what I need to focus on",
+        "Even if you are unsure, we encourage you to reach out to us and we will be open to discuss your academic and career interests to see how we can tailor our program for your needs.",
+    ),
+]
+
+IMKON_FAQ_ITEMS = [
+    (
+        "What exactly is Imkon, how is Pre-Imkon different from Imkon?",
+        "Pre-Imkon and Imkon Scholars are Freshman-backed free tier admissions guidance. "
+        "Pre-Imkon is an admissions program-like course — 8 weeks of structured learning about general admissions, with homework and supplemental sessions, but no individualized consultations or research paper writing. "
+        "Imkon Scholars are typically selected students from Pre-Imkon who show a lot of potential and are offered individualized help throughout the entire year up until ED deadlines.",
+    ),
+    (
+        "How many students are accepted to Pre-Imkon and Imkon?",
+        "We accept 50 students to Pre-Imkon every year, and 15 students to Imkon Scholars. "
+        "Typically 10 Imkon Scholars are chosen from Pre-Imkon, and another 5 are chosen through external applications or active promising students from the Freshman community who are financially eligible.",
+    ),
+    (
+        "What are the eligibility requirements to enroll in Imkon?",
+        "We look at a myriad of things: general grades, foundation of admissions knowledge, and depth of writing. "
+        "For Pre-Imkon alumni, we also consider rate of growth and how active they were during the program.\n\n"
+        "We also have financial criteria. Although it varies slightly by region (with a slightly higher threshold for Tashkent), we are generally aiming to support students whose families earn less than $10,000 in annual income, or less than $3,000 per dependent.",
+    ),
+    (
+        "What is Imkon Scholars?",
+        "Imkon Scholars is an admissions support program akin to Full Support. We help students from acceptance (around late May/early June) until ED deadlines.",
+    ),
+    (
+        "What does Imkon provide?",
+        "We provide structured guidance, individualized help, and general aid throughout the application process. "
+        "We do not cover costs for the CSS Profile, standardized exams (SAT, AP, etc.), or any other forms of direct financial aid.",
+    ),
+    (
+        "Who provides the funding for Imkon?",
+        "Our investors have created a fund and donated to the cause, which is what makes Pre-Imkon and Imkon Scholars possible.",
+    ),
+]
 
 PARTNERSHIPS_FAQ_ITEMS = [
     (
@@ -107,14 +211,25 @@ PARTNERSHIPS_FAQ_ITEMS = [
     ),
 ]
 
-_partnerships_faq_lines = "\n\n".join(
-    f"{i + 1}. {q}\n{a}" for i, (q, a) in enumerate(PARTNERSHIPS_FAQ_ITEMS)
+SAT_FAQ_MESSAGE = _build_faq_message(SAT_FAQ_ITEMS)
+FS_FAQ_MESSAGE = _build_faq_message(FS_FAQ_ITEMS)
+RI_FAQ_MESSAGE = _build_faq_message(RI_FAQ_ITEMS)
+IMKON_FAQ_MESSAGE = _build_faq_message(IMKON_FAQ_ITEMS)
+PARTNERSHIPS_FAQ_MESSAGE = _build_faq_message(PARTNERSHIPS_FAQ_ITEMS)
+
+# Lookup: program button label → FAQ message. Programs absent from this dict show no FAQ.
+PROGRAM_FAQ_MESSAGE: dict[str, str] = {
+    "SAT Program": SAT_FAQ_MESSAGE,
+    "Full Support Program": FS_FAQ_MESSAGE,
+    "Research Institute": RI_FAQ_MESSAGE,
+    "Imkon": IMKON_FAQ_MESSAGE,
+}
+
+GENERAL_INQUIRY_INTRO = (
+    "You can browse our FAQs below, or ask our team directly if you still have a question."
 )
-PARTNERSHIPS_FAQ_MESSAGE = (
-    "Here are some frequently asked partnership questions:\n\n"
-    + _partnerships_faq_lines
-    + "\n\n───\nDid this answer your question?"
-)
+
+GENERAL_INQUIRY_MENU = "Choose a topic:"
 
 FAQ_TYPE_QUESTION = (
     "Please type your question below and our team will get back to you shortly:"
@@ -257,8 +372,10 @@ BTN_ADMISSIONS = "Admissions Program"
 BTN_FULL_SUPPORT = "Full Support Program"
 BTN_ADV_PLACEMENT = "Advanced Placement"
 BTN_IMKON = "Imkon"
+BTN_RESEARCH_INSTITUTE = "Research Institute"
 
 BTN_GENERAL_INQUIRY = "💬 General Inquiry"
+BTN_GENERAL = "General"
 BTN_PARTNERSHIPS = "🤝 Partnerships"
 BTN_ASK_QUESTION = "Ask a question"
 BTN_REGISTER = "Reserve a spot"

@@ -35,11 +35,13 @@ from config import (
     REQUIRED_CHANNEL_INVITES,
     REQUIRED_GROUP_IDS,
     REQUIRED_GROUP_INVITES,
+    RI_MAN_CHAT_ID,
     SAT_MAN_CHAT_ID,
     TELEGRAM_BOT_TOKEN,
     WEBSITE_URL_ADMISSIONS,
     WEBSITE_URL_FULL_SUPPORT,
     WEBSITE_URL_IMKON,
+    WEBSITE_URL_RESEARCH_INSTITUTE,
 )
 
 logger = logging.getLogger(__name__)
@@ -51,6 +53,7 @@ _PROGRAM_EXPERT: dict[str, list[int]] = {
     msg.BTN_FULL_SUPPORT: FS_MAN_CHAT_ID,
     msg.BTN_ADV_PLACEMENT: ADV_PLACEMENT_MAN_CHAT_ID,
     msg.BTN_IMKON: IMKON_MAN_CHAT_ID,
+    msg.BTN_RESEARCH_INSTITUTE: RI_MAN_CHAT_ID,
     "General Inquiry": GENERAL_MAN_CHAT_ID,
     "Partnerships": PARTNERSHIPS_MAN_CHAT_ID,
 }
@@ -70,6 +73,7 @@ _PROGRAM_WEBSITE_URL: dict[str, str] = {
     msg.BTN_ADMISSIONS: WEBSITE_URL_ADMISSIONS,
     msg.BTN_FULL_SUPPORT: WEBSITE_URL_FULL_SUPPORT,
     msg.BTN_IMKON: WEBSITE_URL_IMKON,
+    msg.BTN_RESEARCH_INSTITUTE: WEBSITE_URL_RESEARCH_INSTITUTE,
 }
 
 _EXPERT_CHAT_IDS: frozenset[int] = frozenset(
@@ -94,7 +98,6 @@ def _main_keyboard() -> ReplyKeyboardMarkup:
         [
             [msg.BTN_PROGRAMS],
             [msg.BTN_GENERAL_INQUIRY],
-            [msg.BTN_PARTNERSHIPS],
             [msg.BTN_GET_LINK],
         ],
         resize_keyboard=True,
@@ -107,7 +110,8 @@ def _program_keyboard() -> ReplyKeyboardMarkup:
         [
             [msg.BTN_SAT, msg.BTN_ADMISSIONS],
             [msg.BTN_FULL_SUPPORT, msg.BTN_ADV_PLACEMENT],
-            [msg.BTN_IMKON, msg.BTN_HOME],
+            [msg.BTN_IMKON, msg.BTN_RESEARCH_INSTITUTE],
+            [msg.BTN_HOME],
         ],
         resize_keyboard=True,
         one_time_keyboard=True,
@@ -125,6 +129,14 @@ def _action_keyboard() -> ReplyKeyboardMarkup:
 def _faq_keyboard() -> ReplyKeyboardMarkup:
     return ReplyKeyboardMarkup(
         [[msg.BTN_FAQ_YES], [msg.BTN_FAQ_NO], [msg.BTN_BACK]],
+        resize_keyboard=True,
+        one_time_keyboard=True,
+    )
+
+
+def _general_inquiry_keyboard() -> ReplyKeyboardMarkup:
+    return ReplyKeyboardMarkup(
+        [[msg.BTN_GENERAL], [msg.BTN_PARTNERSHIPS], [msg.BTN_BACK]],
         resize_keyboard=True,
         one_time_keyboard=True,
     )
@@ -249,6 +261,8 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         await _handle_programs(update, chat_id)
     elif text == msg.BTN_GENERAL_INQUIRY:
         await _handle_general_inquiry(update, chat_id)
+    elif text == msg.BTN_GENERAL:
+        await _handle_general_inquiry_general(update, chat_id)
     elif text == msg.BTN_PARTNERSHIPS:
         await _handle_partnerships(update, chat_id)
     elif text == msg.BTN_GET_LINK:
@@ -263,6 +277,8 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         await _handle_program(update, chat_id, msg.BTN_ADV_PLACEMENT)
     elif text == msg.BTN_IMKON:
         await _handle_program(update, chat_id, msg.BTN_IMKON)
+    elif text == msg.BTN_RESEARCH_INSTITUTE:
+        await _handle_program(update, chat_id, msg.BTN_RESEARCH_INSTITUTE)
     elif text == msg.BTN_ASK_QUESTION:
         await _handle_ask_question(update, chat_id, context)
     elif text == msg.BTN_REGISTER:
@@ -335,15 +351,25 @@ async def _handle_program(update: Update, chat_id: int, program: str) -> None:
 # ---------------------------------------------------------------------------
 
 async def _handle_general_inquiry(update: Update, chat_id: int) -> None:
-    await update.message.reply_text(msg.PROGRAMS_COMING_SOON, reply_markup=_main_keyboard())
+    await db.set_flow(chat_id, "general_inquiry")
+    await update.message.reply_text(
+        msg.GENERAL_INQUIRY_MENU,
+        reply_markup=_general_inquiry_keyboard(),
+    )
+
+
+async def _handle_general_inquiry_general(update: Update, chat_id: int) -> None:
+    await db.set_flow(chat_id, "general_general")
+    await update.message.reply_text(msg.PROGRAMS_COMING_SOON, reply_markup=_back_keyboard())
 
 
 # ---------------------------------------------------------------------------
-# Partnerships — main-menu FAQ/question flow
+# Partnerships — sub-section of General Inquiry
 # ---------------------------------------------------------------------------
 
 async def _handle_partnerships(update: Update, chat_id: int) -> None:
-    await update.message.reply_text(msg.PROGRAMS_COMING_SOON, reply_markup=_main_keyboard())
+    await db.set_flow(chat_id, "general_partnerships")
+    await update.message.reply_text(msg.PROGRAMS_COMING_SOON, reply_markup=_back_keyboard())
 
 
 # ---------------------------------------------------------------------------
@@ -361,9 +387,13 @@ async def _handle_ask_question(
     await db.set_flow(chat_id, "question")
     await db.set_status(chat_id, "faq_shown")
 
+    program = user.get("program") if user else None
+    faq_message = msg.PROGRAM_FAQ_MESSAGE.get(program or "", msg.SAT_FAQ_MESSAGE)
+
     await update.message.reply_text(
-        msg.FAQ_MESSAGE,
+        faq_message,
         reply_markup=_faq_keyboard(),
+        parse_mode="HTML",
     )
 
 
@@ -687,7 +717,14 @@ async def _handle_back(update: Update, chat_id: int) -> None:
     description = msg.PROGRAM_DESCRIPTIONS.get(program or "", "")
     first_name = user["first_name"] if user else "there"
 
-    if flow in ("general_inquiry", "partnerships"):
+    if flow in ("general_general", "general_partnerships"):
+        await db.set_flow(chat_id, "general_inquiry")
+        await db.set_status(chat_id, None)
+        await update.message.reply_text(
+            msg.GENERAL_INQUIRY_MENU,
+            reply_markup=_general_inquiry_keyboard(),
+        )
+    elif flow == "general_inquiry":
         await db.set_flow(chat_id, None)
         await db.set_status(chat_id, None)
         await update.message.reply_text(
