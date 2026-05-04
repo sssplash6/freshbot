@@ -380,7 +380,7 @@ EXPERT_QUESTION = (
     "Reply to this message to send your answer to the student."
 )
 
-ANSWER_FROM_EXPERT = "\U0001f4ac Our team answered your question:\n\n{answer}"
+ANSWER_FROM_EXPERT = "💬 Our team answered your question:\n\n❓ {question}\n\n{answer}"
 
 EXPERT_REPLY_SENT = "✅ Your answer has been sent to the student."
 

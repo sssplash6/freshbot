@@ -561,7 +561,7 @@ async def _handle_expert_message(
     try:
         await update.get_bot().send_message(
             chat_id=user_chat_id,
-            text=msg.ANSWER_FROM_EXPERT.format(answer=text),
+            text=msg.ANSWER_FROM_EXPERT.format(question=question_text, answer=text),
         )
         await db.mark_question_answered(question_id, text)
         await db.mark_sibling_questions_answered(user_chat_id, question_text)
