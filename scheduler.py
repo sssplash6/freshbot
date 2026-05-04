@@ -6,7 +6,7 @@ from telegram import Bot, ReplyKeyboardMarkup
 
 import database as db
 import messages as msg
-from config import PERSON_Y_CHAT_ID
+from config import ADV_PLACEMENT_MAN_CHAT_ID
 
 logger = logging.getLogger(__name__)
 
@@ -174,25 +174,26 @@ async def send_meeting_reminder(
     except Exception:
         logger.exception("Failed to send meeting reminder to chat_id=%d", chat_id)
 
-    # Message to PERSON_Y
-    try:
-        if raw_username:
-            text = msg.REMINDER_TO_PERSON_Y.format(
-                minutes=minutes,
-                username=raw_username,
-                first_name=first_name,
-                chat_id=chat_id,
-                program=program,
-            )
-        else:
-            text = msg.REMINDER_TO_PERSON_Y_NO_USERNAME.format(
-                minutes=minutes,
-                first_name=first_name,
-                chat_id=chat_id,
-                program=program,
-            )
-        await bot.send_message(chat_id=PERSON_Y_CHAT_ID, text=text)
-    except Exception:
-        logger.exception("Failed to send meeting reminder to PERSON_Y for chat_id=%d", chat_id)
+    # Notify AP team
+    if raw_username:
+        staff_text = msg.REMINDER_TO_PERSON_Y.format(
+            minutes=minutes,
+            username=raw_username,
+            first_name=first_name,
+            chat_id=chat_id,
+            program=program,
+        )
+    else:
+        staff_text = msg.REMINDER_TO_PERSON_Y_NO_USERNAME.format(
+            minutes=minutes,
+            first_name=first_name,
+            chat_id=chat_id,
+            program=program,
+        )
+    for staff_id in ADV_PLACEMENT_MAN_CHAT_ID:
+        try:
+            await bot.send_message(chat_id=staff_id, text=staff_text)
+        except Exception:
+            logger.exception("Failed to send meeting reminder to AP staff %d for chat_id=%d", staff_id, chat_id)
     finally:
         await db.mark_job_sent(job_id)
