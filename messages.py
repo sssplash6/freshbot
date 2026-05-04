@@ -27,7 +27,7 @@ PROGRAM_DESCRIPTIONS = {
         "Every year, we select 12–15 ambitious students applying to selective American universities.\n\n"
         "In the past three years, over 80% of our students were accepted to top U.S. and global universities."
     ),
-    "Advanced Placement": (
+    "AP Classes": (
         "AP Classes by Freshman Academy are preparatory courses for AP exams led by well-qualified mentors, available in both individual and group formats.\n\n"
         "We cover theory, practice questions, and authentic mock exams to fully prepare you and maximize your score."
     ),
@@ -333,13 +333,20 @@ PROGRAM_FAQ_MESSAGE: dict[str, str] = {
     "Admissions Program": AP_FAQ_MESSAGE,
     "Full Support Program": FS_FAQ_MESSAGE,
     "Master's Support": MS_FAQ_MESSAGE,
-    "Advanced Placement": ADV_PLACEMENT_FAQ_MESSAGE,
+    "AP Classes": ADV_PLACEMENT_FAQ_MESSAGE,
     "Research Institute": RI_FAQ_MESSAGE,
     "Imkon": IMKON_FAQ_MESSAGE,
 }
 
 FAQ_TYPE_QUESTION = (
-    "Please type your question below and our team will get back to you shortly:"
+    "Please type your question below and our team will get back to you shortly.\n\n"
+    "Already received an answer and want to continue the conversation? Use /followup."
+)
+
+FOLLOWUP_CHAIN_CONTEXT = (
+    "─── Previous conversation ───\n"
+    "❓ {original_question}\n\n"
+    "💬 {expert_answer}"
 )
 
 FOLLOWUP_TYPE_QUESTION = (
@@ -480,7 +487,7 @@ BTN_SAT = "SAT Program"
 BTN_ADMISSIONS = "Admissions Program"
 BTN_FULL_SUPPORT = "Full Support Program"
 BTN_MASTERS = "Master's Support"
-BTN_ADV_PLACEMENT = "Advanced Placement"
+BTN_ADV_PLACEMENT = "AP Classes"
 BTN_IMKON = "Imkon"
 BTN_RESEARCH_INSTITUTE = "Research Institute"
 

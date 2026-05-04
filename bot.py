@@ -756,6 +756,12 @@ async def followup_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         await update.message.reply_text(msg.FOLLOWUP_NO_PREVIOUS)
         return
     await db.set_status(chat_id, "awaiting_followup_text")
+    await update.message.reply_text(
+        msg.FOLLOWUP_CHAIN_CONTEXT.format(
+            original_question=last_q["question_text"],
+            expert_answer=last_q.get("answer_text") or "—",
+        )
+    )
     await update.message.reply_text(msg.FOLLOWUP_TYPE_QUESTION, reply_markup=_back_keyboard())
 
 
@@ -1240,7 +1246,7 @@ _Q_PROG_CODES: dict[str, str | None] = {
     "ADM": "Admissions Program",
     "FS":  "Full Support Program",
     "MS":  "Master's Support",
-    "AP":  "Advanced Placement",
+    "AP":  "AP Classes",
     "RI":  "Research Institute",
     "IK":  "Imkon",
     "GI":  "General Inquiry",
