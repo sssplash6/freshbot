@@ -340,7 +340,7 @@ PROGRAM_FAQ_MESSAGE: dict[str, str] = {
 
 FAQ_TYPE_QUESTION = (
     "Please type your question below and our team will get back to you shortly.\n\n"
-    "Already received an answer and want to continue the conversation? Use /followup."
+    "💡 Already received an answer and want to continue the conversation? Use /followup."
 )
 
 FOLLOWUP_CHAIN_CONTEXT = (
