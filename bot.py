@@ -26,8 +26,9 @@ from config import (
     AP_MAN_CHAT_ID,
     FS_MAN_CHAT_ID,
     GENERAL_MAN_CHAT_ID,
-    GOOGLE_BOOKING_URL_ADV_PLACEMENT,
+    PERSON_Z_CHAT_ID,
     GOOGLE_BOOKING_URL_SAT,
+    WEBSITE_URL_ADV_PLACEMENT,
     IMKON_MAN_CHAT_ID,
     LINK_EXPIRY_HOURS,
     MS_MAN_CHAT_ID,
@@ -67,10 +68,10 @@ _FLOW_PROGRAM: dict[str, str] = {
 
 _PROGRAM_BOOKING_URL: dict[str, str] = {
     msg.BTN_SAT: GOOGLE_BOOKING_URL_SAT,
-    msg.BTN_ADV_PLACEMENT: GOOGLE_BOOKING_URL_ADV_PLACEMENT,
 }
 
 _PROGRAM_WEBSITE_URL: dict[str, str] = {
+    msg.BTN_ADV_PLACEMENT: WEBSITE_URL_ADV_PLACEMENT,
     msg.BTN_ADMISSIONS: WEBSITE_URL_ADMISSIONS,
     msg.BTN_FULL_SUPPORT: WEBSITE_URL_FULL_SUPPORT,
     msg.BTN_MASTERS: WEBSITE_URL_MASTERS,
@@ -326,10 +327,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 # ---------------------------------------------------------------------------
 
 async def _handle_programs(update: Update, chat_id: int) -> None:
-    if chat_id in _bypass_users:
-        await update.message.reply_text(msg.CHOOSE_PROGRAM, reply_markup=_program_keyboard())
-        return
-    await update.message.reply_text(msg.PROGRAMS_COMING_SOON, reply_markup=_main_keyboard())
+    await update.message.reply_text(msg.CHOOSE_PROGRAM, reply_markup=_program_keyboard())
 
 
 # ---------------------------------------------------------------------------
@@ -356,6 +354,9 @@ async def _handle_program(update: Update, chat_id: int, program: str) -> None:
 # ---------------------------------------------------------------------------
 
 async def _handle_general_inquiry(update: Update, chat_id: int) -> None:
+    if chat_id not in _bypass_users:
+        await update.message.reply_text(msg.PROGRAMS_COMING_SOON, reply_markup=_main_keyboard())
+        return
     await db.set_flow(chat_id, "general_inquiry")
     await db.set_status(chat_id, "awaiting_question_text")
     await update.message.reply_text(msg.FAQ_TYPE_QUESTION, reply_markup=_back_keyboard())
@@ -640,17 +641,21 @@ async def _handle_resolved_no(update: Update, chat_id: int) -> None:
 
     first_name = user["first_name"] if user else "Unknown"
     raw_username = user.get("username") if user else None
+    last_q = await db.get_last_question(chat_id)
+    question_text = last_q["question_text"] if last_q else "—"
 
     if raw_username:
         escalation_text = msg.ESCALATION_TO_PERSON_X.format(
             username=raw_username,
             first_name=first_name,
             chat_id=chat_id,
+            question=question_text,
         )
     else:
         escalation_text = msg.ESCALATION_TO_PERSON_X_NO_USERNAME.format(
             first_name=first_name,
             chat_id=chat_id,
+            question=question_text,
         )
 
     await update.get_bot().send_message(chat_id=PERSON_X_CHAT_ID, text=escalation_text)
@@ -1220,6 +1225,168 @@ async def _santix_command(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
 # App builder
 # ---------------------------------------------------------------------------
 
+# ---------------------------------------------------------------------------
+# /answered and /unanswered — admin question viewer
+# ---------------------------------------------------------------------------
+
+_Q_ADMIN_IDS: frozenset[int] = frozenset({PERSON_X_CHAT_ID, PERSON_Z_CHAT_ID})
+
+_Q_PAGE_SIZE = 5
+
+# Short codes used in callback_data to stay under Telegram's 64-byte limit
+_Q_PROG_CODES: dict[str, str | None] = {
+    "ALL": None,
+    "SAT": "SAT Program",
+    "ADM": "Admissions Program",
+    "FS":  "Full Support Program",
+    "MS":  "Master's Support",
+    "AP":  "Advanced Placement",
+    "RI":  "Research Institute",
+    "IK":  "Imkon",
+    "GI":  "General Inquiry",
+}
+
+_Q_PROG_LABELS: dict[str, str] = {
+    "ALL": "All Programs",
+    "SAT": "SAT",
+    "ADM": "Admissions",
+    "FS":  "Full Support",
+    "MS":  "Master's",
+    "AP":  "AP",
+    "RI":  "Research Inst.",
+    "IK":  "Imkon",
+    "GI":  "General Inquiry",
+}
+
+_Q_DATE_OPTIONS = [
+    ("0",  None, "All time"),
+    ("1",  1,    "Today"),
+    ("7",  7,    "Last 7 days"),
+    ("30", 30,   "Last 30 days"),
+]
+
+
+def _q_program_keyboard(status: str) -> InlineKeyboardMarkup:
+    all_btn = [InlineKeyboardButton("All Programs", callback_data=f"qp:{status}:ALL")]
+    prog_btns = [
+        InlineKeyboardButton(_Q_PROG_LABELS[code], callback_data=f"qp:{status}:{code}")
+        for code in _Q_PROG_CODES
+        if code != "ALL"
+    ]
+    rows = [all_btn]
+    for i in range(0, len(prog_btns), 2):
+        rows.append(prog_btns[i : i + 2])
+    return InlineKeyboardMarkup(rows)
+
+
+def _q_date_keyboard(status: str, prog_code: str) -> InlineKeyboardMarkup:
+    rows = []
+    for i in range(0, len(_Q_DATE_OPTIONS), 2):
+        row = [
+            InlineKeyboardButton(label, callback_data=f"qd:{status}:{prog_code}:{key}:0")
+            for key, _, label in _Q_DATE_OPTIONS[i : i + 2]
+        ]
+        rows.append(row)
+    return InlineKeyboardMarkup(rows)
+
+
+def _q_format_entry(q: dict, status: str) -> str:
+    date = (q.get("created_at") or "")[:10]
+    program = q.get("program") or "—"
+    first_name = q.get("first_name") or "Unknown"
+    username = q.get("username")
+    user_str = f"{first_name} (@{username})" if username else first_name
+    question = (q.get("question_text") or "").strip()
+
+    lines = [f"#{q['id']} · {program} · {date}", f"👤 {user_str}", f"❓ {question}"]
+    if status == "answered" and q.get("answer_text"):
+        lines.append(f"💬 {q['answer_text'].strip()}")
+    return "\n".join(lines)
+
+
+async def _q_show_results(
+    query,
+    status: str,
+    prog_code: str,
+    days_key: str,
+    offset: int,
+) -> None:
+    program = _Q_PROG_CODES.get(prog_code)
+    days_val = next((d for k, d, _ in _Q_DATE_OPTIONS if k == days_key), None)
+    days_label = next((l for k, _, l in _Q_DATE_OPTIONS if k == days_key), "All time")
+    prog_label = _Q_PROG_LABELS.get(prog_code, prog_code)
+    status_label = "✅ Answered" if status == "answered" else "⏳ Unanswered"
+
+    questions, total = await db.get_questions_filtered(
+        status=status, program=program, days=days_val,
+        offset=offset, limit=_Q_PAGE_SIZE,
+    )
+
+    end = min(offset + _Q_PAGE_SIZE, total)
+    header = f"{status_label} | {prog_label} | {days_label}\nShowing {offset + 1}–{end} of {total}\n\n"
+
+    if not questions:
+        await query.edit_message_text(header.strip() + "\n\nNo questions found.")
+        return
+
+    body = "\n──────────\n".join(_q_format_entry(q, status) for q in questions)
+    text = header + body
+    if len(text) > 4000:
+        text = text[:4000] + "\n…"
+
+    nav = []
+    if offset > 0:
+        nav.append(InlineKeyboardButton(
+            "← Prev", callback_data=f"qd:{status}:{prog_code}:{days_key}:{offset - _Q_PAGE_SIZE}"
+        ))
+    if end < total:
+        nav.append(InlineKeyboardButton(
+            "Next →", callback_data=f"qd:{status}:{prog_code}:{days_key}:{offset + _Q_PAGE_SIZE}"
+        ))
+    markup = InlineKeyboardMarkup([nav]) if nav else None
+    await query.edit_message_text(text, reply_markup=markup)
+
+
+async def _q_answered_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    if update.effective_user.id not in _Q_ADMIN_IDS:
+        return
+    await update.message.reply_text(
+        "Filter answered questions — choose a program:",
+        reply_markup=_q_program_keyboard("answered"),
+    )
+
+
+async def _q_unanswered_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    if update.effective_user.id not in _Q_ADMIN_IDS:
+        return
+    await update.message.reply_text(
+        "Filter unanswered questions — choose a program:",
+        reply_markup=_q_program_keyboard("pending"),
+    )
+
+
+async def _q_program_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    query = update.callback_query
+    await query.answer()
+    if update.effective_user.id not in _Q_ADMIN_IDS:
+        return
+    _, status, prog_code = query.data.split(":", 2)
+    prog_label = _Q_PROG_LABELS.get(prog_code, prog_code)
+    await query.edit_message_text(
+        f"Program: {prog_label}\nNow choose a date range:",
+        reply_markup=_q_date_keyboard(status, prog_code),
+    )
+
+
+async def _q_date_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    query = update.callback_query
+    await query.answer()
+    if update.effective_user.id not in _Q_ADMIN_IDS:
+        return
+    _, status, prog_code, days_key, offset_str = query.data.split(":", 4)
+    await _q_show_results(query, status, prog_code, days_key, int(offset_str))
+
+
 def build_app() -> Application:
     app = (
         Application.builder()
@@ -1244,8 +1411,12 @@ def build_app() -> Application:
     app.add_handler(CommandHandler("followup", followup_command, filters=_private))
     app.add_handler(CommandHandler("santix", _santix_command, filters=_private))
     app.add_handler(CommandHandler("calstatus", _calstatus_command, filters=_private))
+    app.add_handler(CommandHandler("answered", _q_answered_command, filters=_private))
+    app.add_handler(CommandHandler("unanswered", _q_unanswered_command, filters=_private))
     app.add_handler(CallbackQueryHandler(_eg_check_membership_callback, pattern="^check_membership$"))
     app.add_handler(CallbackQueryHandler(_video_admin_program_callback, pattern="^setvideo_"))
+    app.add_handler(CallbackQueryHandler(_q_program_callback, pattern="^qp:"))
+    app.add_handler(CallbackQueryHandler(_q_date_callback, pattern="^qd:"))
     app.add_handler(MessageHandler(_private & ~filters.COMMAND, handle_message))
     app.add_handler(ChatJoinRequestHandler(_eg_join_request_handler))
 

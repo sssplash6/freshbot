@@ -19,6 +19,7 @@ TELEGRAM_BOT_TOKEN: str = _require("TELEGRAM_BOT_TOKEN")
 
 PERSON_X_CHAT_ID: int = int(_require("PERSON_X_CHAT_ID"))
 PERSON_Y_CHAT_ID: int = int(_require("PERSON_Y_CHAT_ID"))
+PERSON_Z_CHAT_ID: int = int(_require("PERSON_Z_CHAT_ID"))
 
 # Expert chat IDs for each program's question routing (comma-separated for multiple)
 SAT_MAN_CHAT_ID: list[int] = _require_int_list("SAT_MAN_CHAT_ID")
@@ -34,8 +35,8 @@ RI_MAN_CHAT_ID: list[int] = _require_int_list("RI_MAN_CHAT_ID")
 GOOGLE_SERVICE_ACCOUNT_FILE: str = _require("GOOGLE_SERVICE_ACCOUNT_FILE")
 GOOGLE_CALENDAR_ID: str = _require("GOOGLE_CALENDAR_ID")
 GOOGLE_BOOKING_URL_SAT: str = _require("GOOGLE_BOOKING_URL_SAT")
-GOOGLE_BOOKING_URL_ADV_PLACEMENT: str = _require("GOOGLE_BOOKING_URL_ADV_PLACEMENT")
 
+WEBSITE_URL_ADV_PLACEMENT: str = _require("WEBSITE_URL_ADV_PLACEMENT")
 WEBSITE_URL_ADMISSIONS: str = _require("WEBSITE_URL_ADMISSIONS")
 WEBSITE_URL_FULL_SUPPORT: str = _require("WEBSITE_URL_FULL_SUPPORT")
 WEBSITE_URL_MASTERS: str = _require("WEBSITE_URL_MASTERS")

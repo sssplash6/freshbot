@@ -416,13 +416,15 @@ RESOLVED_NO_USER_REPLY = (
 )
 
 ESCALATION_TO_PERSON_X = (
-    "\U0001f6a8 URGENT: User @{username} ({first_name}) has an unresolved issue.\n"
-    "Chat ID: {chat_id}. Please respond immediately."
+    "🚨 URGENT: User @{username} ({first_name}) has an unresolved issue.\n"
+    "Chat ID: {chat_id}\n\n"
+    "❓ Their question:\n{question}\n\n"
+    "Please respond immediately."
 )
 
-# Used when user has no @username
 ESCALATION_TO_PERSON_X_NO_USERNAME = (
-    "\U0001f6a8 URGENT: User {first_name} (ID: {chat_id}) has an unresolved issue.\n"
+    "🚨 URGENT: User {first_name} (ID: {chat_id}) has an unresolved issue.\n\n"
+    "❓ Their question:\n{question}\n\n"
     "Please respond immediately."
 )
 

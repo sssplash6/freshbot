@@ -300,6 +300,18 @@ async def mark_question_answered(question_id: int, answer_text: str | None = Non
         await db.commit()
 
 
+async def get_last_question(user_chat_id: int) -> dict | None:
+    """Return the most recent question from this user regardless of status."""
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute(
+            "SELECT * FROM questions WHERE user_chat_id = ? ORDER BY id DESC LIMIT 1",
+            (user_chat_id,),
+        ) as cursor:
+            row = await cursor.fetchone()
+            return dict(row) if row else None
+
+
 async def get_last_answered_question(user_chat_id: int) -> dict | None:
     async with aiosqlite.connect(DB_PATH) as db:
         db.row_factory = aiosqlite.Row
@@ -311,6 +323,46 @@ async def get_last_answered_question(user_chat_id: int) -> dict | None:
         ) as cursor:
             row = await cursor.fetchone()
             return dict(row) if row else None
+
+
+async def get_questions_filtered(
+    status: str,
+    program: str | None = None,
+    days: int | None = None,
+    offset: int = 0,
+    limit: int = 5,
+) -> tuple[list[dict], int]:
+    conditions = ["q.status = ?"]
+    params: list = [status]
+
+    if program:
+        conditions.append("q.program = ?")
+        params.append(program)
+    if days:
+        conditions.append("q.created_at >= datetime('now', ?)")
+        params.append(f"-{days} days")
+
+    where = " AND ".join(conditions)
+
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute(
+            f"SELECT COUNT(*) FROM questions q WHERE {where}", params
+        ) as cur:
+            total = (await cur.fetchone())[0]
+
+        async with db.execute(
+            f"""SELECT q.*, u.first_name, u.username
+                FROM questions q
+                LEFT JOIN users u ON q.user_chat_id = u.chat_id
+                WHERE {where}
+                ORDER BY q.created_at DESC
+                LIMIT ? OFFSET ?""",
+            params + [limit, offset],
+        ) as cur:
+            rows = await cur.fetchall()
+
+    return [dict(r) for r in rows], total
 
 
 async def mark_sibling_questions_answered(user_chat_id: int, question_text: str) -> None:
