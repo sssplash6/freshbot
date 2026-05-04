@@ -18,7 +18,6 @@ def _require_int_list(name: str) -> list[int]:
 TELEGRAM_BOT_TOKEN: str = _require("TELEGRAM_BOT_TOKEN")
 
 PERSON_X_CHAT_ID: int = int(_require("PERSON_X_CHAT_ID"))
-PERSON_Y_CHAT_ID: int = int(_require("PERSON_Y_CHAT_ID"))
 PERSON_Z_CHAT_ID: int = int(_require("PERSON_Z_CHAT_ID"))
 
 # Expert chat IDs for each program's question routing (comma-separated for multiple)
