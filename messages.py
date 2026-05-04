@@ -439,6 +439,7 @@ ESCALATION_TO_PERSON_X_NO_USERNAME = (
 # Register / Book a Meeting flow
 # ---------------------------------------------------------------------------
 WEBSITE_LINK_INTRO = "Here is the relevant section of our website:"
+AP_CLASSES_REGISTER_INTRO = "Please fill out the form below to enroll in AP Classes:"
 
 BOOKING_INTRO = "Please use the link below to book your session:"
 

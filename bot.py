@@ -79,6 +79,10 @@ _PROGRAM_WEBSITE_URL: dict[str, str] = {
     msg.BTN_RESEARCH_INSTITUTE: WEBSITE_URL_RESEARCH_INSTITUTE,
 }
 
+_PROGRAM_WEBSITE_INTRO: dict[str, str] = {
+    msg.BTN_ADV_PLACEMENT: msg.AP_CLASSES_REGISTER_INTRO,
+}
+
 _EXPERT_CHAT_IDS: frozenset[int] = frozenset(
     id for ids in _PROGRAM_EXPERT.values() for id in ids
 )
@@ -583,10 +587,8 @@ async def _handle_register(update: Update, chat_id: int) -> None:
 
     # Programs that link to a website section — no booking confirmation needed
     if program in _PROGRAM_WEBSITE_URL:
-        await update.message.reply_text(
-            msg.WEBSITE_LINK_INTRO,
-            reply_markup=ReplyKeyboardRemove(),
-        )
+        intro = _PROGRAM_WEBSITE_INTRO.get(program, msg.WEBSITE_LINK_INTRO)
+        await update.message.reply_text(intro, reply_markup=ReplyKeyboardRemove())
         await update.message.reply_text(
             _PROGRAM_WEBSITE_URL[program],
             reply_markup=_action_keyboard(),
