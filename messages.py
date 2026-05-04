@@ -13,35 +13,46 @@ WELCOME = "Hi {first_name}! Welcome to Freshman Academy. What would you like to 
 # Edit each description below when ready — keep the dict keys matching the button labels exactly
 PROGRAM_DESCRIPTIONS = {
     "SAT Program": (
-        "Lorem ipsum dolor sit amet, consectetur adipisicing elit. "
-        "Temporibus nemo iusto at autem similique reiciendis itaque esse quasi reprehenderit iure."
+        "This program is for students who want more than just SAT prep. You'll be in an environment with admissions-focused mentors and driven peers, gaining early exposure to the college admissions world while improving your SAT."
     ),
     "Admissions Program": (
-        "Lorem ipsum dolor sit, amet consectetur adipisicing elit. "
-        "Deleniti maxime esse eligendi cum iure repellat eos ducimus fugiat est expedita."
+        "🎓 Build Your Competitive Admissions Plan\n\n"
+        "The Admissions Program 2026 offers the most impactful educational experience in Freshman's history.\n\n"
+        "Over the next months, you will write 25,000+ words essays and read hundreds of pages of undergraduate literature, thus experiencing education at the Ivy League and other competitive universities.\n\n"
+        "Our past graduates launched startups, wrote world-class undergraduate research, received summer school scholarships, started passion projects, and many more."
     ),
     "Full Support Program": (
-        "Lorem ipsum dolor sit amet consectetur adipisicing elit. "
-        "Ipsa doloribus numquam maiores commodi quibusdam molestiae placeat ipsum eveniet dignissimos totam!"
+        "🏆 Harvard, Yale, Princeton, Columbia, and Duke Full-Ride Scholarships — Full Support makes dreams possible!\n\n"
+        "Full Support is our most comprehensive and personalized admissions program.\n\n"
+        "Every year, we select 12–15 ambitious students applying to selective American universities.\n\n"
+        "In the past three years, over 80% of our students were accepted to top U.S. and global universities."
     ),
     "Advanced Placement": (
-        "Lorem, ipsum dolor sit amet consectetur adipisicing elit. "
-        "Ullam tempore cumque soluta nemo nobis ipsa, perspiciatis officia doloremque earum ab."
+        "AP Classes by Freshman Academy are preparatory courses for AP exams led by well-qualified mentors, available in both individual and group formats.\n\n"
+        "We cover theory, practice questions, and authentic mock exams to fully prepare you and maximize your score."
     ),
     "Imkon": (
-        "Lorem ipsum dolor sit amet, consectetur adipisicing elit. "
-        "Voluptate, necessitatibus ex! Quia magni cupiditate mollitia ab impedit ad cum doloribus?"
+        "Imkon Scholars is a free, high-impact admissions preparation program designed to help talented, underserved students gain access to top global universities.\n\n"
+        "Spearheaded by Freshman Academy, scholars are provided mentorship, writing support, and research guidance. The program aims to bridge the gap between talent and opportunity."
     ),
     "Research Institute": (
-        "Lorem ipsum dolor sit amet, consectetur adipisicing elit. "
-        "Temporibus nemo iusto at autem similique reiciendis itaque esse quasi reprehenderit iure."
+        "The Freshman Research Institute advances the research skills of high school, undergraduate, and graduate students.\n\n"
+        "Our program supports students at any stage of their research — whether in ideating, evaluation of sources, writing, and editing.\n\n"
+        "This is a unique opportunity to turn your research ideas into potential publications, elevating your profile for academic and career advancement."
+    ),
+    "Master's Support": (
+        "Master's Support is Freshman's comprehensive admissions program for students pursuing graduate education at top global universities.\n\n"
+        "What's included:\n\n"
+        "📄 Research Proposal — We assess your proposal and strengthen your thesis to meet your target program's requirements.\n\n"
+        "🗓 Application Timeline & Strategy — We map out a strategic admissions calendar tailored to your availability and deadlines.\n\n"
+        "🔍 Overall Profile Assessment — We review your full application for consistency and alignment with your target programs.\n\n"
+        "✍️ Statement of Purpose — We guide you through the entire writing process, from initial notes to final draft.\n\n"
+        "📝 Additional Essays — Close guidance and detailed feedback on every supplemental essay.\n\n"
+        "🎯 Program Selection — We match you to programs that fit your interests, career path, and profile."
     ),
 }
 
-_program_list = "\n\n".join(
-    f"{name}\n{desc}" for name, desc in PROGRAM_DESCRIPTIONS.items()
-)
-CHOOSE_PROGRAM = _program_list + "\n\nChoose your program:"
+CHOOSE_PROGRAM = "Choose your program:"
 
 PROGRAMS_COMING_SOON = "🚧 This section is coming soon. Stay tuned!"
 
@@ -134,6 +145,43 @@ FS_FAQ_ITEMS = [
     ),
 ]
 
+AP_FAQ_ITEMS = [
+    (
+        "Will I be expelled if I miss a lesson or homework submission?",
+        "Missing a class or assignment without appropriate justification would result in expulsion without a refund.\n\n"
+        "The Admissions Program has historically attracted some of Central Asia's most academically talented and ambitious students.\n\n"
+        "Thus, this rule aims to ensure that the participants get the most out of the Program, transforming their applications before university deadlines.",
+    ),
+    (
+        "Why is the Admissions Program so cheap or expensive?",
+        "Interestingly, we receive both questions equally often.\n\n"
+        "The reason behind the Admissions Program's low prices, relative to companies with similar track record to ours, lies in our passionate team. We work at a discounted rate to assist students from the post-Soviet space in their admissions aspirations.\n\n"
+        "However, we still need to fairly compensate our highly skilled consultants. Running the Admissions Program demands a large amount of resources, which are used to fund our team and also ensure that we overdeliver on our promises, supporting you beyond the application deadlines.",
+    ),
+    (
+        "How do you select students?",
+        "Although aspects like test scores are considered, we typically look beyond academics into your life story.\n\n"
+        "Ideally, we seek academically promising students with some extracurricular experiences and a track record of discipline, relentlessness, high integrity, and a commitment to excellence in whatever they do.\n\n"
+        "Even if you are unsure, you can still apply. Our team will be happy to evaluate your application and offer you other options — Private Consultations or Full Support — to support your educational endeavors.",
+    ),
+    (
+        "How hard is it to be accepted to the Admissions Program?",
+        "In the last admissions cycle, we received over 320 applications, out of which we selected 60+ students.\n\n"
+        "However, with this year's improved curriculum and increased personalization, we plan to admit only 17 ambitious students per cohort.",
+    ),
+    (
+        "I have high SAT and IELTS scores. Will I be admitted to the program?",
+        "US universities usually value your academics (test scores, GPA, etc.) at only 30% of your entire application.\n\n"
+        "Similarly, we seek students who demonstrate immense capability beyond academia, evaluated through a holistic consideration of your entire profile including your academics, extracurriculars, and other contexts.",
+    ),
+    (
+        "My family can afford the program. Can I still apply for Co-op Assistance?",
+        "Co-op Assistance is strictly for families who truly cannot afford the Admissions Program.\n\n"
+        "During the application, we will require proof of income and bank statements to verify the applicant's financial status.\n\n"
+        "As our resources are limited, we trust applicants who can afford the program will have the integrity to enable low-income families a potentially life-changing opportunity.",
+    ),
+]
+
 RI_FAQ_ITEMS = [
     (
         "I have no research experience, should I still apply?",
@@ -187,6 +235,34 @@ IMKON_FAQ_ITEMS = [
     ),
 ]
 
+ADV_PLACEMENT_FAQ_ITEMS = [
+    (
+        "What AP subjects do you offer?",
+        "Currently, we offer AP Microeconomics, AP Macroeconomics, AP Calculus AB, and AP Calculus BC. "
+        "We plan to expand our subject list soon — please stay tuned for updates.",
+    ),
+    (
+        "Who is this program designed for?",
+        "The program is designed for high school students and gap-year students who want to master college-level material and prepare for the official AP exams.",
+    ),
+    (
+        "How do I enroll in a course?",
+        'To begin the process, please fill out our official <a href="https://forms.gle/FWYA8UDZwkVLWUkV8">enrollment form</a>.',
+    ),
+    (
+        "Are there specific prerequisites or grade requirements?",
+        "Requirements vary by subject. To ensure you are placed in the right level, we offer a free consultation with a mentor once you apply.",
+    ),
+    (
+        "Do you offer a trial class?",
+        "Yes, trial classes are available for students who wish to experience our teaching style before committing.",
+    ),
+    (
+        "Can I join multiple courses at once?",
+        "Yes. Our team will help you build a non-overlapping schedule and can provide specialized course packages.",
+    ),
+]
+
 PARTNERSHIPS_FAQ_ITEMS = [
     (
         "What types of partnerships do you offer?",
@@ -211,8 +287,42 @@ PARTNERSHIPS_FAQ_ITEMS = [
     ),
 ]
 
+MS_FAQ_ITEMS = [
+    (
+        "What is the cost of Master's Support?",
+        "The pricing will depend on the selected Master's programs and the estimated level of support.",
+    ),
+    (
+        "How do you select students?",
+        "Although aspects like test scores are crucial, we typically look beyond academics into your life story and professional experience.\n\n"
+        "Ideally, we seek academically stellar students with strong professional achievements and a track record of discipline, relentlessness, high integrity, and a commitment to excellence in whatever they do.\n\n"
+        "However, we still encourage you to apply regardless of your achievements. Our team will be happy to evaluate your application and offer you other options — Private Consultations or Short Programs — to support your educational endeavors.",
+    ),
+    (
+        "Can you prepare students for GRE or GMAT?",
+        "Yes! We can prepare you for GRE and/or GMAT at an additional cost.",
+    ),
+    (
+        "How long does the program last?",
+        "As the \"Master's Support\" name suggests, our program lasts until the admissions process is fully finalized.\n\n"
+        "Our work typically extends until March of the following year, when you have your interviews.",
+    ),
+    (
+        "What is the deadline for application?",
+        "There is no priority deadline — we accept students on a rolling basis.",
+    ),
+    (
+        "Does Freshman offer financial assistance?",
+        "Due to the high operational costs of the program, Freshman will not be offering financial assistance for Master's applicants.\n\n"
+        "However, if you would like us to review your essay at an affordable price, consider Freshman's Consultations.",
+    ),
+]
+
 SAT_FAQ_MESSAGE = _build_faq_message(SAT_FAQ_ITEMS)
 FS_FAQ_MESSAGE = _build_faq_message(FS_FAQ_ITEMS)
+AP_FAQ_MESSAGE = _build_faq_message(AP_FAQ_ITEMS)
+ADV_PLACEMENT_FAQ_MESSAGE = _build_faq_message(ADV_PLACEMENT_FAQ_ITEMS)
+MS_FAQ_MESSAGE = _build_faq_message(MS_FAQ_ITEMS)
 RI_FAQ_MESSAGE = _build_faq_message(RI_FAQ_ITEMS)
 IMKON_FAQ_MESSAGE = _build_faq_message(IMKON_FAQ_ITEMS)
 PARTNERSHIPS_FAQ_MESSAGE = _build_faq_message(PARTNERSHIPS_FAQ_ITEMS)
@@ -220,16 +330,13 @@ PARTNERSHIPS_FAQ_MESSAGE = _build_faq_message(PARTNERSHIPS_FAQ_ITEMS)
 # Lookup: program button label → FAQ message. Programs absent from this dict show no FAQ.
 PROGRAM_FAQ_MESSAGE: dict[str, str] = {
     "SAT Program": SAT_FAQ_MESSAGE,
+    "Admissions Program": AP_FAQ_MESSAGE,
     "Full Support Program": FS_FAQ_MESSAGE,
+    "Master's Support": MS_FAQ_MESSAGE,
+    "Advanced Placement": ADV_PLACEMENT_FAQ_MESSAGE,
     "Research Institute": RI_FAQ_MESSAGE,
     "Imkon": IMKON_FAQ_MESSAGE,
 }
-
-GENERAL_INQUIRY_INTRO = (
-    "You can browse our FAQs below, or ask our team directly if you still have a question."
-)
-
-GENERAL_INQUIRY_MENU = "Choose a topic:"
 
 FAQ_TYPE_QUESTION = (
     "Please type your question below and our team will get back to you shortly:"
@@ -370,13 +477,12 @@ BTN_GET_LINK = "🔗 Get Event Link"
 BTN_SAT = "SAT Program"
 BTN_ADMISSIONS = "Admissions Program"
 BTN_FULL_SUPPORT = "Full Support Program"
+BTN_MASTERS = "Master's Support"
 BTN_ADV_PLACEMENT = "Advanced Placement"
 BTN_IMKON = "Imkon"
 BTN_RESEARCH_INSTITUTE = "Research Institute"
 
 BTN_GENERAL_INQUIRY = "💬 General Inquiry"
-BTN_GENERAL = "General"
-BTN_PARTNERSHIPS = "🤝 Partnerships"
 BTN_ASK_QUESTION = "Ask a question"
 BTN_REGISTER = "Reserve a spot"
 

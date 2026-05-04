@@ -5,7 +5,7 @@ import uvicorn
 
 import database as db
 from bot import build_app
-from google_calendar import get_fastapi_app, setup_calendar_watch
+from google_calendar import get_fastapi_app, setup_calendar_watch, schedule_watch_renewal
 from config import WEBHOOK_PORT
 from scheduler import init_scheduler
 
@@ -30,6 +30,7 @@ async def main() -> None:
 
     # 4. Register Google Calendar push notification watch
     await setup_calendar_watch()
+    schedule_watch_renewal()
 
     # 5. Build FastAPI app (needs bot reference for scheduling reminders)
     fastapi_app = get_fastapi_app(tg_bot)

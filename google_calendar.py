@@ -109,6 +109,36 @@ def get_watch_status() -> dict:
     return dict(_watch_status)
 
 
+async def _renew_watch() -> None:
+    logger.info("Auto-renewing Google Calendar watch before expiry...")
+    await setup_calendar_watch()
+    schedule_watch_renewal()
+
+
+def schedule_watch_renewal() -> None:
+    from scheduler import get_scheduler
+
+    expiry = _watch_status.get("expires")
+    if not expiry:
+        logger.warning("Cannot schedule watch renewal — no expiry date in watch status.")
+        return
+
+    renew_at = expiry - timedelta(hours=24)
+    now = datetime.now(timezone.utc)
+    if renew_at <= now:
+        # Less than 24 h left — renew in 5 minutes
+        renew_at = now + timedelta(minutes=5)
+
+    get_scheduler().add_job(
+        _renew_watch,
+        trigger="date",
+        run_date=renew_at,
+        id="calendar_watch_renewal",
+        replace_existing=True,
+    )
+    logger.info("Google Calendar watch renewal scheduled for %s", renew_at)
+
+
 # ---------------------------------------------------------------------------
 # Username extraction
 # ---------------------------------------------------------------------------
