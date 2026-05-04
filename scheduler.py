@@ -195,5 +195,4 @@ async def send_meeting_reminder(
             await bot.send_message(chat_id=staff_id, text=staff_text)
         except Exception:
             logger.exception("Failed to send meeting reminder to AP staff %d for chat_id=%d", staff_id, chat_id)
-    finally:
-        await db.mark_job_sent(job_id)
+    await db.mark_job_sent(job_id)
