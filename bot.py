@@ -114,10 +114,10 @@ def _main_keyboard() -> ReplyKeyboardMarkup:
 def _program_keyboard() -> ReplyKeyboardMarkup:
     return ReplyKeyboardMarkup(
         [
-            [msg.BTN_SAT, msg.BTN_ADMISSIONS],
-            [msg.BTN_FULL_SUPPORT, msg.BTN_MASTERS],
-            [msg.BTN_ADV_PLACEMENT, msg.BTN_IMKON],
-            [msg.BTN_RESEARCH_INSTITUTE],
+            [msg.BTN_FULL_SUPPORT, msg.BTN_ADMISSIONS],
+            [msg.BTN_IMKON, msg.BTN_MASTERS],
+            [msg.BTN_RESEARCH_INSTITUTE, msg.BTN_ADV_PLACEMENT],
+            [msg.BTN_SAT],
             [msg.BTN_HOME],
         ],
         resize_keyboard=True,
