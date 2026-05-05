@@ -643,24 +643,39 @@ async def _handle_resolved_no(update: Update, chat_id: int) -> None:
 
     first_name = user["first_name"] if user else "Unknown"
     raw_username = user.get("username") if user else None
+    program = user.get("program") if user else None
     last_q = await db.get_last_question(chat_id)
     question_text = last_q["question_text"] if last_q else "—"
+    username_part = f" (@{raw_username})" if raw_username else ""
 
     if raw_username:
-        escalation_text = msg.ESCALATION_TO_PERSON_X.format(
+        admin_text = msg.ESCALATION_TO_PERSON_X.format(
             username=raw_username,
             first_name=first_name,
             chat_id=chat_id,
             question=question_text,
         )
     else:
-        escalation_text = msg.ESCALATION_TO_PERSON_X_NO_USERNAME.format(
+        admin_text = msg.ESCALATION_TO_PERSON_X_NO_USERNAME.format(
             first_name=first_name,
             chat_id=chat_id,
             question=question_text,
         )
 
-    await update.get_bot().send_message(chat_id=PERSON_X_CHAT_ID, text=escalation_text)
+    expert_text = msg.ESCALATION_TO_EXPERT.format(
+        first_name=first_name,
+        username_part=username_part,
+        question=question_text,
+    )
+
+    bot = update.get_bot()
+    await bot.send_message(chat_id=PERSON_X_CHAT_ID, text=admin_text)
+    await bot.send_message(chat_id=PERSON_Z_CHAT_ID, text=admin_text)
+    for expert_id in (_PROGRAM_EXPERT.get(program or "") or []):
+        try:
+            await bot.send_message(chat_id=expert_id, text=expert_text)
+        except Exception:
+            logger.exception("Failed to send escalation to expert %d", expert_id)
     await update.message.reply_text(
         msg.RESOLVED_NO_USER_REPLY,
         reply_markup=_start_keyboard(),

@@ -435,6 +435,12 @@ ESCALATION_TO_PERSON_X_NO_USERNAME = (
     "Please respond immediately."
 )
 
+ESCALATION_TO_EXPERT = (
+    "⚠️ {first_name}{username_part} has not received an answer yet.\n\n"
+    "❓ Their question:\n{question}\n\n"
+    "Please reply as soon as possible."
+)
+
 # ---------------------------------------------------------------------------
 # Register / Book a Meeting flow
 # ---------------------------------------------------------------------------
