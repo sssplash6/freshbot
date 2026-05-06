@@ -488,9 +488,9 @@ CANCEL_REPLY = "Session reset. Type /start to begin."
 # Button labels
 # ---------------------------------------------------------------------------
 BTN_PROGRAMS = "📚 Programs"
-BTN_SPECIAL_EVENTS = "🎉 Special Events"
+BTN_SPECIAL_EVENTS = "Consultation Giveaway with Valera"
 BTN_GET_LINK = "🔗 Get Event Link"
-BTN_CLICK_TO_JOIN = "Consultation Giveaway with Valera"
+BTN_CLICK_TO_JOIN = "Click to join! 🎉"
 BTN_SE_CHECK = "✅ I've joined — check again"
 
 BTN_SAT = "SAT Program"
