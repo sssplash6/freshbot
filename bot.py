@@ -1002,6 +1002,9 @@ _video_admin_state: dict = {"step": None, "program": None}
 # In-memory state for /sevent admin flow
 _sevent_admin_state: dict = {"step": None}
 
+# Tracks last rolled participant ID for /reroll exclusion
+_roll_state: dict = {"last_id": None}
+
 
 async def _eg_admin_event_command(
     update: Update, context: ContextTypes.DEFAULT_TYPE
@@ -1317,6 +1320,56 @@ async def _se_check_callback(update: Update, context: ContextTypes.DEFAULT_TYPE)
 
 
 # ---------------------------------------------------------------------------
+# /roll and /reroll — pick a random special event participant (PERSON_X only)
+# ---------------------------------------------------------------------------
+
+import random as _random
+
+
+def _roll_format(participant: dict, header: str) -> str:
+    username_part = f" (@{participant['username']})" if participant.get("username") else ""
+    return header.format(
+        chat_id=participant["student_chat_id"],
+        first_name=participant["first_name"],
+        username_part=username_part,
+    )
+
+
+async def _roll_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    if update.effective_user.id != PERSON_X_CHAT_ID:
+        return
+    participants = await db.se_get_all_participants()
+    if not participants:
+        await update.message.reply_text(msg.ROLL_NO_PARTICIPANTS)
+        return
+    winner = _random.choice(participants)
+    _roll_state["last_id"] = winner["student_chat_id"]
+    await update.message.reply_text(
+        _roll_format(winner, msg.ROLL_RESULT),
+        parse_mode="HTML",
+    )
+
+
+async def _reroll_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    if update.effective_user.id != PERSON_X_CHAT_ID:
+        return
+    if _roll_state["last_id"] is None:
+        await update.message.reply_text(msg.ROLL_USE_FIRST)
+        return
+    participants = await db.se_get_all_participants()
+    pool = [p for p in participants if p["student_chat_id"] != _roll_state["last_id"]]
+    if not pool:
+        await update.message.reply_text(msg.ROLL_ONLY_ONE)
+        return
+    winner = _random.choice(pool)
+    _roll_state["last_id"] = winner["student_chat_id"]
+    await update.message.reply_text(
+        _roll_format(winner, msg.REROLL_RESULT),
+        parse_mode="HTML",
+    )
+
+
+# ---------------------------------------------------------------------------
 # /calstatus — show Google Calendar watch registration state
 # ---------------------------------------------------------------------------
 
@@ -1537,6 +1590,8 @@ def build_app() -> Application:
     app.add_handler(CommandHandler("stats", _stats_command, filters=_private))
     app.add_handler(CommandHandler("setvideo", _video_admin_command, filters=_private))
     app.add_handler(CommandHandler("sevent", _sevent_command, filters=_private))
+    app.add_handler(CommandHandler("roll", _roll_command, filters=_private))
+    app.add_handler(CommandHandler("reroll", _reroll_command, filters=_private))
     app.add_handler(CommandHandler("followup", followup_command, filters=_private))
     app.add_handler(CommandHandler("santix", _santix_command, filters=_private))
     app.add_handler(CommandHandler("calstatus", _calstatus_command, filters=_private))

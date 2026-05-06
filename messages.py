@@ -611,6 +611,21 @@ SEVENT_SEND_POST = (
 SEVENT_SAVED = "✅ Special event post saved."
 
 # ---------------------------------------------------------------------------
+# /roll and /reroll
+# ---------------------------------------------------------------------------
+ROLL_NO_PARTICIPANTS = "No participants yet."
+ROLL_ONLY_ONE = "Only one participant — can't pick someone different."
+ROLL_USE_FIRST = "Use /roll first."
+ROLL_RESULT = (
+    '🎲 Result: <a href="tg://user?id={chat_id}">{first_name}</a>{username_part}\n\n'
+    "Use /reroll if you'd like a different result."
+)
+REROLL_RESULT = (
+    '🎲 Re-rolled: <a href="tg://user?id={chat_id}">{first_name}</a>{username_part}\n\n'
+    "Use /reroll if you'd like a different result."
+)
+
+# ---------------------------------------------------------------------------
 # Admin stats
 # ---------------------------------------------------------------------------
 ADMIN_STATS = (

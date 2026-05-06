@@ -601,6 +601,16 @@ async def se_save_post(post_chat_id: int, post_message_id: int) -> None:
         await db.commit()
 
 
+async def se_get_all_participants() -> list[dict]:
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute(
+            "SELECT * FROM special_event_participants ORDER BY participated_at"
+        ) as cursor:
+            rows = await cursor.fetchall()
+            return [dict(r) for r in rows]
+
+
 async def se_get_participant(student_chat_id: int) -> dict | None:
     async with aiosqlite.connect(DB_PATH) as db:
         db.row_factory = aiosqlite.Row
