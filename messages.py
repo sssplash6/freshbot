@@ -490,7 +490,7 @@ CANCEL_REPLY = "Session reset. Type /start to begin."
 BTN_PROGRAMS = "📚 Programs"
 BTN_SPECIAL_EVENTS = "🎉 Special Events"
 BTN_GET_LINK = "🔗 Get Event Link"
-BTN_CLICK_TO_JOIN = "Click to join! 🎉"
+BTN_CLICK_TO_JOIN = "Consultation Giveaway with Valera"
 BTN_SE_CHECK = "✅ I've joined — check again"
 
 BTN_SAT = "SAT Program"
@@ -623,13 +623,15 @@ BTN_CONFIRM_WINNER = "✅ Confirm Winner"
 BTN_REROLL_INLINE = "🎲 Reroll"
 
 ROLL_WINNER_NOTIFY = (
-    "🎉 Congratulations! You have been selected as the winner of our Special Event!\n\n"
-    "We will be in touch with you shortly."
+    "Congratulations! 🎉\n\n"
+    "You have won the Consultation Giveaway with Valera: three consultations with Valera, "
+    "Freshman Founder, worth $360.\n\n"
+    "Valera will contact you personally with the next steps."
 )
 ROLL_LOSER_NOTIFY = (
-    "Thank you for participating in our Special Event!\n\n"
-    "Unfortunately, you were not selected as the winner this time. "
-    "We hope to see you at our next event!"
+    "Thank you for participating in the Consultation Giveaway with Valera!\n\n"
+    "Unfortunately, you were not selected this time. "
+    "Stay tuned, we will be launching more opportunities soon."
 )
 ROLL_CONFIRMED = "✅ Winner confirmed. Notifications sent: {sent} delivered, {failed} failed."
 
