@@ -622,6 +622,15 @@ async def se_get_participant(student_chat_id: int) -> dict | None:
             return dict(row) if row else None
 
 
+async def se_remove_participant(student_chat_id: int) -> None:
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute(
+            "DELETE FROM special_event_participants WHERE student_chat_id = ?",
+            (student_chat_id,),
+        )
+        await db.commit()
+
+
 async def se_add_participant(
     student_chat_id: int, first_name: str, username: str | None
 ) -> None:

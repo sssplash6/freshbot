@@ -1269,24 +1269,40 @@ async def _handle_special_events(
     )
 
 
+async def _se_get_missing_handles(bot, student_chat_id: int) -> list[str]:
+    missing: list[str] = []
+    for channel_id, handle in zip(SPECIAL_EVENT_CHANNEL_IDS, SPECIAL_EVENT_CHANNEL_HANDLES):
+        try:
+            member = await bot.get_chat_member(channel_id, student_chat_id)
+            if member.status not in _EG_MEMBER_STATUSES:
+                missing.append(handle)
+        except TelegramError:
+            logger.warning("Cannot check SE membership in %s. Failing open.", channel_id)
+    return missing
+
+
 async def _se_check_membership_and_respond(
     query, student_chat_id: int, first_name: str, username: str | None, context
 ) -> None:
     existing = await db.se_get_participant(student_chat_id)
     if existing:
+        # Re-verify they're still subscribed — remove and re-gate if they left
+        if SPECIAL_EVENT_CHANNEL_IDS:
+            missing_handles = await _se_get_missing_handles(context.bot, student_chat_id)
+            if missing_handles:
+                await db.se_remove_participant(student_chat_id)
+                channel_list = "\n".join(f"• {h}" for h in missing_handles)
+                await query.edit_message_text(
+                    msg.SE_MUST_JOIN.format(channel_list=channel_list),
+                    reply_markup=InlineKeyboardMarkup(
+                        [[InlineKeyboardButton(msg.BTN_SE_CHECK, callback_data="se_check")]]
+                    ),
+                )
+                return
         await query.edit_message_text(msg.SE_ALREADY_PARTICIPATING)
         return
 
-    missing_handles: list[str] = []
-    if SPECIAL_EVENT_CHANNEL_IDS:
-        for channel_id, handle in zip(SPECIAL_EVENT_CHANNEL_IDS, SPECIAL_EVENT_CHANNEL_HANDLES):
-            try:
-                member = await context.bot.get_chat_member(channel_id, student_chat_id)
-                if member.status not in _EG_MEMBER_STATUSES:
-                    missing_handles.append(handle)
-            except TelegramError:
-                logger.warning("Cannot check SE membership in %s. Failing open.", channel_id)
-                # Fail open: if we can't check, don't block the user
+    missing_handles = await _se_get_missing_handles(context.bot, student_chat_id) if SPECIAL_EVENT_CHANNEL_IDS else []
 
     if missing_handles:
         channel_list = "\n".join(f"• {h}" for h in missing_handles)
