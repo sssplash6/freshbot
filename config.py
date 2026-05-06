@@ -28,7 +28,6 @@ ADV_PLACEMENT_MAN_CHAT_ID: list[int] = _require_int_list("ADV_PLACEMENT_MAN_CHAT
 MS_MAN_CHAT_ID: list[int] = _require_int_list("MS_MAN_CHAT_ID")
 IMKON_MAN_CHAT_ID: list[int] = _require_int_list("IMKON_MAN_CHAT_ID")
 GENERAL_MAN_CHAT_ID: list[int] = _require_int_list("GENERAL_MAN_CHAT_ID")
-PARTNERSHIPS_MAN_CHAT_ID: list[int] = _require_int_list("PARTNERSHIPS_MAN_CHAT_ID")
 RI_MAN_CHAT_ID: list[int] = _require_int_list("RI_MAN_CHAT_ID")
 
 GOOGLE_SERVICE_ACCOUNT_FILE: str = _require("GOOGLE_SERVICE_ACCOUNT_FILE")
@@ -51,9 +50,22 @@ def _require_str_list(name: str) -> list[str]:
     return [x.strip() for x in _require(name).split(",") if x.strip()]
 
 
+def _optional_int_list(name: str) -> list[int]:
+    value = os.getenv(name, "").strip()
+    return [int(x.strip()) for x in value.split(",") if x.strip()]
+
+
+def _optional_str_list(name: str) -> list[str]:
+    value = os.getenv(name, "").strip()
+    return [x.strip() for x in value.split(",") if x.strip()]
+
+
 # Event gate
 REQUIRED_GROUP_IDS: list[int] = _require_int_list("REQUIRED_GROUP_IDS")
 REQUIRED_GROUP_INVITES: list[str] = _require_str_list("REQUIRED_GROUP_INVITES")
 REQUIRED_CHANNEL_IDS: list[int] = _require_int_list("REQUIRED_CHANNEL_IDS")
 REQUIRED_CHANNEL_INVITES: list[str] = _require_str_list("REQUIRED_CHANNEL_INVITES")
 LINK_EXPIRY_HOURS: int = int(os.getenv("LINK_EXPIRY_HOURS", "24"))
+
+SPECIAL_EVENT_CHANNEL_IDS: list[int] = _optional_int_list("SPECIAL_EVENT_CHANNEL_IDS")
+SPECIAL_EVENT_CHANNEL_HANDLES: list[str] = _optional_str_list("SPECIAL_EVENT_CHANNEL_HANDLES")

@@ -488,7 +488,10 @@ CANCEL_REPLY = "Session reset. Type /start to begin."
 # Button labels
 # ---------------------------------------------------------------------------
 BTN_PROGRAMS = "📚 Programs"
+BTN_SPECIAL_EVENTS = "🎉 Special Events"
 BTN_GET_LINK = "🔗 Get Event Link"
+BTN_CLICK_TO_JOIN = "Click to join! 🎉"
+BTN_SE_CHECK = "✅ I've joined — check again"
 
 BTN_SAT = "SAT Program"
 BTN_ADMISSIONS = "Admissions Program"
@@ -583,6 +586,33 @@ EG_ADMIN_HELP = (
 BROADCAST_KEYBOARD_MESSAGE = "We\u2019ve updated our menu! Here\u2019s what\u2019s available now \U0001f447"
 BROADCAST_KEYBOARD_DONE = "Keyboard broadcast: {sent} sent, {failed} failed ({total} total users)."
 
+# ---------------------------------------------------------------------------
+# Special Events — student flow
+# ---------------------------------------------------------------------------
+SE_NO_ACTIVE_EVENT = "No special event at the moment. Check back soon!"
+SE_JOIN_PROMPT = "Tap below to participate:"
+SE_MUST_JOIN = (
+    "To participate, please join the following channels first:\n"
+    "{channel_list}\n\n"
+    "Once you've joined, tap the button below."
+)
+SE_ALREADY_PARTICIPATING = "You're already signed up! We'll notify you on June 1. 🎉"
+SE_NOW_PARTICIPATING = (
+    "🎉 You are now participating!\n\n"
+    "We will notify the results through the bot on June 1."
+)
+
+# ---------------------------------------------------------------------------
+# Special Events — admin flow
+# ---------------------------------------------------------------------------
+SEVENT_SEND_POST = (
+    "Send me the special event post (any message type — text, photo, or forwarded)."
+)
+SEVENT_SAVED = "✅ Special event post saved."
+
+# ---------------------------------------------------------------------------
+# Admin stats
+# ---------------------------------------------------------------------------
 ADMIN_STATS = (
     "\U0001f4ca Bot Stats\n"
     "\n"

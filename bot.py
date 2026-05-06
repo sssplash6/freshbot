@@ -39,6 +39,8 @@ from config import (
     REQUIRED_GROUP_INVITES,
     RI_MAN_CHAT_ID,
     SAT_MAN_CHAT_ID,
+    SPECIAL_EVENT_CHANNEL_IDS,
+    SPECIAL_EVENT_CHANNEL_HANDLES,
     TELEGRAM_BOT_TOKEN,
     WEBSITE_URL_ADMISSIONS,
     WEBSITE_URL_FULL_SUPPORT,
@@ -107,8 +109,9 @@ def _main_keyboard() -> ReplyKeyboardMarkup:
     return ReplyKeyboardMarkup(
         [
             [msg.BTN_PROGRAMS],
-            [msg.BTN_GENERAL_INQUIRY],
+            [msg.BTN_SPECIAL_EVENTS],
             [msg.BTN_GET_LINK],
+            [msg.BTN_GENERAL_INQUIRY],
         ],
         resize_keyboard=True,
         is_persistent=True,
@@ -232,6 +235,9 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     # If PERSON_X is also an expert and is replying (reply_to_message is set),
     # let the expert handler run so student questions get answered.
     if chat_id == PERSON_X_CHAT_ID:
+        if _sevent_admin_state.get("step") is not None:
+            await _sevent_message_handler(update, context)
+            return
         if _video_admin_state.get("step") is not None:
             await _video_admin_message_handler(update, context)
             return
@@ -268,6 +274,8 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 
     if text == msg.BTN_PROGRAMS:
         await _handle_programs(update, chat_id)
+    elif text == msg.BTN_SPECIAL_EVENTS:
+        await _handle_special_events(update, chat_id, context)
     elif text == msg.BTN_GENERAL_INQUIRY:
         await _handle_general_inquiry(update, chat_id)
     elif text == msg.BTN_GET_LINK:
@@ -991,6 +999,9 @@ _eg_admin_state: dict = {"step": None, "event_group_id": None}
 # In-memory state for /setvideo admin flow
 _video_admin_state: dict = {"step": None, "program": None}
 
+# In-memory state for /sevent admin flow
+_sevent_admin_state: dict = {"step": None}
+
 
 async def _eg_admin_event_command(
     update: Update, context: ContextTypes.DEFAULT_TYPE
@@ -1209,6 +1220,100 @@ async def _video_admin_message_handler(
     _video_admin_state["step"] = None
     _video_admin_state["program"] = None
     await update.message.reply_text(msg.SETVIDEO_SAVED.format(program=program))
+
+
+# ---------------------------------------------------------------------------
+# /sevent — admin flow (PERSON_X only)
+# ---------------------------------------------------------------------------
+
+async def _sevent_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    if update.effective_user.id != PERSON_X_CHAT_ID:
+        return
+    _sevent_admin_state["step"] = "awaiting_post"
+    await update.message.reply_text(msg.SEVENT_SEND_POST)
+
+
+async def _sevent_message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    if _sevent_admin_state.get("step") != "awaiting_post":
+        return
+    msg_obj = update.message
+    await db.se_save_post(msg_obj.chat_id, msg_obj.message_id)
+    _sevent_admin_state["step"] = None
+    await msg_obj.reply_text(msg.SEVENT_SAVED)
+
+
+# ---------------------------------------------------------------------------
+# Special Events — student flow
+# ---------------------------------------------------------------------------
+
+async def _handle_special_events(
+    update: Update, chat_id: int, context: ContextTypes.DEFAULT_TYPE
+) -> None:
+    post = await db.se_get_active_post()
+    if not post:
+        await update.message.reply_text(msg.SE_NO_ACTIVE_EVENT, reply_markup=_main_keyboard())
+        return
+    await context.bot.copy_message(
+        chat_id=chat_id,
+        from_chat_id=post["post_chat_id"],
+        message_id=post["post_message_id"],
+    )
+    await update.message.reply_text(
+        msg.SE_JOIN_PROMPT,
+        reply_markup=InlineKeyboardMarkup(
+            [[InlineKeyboardButton(msg.BTN_CLICK_TO_JOIN, callback_data="se_join")]]
+        ),
+    )
+
+
+async def _se_check_membership_and_respond(
+    query, student_chat_id: int, first_name: str, username: str | None, context
+) -> None:
+    existing = await db.se_get_participant(student_chat_id)
+    if existing:
+        await query.edit_message_text(msg.SE_ALREADY_PARTICIPATING)
+        return
+
+    missing_handles: list[str] = []
+    if SPECIAL_EVENT_CHANNEL_IDS:
+        for channel_id, handle in zip(SPECIAL_EVENT_CHANNEL_IDS, SPECIAL_EVENT_CHANNEL_HANDLES):
+            try:
+                member = await context.bot.get_chat_member(channel_id, student_chat_id)
+                if member.status in ("left", "kicked", "banned"):
+                    missing_handles.append(handle)
+            except Exception:
+                missing_handles.append(handle)
+
+    if missing_handles:
+        channel_list = "\n".join(f"• {h}" for h in missing_handles)
+        await query.edit_message_text(
+            msg.SE_MUST_JOIN.format(channel_list=channel_list),
+            reply_markup=InlineKeyboardMarkup(
+                [[InlineKeyboardButton(msg.BTN_SE_CHECK, callback_data="se_check")]]
+            ),
+        )
+        return
+
+    await db.se_add_participant(student_chat_id, first_name, username)
+    await query.edit_message_text(msg.SE_NOW_PARTICIPATING)
+
+
+async def _se_join_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    query = update.callback_query
+    await query.answer()
+    user = update.effective_user
+    await _se_check_membership_and_respond(
+        query, user.id, user.first_name, user.username, context
+    )
+
+
+async def _se_check_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    query = update.callback_query
+    await query.answer()
+    user = update.effective_user
+    await _se_check_membership_and_respond(
+        query, user.id, user.first_name, user.username, context
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -1431,12 +1536,15 @@ def build_app() -> Application:
     app.add_handler(CommandHandler("broadcastkeyboard", _broadcast_keyboard_command, filters=_private))
     app.add_handler(CommandHandler("stats", _stats_command, filters=_private))
     app.add_handler(CommandHandler("setvideo", _video_admin_command, filters=_private))
+    app.add_handler(CommandHandler("sevent", _sevent_command, filters=_private))
     app.add_handler(CommandHandler("followup", followup_command, filters=_private))
     app.add_handler(CommandHandler("santix", _santix_command, filters=_private))
     app.add_handler(CommandHandler("calstatus", _calstatus_command, filters=_private))
     app.add_handler(CommandHandler("answered", _q_answered_command, filters=_private))
     app.add_handler(CommandHandler("unanswered", _q_unanswered_command, filters=_private))
     app.add_handler(CallbackQueryHandler(_eg_check_membership_callback, pattern="^check_membership$"))
+    app.add_handler(CallbackQueryHandler(_se_join_callback, pattern="^se_join$"))
+    app.add_handler(CallbackQueryHandler(_se_check_callback, pattern="^se_check$"))
     app.add_handler(CallbackQueryHandler(_video_admin_program_callback, pattern="^setvideo_"))
     app.add_handler(CallbackQueryHandler(_q_program_callback, pattern="^qp:"))
     app.add_handler(CallbackQueryHandler(_q_date_callback, pattern="^qd:"))

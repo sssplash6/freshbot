@@ -92,6 +92,24 @@ async def init_db() -> None:
                 created_at TEXT NOT NULL
             )
         """)
+        await db.execute("""
+            CREATE TABLE IF NOT EXISTS special_event_posts (
+                id              INTEGER PRIMARY KEY AUTOINCREMENT,
+                post_chat_id    INTEGER NOT NULL,
+                post_message_id INTEGER NOT NULL,
+                is_active       INTEGER NOT NULL DEFAULT 1,
+                created_at      TEXT NOT NULL
+            )
+        """)
+        await db.execute("""
+            CREATE TABLE IF NOT EXISTS special_event_participants (
+                id              INTEGER PRIMARY KEY AUTOINCREMENT,
+                student_chat_id INTEGER NOT NULL UNIQUE,
+                first_name      TEXT NOT NULL,
+                username        TEXT,
+                participated_at TEXT NOT NULL
+            )
+        """)
         await db.commit()
 
 
@@ -555,3 +573,54 @@ async def get_all_chat_ids() -> list[int]:
         async with db.execute("SELECT chat_id FROM users") as cursor:
             rows = await cursor.fetchall()
             return [row[0] for row in rows]
+
+
+# ---------------------------------------------------------------------------
+# Special event operations
+# ---------------------------------------------------------------------------
+
+async def se_get_active_post() -> dict | None:
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute(
+            "SELECT * FROM special_event_posts WHERE is_active = 1 ORDER BY id DESC LIMIT 1"
+        ) as cursor:
+            row = await cursor.fetchone()
+            return dict(row) if row else None
+
+
+async def se_save_post(post_chat_id: int, post_message_id: int) -> None:
+    now = datetime.now(timezone.utc).isoformat()
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute("UPDATE special_event_posts SET is_active = 0 WHERE is_active = 1")
+        await db.execute(
+            "INSERT INTO special_event_posts (post_chat_id, post_message_id, is_active, created_at) "
+            "VALUES (?, ?, 1, ?)",
+            (post_chat_id, post_message_id, now),
+        )
+        await db.commit()
+
+
+async def se_get_participant(student_chat_id: int) -> dict | None:
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute(
+            "SELECT * FROM special_event_participants WHERE student_chat_id = ?",
+            (student_chat_id,),
+        ) as cursor:
+            row = await cursor.fetchone()
+            return dict(row) if row else None
+
+
+async def se_add_participant(
+    student_chat_id: int, first_name: str, username: str | None
+) -> None:
+    now = datetime.now(timezone.utc).isoformat()
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute(
+            """INSERT OR IGNORE INTO special_event_participants
+               (student_chat_id, first_name, username, participated_at)
+               VALUES (?, ?, ?, ?)""",
+            (student_chat_id, first_name, username, now),
+        )
+        await db.commit()
