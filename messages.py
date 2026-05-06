@@ -616,14 +616,22 @@ SEVENT_SAVED = "✅ Special event post saved."
 ROLL_NO_PARTICIPANTS = "No participants yet."
 ROLL_ONLY_ONE = "Only one participant — can't pick someone different."
 ROLL_USE_FIRST = "Use /roll first."
-ROLL_RESULT = (
-    '🎲 Result: <a href="tg://user?id={chat_id}">{first_name}</a>{username_part}\n\n'
-    "Use /reroll if you'd like a different result."
+ROLL_RESULT = '🎲 Result: <a href="tg://user?id={chat_id}">{first_name}</a>{username_part}'
+REROLL_RESULT = '🎲 Re-rolled: <a href="tg://user?id={chat_id}">{first_name}</a>{username_part}'
+
+BTN_CONFIRM_WINNER = "✅ Confirm Winner"
+BTN_REROLL_INLINE = "🎲 Reroll"
+
+ROLL_WINNER_NOTIFY = (
+    "🎉 Congratulations! You have been selected as the winner of our Special Event!\n\n"
+    "We will be in touch with you shortly."
 )
-REROLL_RESULT = (
-    '🎲 Re-rolled: <a href="tg://user?id={chat_id}">{first_name}</a>{username_part}\n\n'
-    "Use /reroll if you'd like a different result."
+ROLL_LOSER_NOTIFY = (
+    "Thank you for participating in our Special Event!\n\n"
+    "Unfortunately, you were not selected as the winner this time. "
+    "We hope to see you at our next event!"
 )
+ROLL_CONFIRMED = "✅ Winner confirmed. Notifications sent: {sent} delivered, {failed} failed."
 
 # ---------------------------------------------------------------------------
 # Admin stats

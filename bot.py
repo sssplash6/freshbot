@@ -1336,6 +1336,13 @@ def _roll_format(participant: dict, header: str) -> str:
     )
 
 
+def _roll_keyboard(winner_chat_id: int) -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup([[
+        InlineKeyboardButton(msg.BTN_CONFIRM_WINNER, callback_data=f"se_confirm:{winner_chat_id}"),
+        InlineKeyboardButton(msg.BTN_REROLL_INLINE, callback_data="se_reroll"),
+    ]])
+
+
 async def _roll_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if update.effective_user.id != PERSON_X_CHAT_ID:
         return
@@ -1348,6 +1355,7 @@ async def _roll_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
     await update.message.reply_text(
         _roll_format(winner, msg.ROLL_RESULT),
         parse_mode="HTML",
+        reply_markup=_roll_keyboard(winner["student_chat_id"]),
     )
 
 
@@ -1367,6 +1375,52 @@ async def _reroll_command(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     await update.message.reply_text(
         _roll_format(winner, msg.REROLL_RESULT),
         parse_mode="HTML",
+        reply_markup=_roll_keyboard(winner["student_chat_id"]),
+    )
+
+
+async def _roll_confirm_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    query = update.callback_query
+    await query.answer()
+    if update.effective_user.id != PERSON_X_CHAT_ID:
+        return
+    winner_chat_id = int(query.data.split(":")[1])
+    participants = await db.se_get_all_participants()
+    sent = failed = 0
+    for p in participants:
+        cid = p["student_chat_id"]
+        text = msg.ROLL_WINNER_NOTIFY if cid == winner_chat_id else msg.ROLL_LOSER_NOTIFY
+        try:
+            await context.bot.send_message(chat_id=cid, text=text)
+            sent += 1
+        except Exception:
+            logger.warning("Failed to notify participant chat_id=%d", cid)
+            failed += 1
+    _roll_state["last_id"] = None
+    await query.edit_message_text(
+        msg.ROLL_CONFIRMED.format(sent=sent, failed=failed),
+    )
+
+
+async def _se_reroll_inline_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    query = update.callback_query
+    await query.answer()
+    if update.effective_user.id != PERSON_X_CHAT_ID:
+        return
+    if _roll_state["last_id"] is None:
+        await query.edit_message_text(msg.ROLL_USE_FIRST)
+        return
+    participants = await db.se_get_all_participants()
+    pool = [p for p in participants if p["student_chat_id"] != _roll_state["last_id"]]
+    if not pool:
+        await query.edit_message_text(msg.ROLL_ONLY_ONE)
+        return
+    winner = _random.choice(pool)
+    _roll_state["last_id"] = winner["student_chat_id"]
+    await query.edit_message_text(
+        _roll_format(winner, msg.REROLL_RESULT),
+        parse_mode="HTML",
+        reply_markup=_roll_keyboard(winner["student_chat_id"]),
     )
 
 
@@ -1601,6 +1655,8 @@ def build_app() -> Application:
     app.add_handler(CallbackQueryHandler(_eg_check_membership_callback, pattern="^check_membership$"))
     app.add_handler(CallbackQueryHandler(_se_join_callback, pattern="^se_join$"))
     app.add_handler(CallbackQueryHandler(_se_check_callback, pattern="^se_check$"))
+    app.add_handler(CallbackQueryHandler(_roll_confirm_callback, pattern="^se_confirm:"))
+    app.add_handler(CallbackQueryHandler(_se_reroll_inline_callback, pattern="^se_reroll$"))
     app.add_handler(CallbackQueryHandler(_video_admin_program_callback, pattern="^setvideo_"))
     app.add_handler(CallbackQueryHandler(_q_program_callback, pattern="^qp:"))
     app.add_handler(CallbackQueryHandler(_q_date_callback, pattern="^qd:"))
