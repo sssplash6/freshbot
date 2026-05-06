@@ -1282,10 +1282,11 @@ async def _se_check_membership_and_respond(
         for channel_id, handle in zip(SPECIAL_EVENT_CHANNEL_IDS, SPECIAL_EVENT_CHANNEL_HANDLES):
             try:
                 member = await context.bot.get_chat_member(channel_id, student_chat_id)
-                if member.status in ("left", "kicked", "banned"):
+                if member.status not in _EG_MEMBER_STATUSES:
                     missing_handles.append(handle)
-            except Exception:
-                missing_handles.append(handle)
+            except TelegramError:
+                logger.warning("Cannot check SE membership in %s. Failing open.", channel_id)
+                # Fail open: if we can't check, don't block the user
 
     if missing_handles:
         channel_list = "\n".join(f"• {h}" for h in missing_handles)
