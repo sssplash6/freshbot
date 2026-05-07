@@ -1207,6 +1207,14 @@ async def _se_get_missing_handles(bot, student_chat_id: int) -> list[str]:
     return missing
 
 
+async def _se_edit(query, *args, **kwargs) -> None:
+    try:
+        await query.edit_message_text(*args, **kwargs)
+    except TelegramError as e:
+        if "not modified" not in str(e).lower():
+            raise
+
+
 async def _se_check_membership_and_respond(
     query, student_chat_id: int, first_name: str, username: str | None, context
 ) -> None:
@@ -1218,21 +1226,23 @@ async def _se_check_membership_and_respond(
             if missing_handles:
                 await db.se_remove_participant(student_chat_id)
                 channel_list = "\n".join(f"• {h}" for h in missing_handles)
-                await query.edit_message_text(
+                await _se_edit(
+                    query,
                     msg.SE_MUST_JOIN.format(channel_list=channel_list),
                     reply_markup=InlineKeyboardMarkup(
                         [[InlineKeyboardButton(msg.BTN_SE_CHECK, callback_data="se_check")]]
                     ),
                 )
                 return
-        await query.edit_message_text(msg.SE_ALREADY_PARTICIPATING)
+        await _se_edit(query, msg.SE_ALREADY_PARTICIPATING)
         return
 
     missing_handles = await _se_get_missing_handles(context.bot, student_chat_id) if SPECIAL_EVENT_CHANNEL_IDS else []
 
     if missing_handles:
         channel_list = "\n".join(f"• {h}" for h in missing_handles)
-        await query.edit_message_text(
+        await _se_edit(
+            query,
             msg.SE_MUST_JOIN.format(channel_list=channel_list),
             reply_markup=InlineKeyboardMarkup(
                 [[InlineKeyboardButton(msg.BTN_SE_CHECK, callback_data="se_check")]]
@@ -1241,7 +1251,7 @@ async def _se_check_membership_and_respond(
         return
 
     await db.se_add_participant(student_chat_id, first_name, username)
-    await query.edit_message_text(msg.SE_NOW_PARTICIPATING)
+    await _se_edit(query, msg.SE_NOW_PARTICIPATING)
 
 
 async def _se_join_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
