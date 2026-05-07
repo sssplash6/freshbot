@@ -1162,6 +1162,18 @@ async def _sevent_command(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     await update.message.reply_text(msg.SEVENT_SEND_POST)
 
 
+async def _sevent_participants_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    if update.effective_user.id != PERSON_X_CHAT_ID:
+        return
+    participants = await db.se_get_all_participants()
+    count = len(participants)
+    if count == 0:
+        await update.message.reply_text("No participants yet.")
+        return
+    lines = [f"{i + 1}. {p['first_name']}" + (f" (@{p['username']})" if p.get("username") else "") for i, p in enumerate(participants)]
+    await update.message.reply_text(f"Special event participants: {count}\n\n" + "\n".join(lines))
+
+
 async def _sevent_message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if _sevent_admin_state.get("step") != "awaiting_post":
         return
@@ -1578,6 +1590,7 @@ def build_app() -> Application:
     app.add_handler(CommandHandler("stats", _stats_command, filters=_private))
     app.add_handler(CommandHandler("setvideo", _video_admin_command, filters=_private))
     app.add_handler(CommandHandler("sevent", _sevent_command, filters=_private))
+    app.add_handler(CommandHandler("sparticipants", _sevent_participants_command, filters=_private))
     app.add_handler(CommandHandler("roll", _roll_command, filters=_private))
     app.add_handler(CommandHandler("reroll", _reroll_command, filters=_private))
     app.add_handler(CommandHandler("followup", followup_command, filters=_private))
