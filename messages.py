@@ -445,6 +445,7 @@ ESCALATION_TO_EXPERT = (
 # Register / Book a Meeting flow
 # ---------------------------------------------------------------------------
 WEBSITE_LINK_INTRO = "Here is the relevant section of our website:"
+SAT_BOOKING_INTRO = "Use the link below to book your SAT consultation:"
 AP_CLASSES_REGISTER_INTRO = "Please fill out the form below to enroll in AP Classes:"
 
 BOOKING_INTRO = "Please use the link below to book your session:"

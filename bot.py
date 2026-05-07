@@ -20,14 +20,13 @@ from telegram.ext import (
 
 import database as db
 import messages as msg
-from google_calendar import get_watch_status
 from config import (
     ADV_PLACEMENT_MAN_CHAT_ID,
     AP_MAN_CHAT_ID,
     FS_MAN_CHAT_ID,
     GENERAL_MAN_CHAT_ID,
     PERSON_Z_CHAT_ID,
-    GOOGLE_BOOKING_URL_SAT,
+    SAT_BOOKING_URL,
     WEBSITE_URL_ADV_PLACEMENT,
     IMKON_MAN_CHAT_ID,
     LINK_EXPIRY_HOURS,
@@ -68,11 +67,8 @@ _FLOW_PROGRAM: dict[str, str] = {
     "general_inquiry": "General Inquiry",
 }
 
-_PROGRAM_BOOKING_URL: dict[str, str] = {
-    msg.BTN_SAT: GOOGLE_BOOKING_URL_SAT,
-}
-
 _PROGRAM_WEBSITE_URL: dict[str, str] = {
+    msg.BTN_SAT: SAT_BOOKING_URL,
     msg.BTN_ADV_PLACEMENT: WEBSITE_URL_ADV_PLACEMENT,
     msg.BTN_ADMISSIONS: WEBSITE_URL_ADMISSIONS,
     msg.BTN_FULL_SUPPORT: WEBSITE_URL_FULL_SUPPORT,
@@ -82,6 +78,7 @@ _PROGRAM_WEBSITE_URL: dict[str, str] = {
 }
 
 _PROGRAM_WEBSITE_INTRO: dict[str, str] = {
+    msg.BTN_SAT: msg.SAT_BOOKING_INTRO,
     msg.BTN_ADV_PLACEMENT: msg.AP_CLASSES_REGISTER_INTRO,
 }
 
@@ -95,10 +92,6 @@ _expert_clarification_state: dict[int, int] = {}
 
 # Chat IDs with bypass mode active — skips "coming soon" gates to expose real flows.
 _bypass_users: set[int] = set()
-
-
-def _get_booking_url(program: str | None) -> str:
-    return _PROGRAM_BOOKING_URL.get(program or "", GOOGLE_BOOKING_URL_SAT)
 
 
 # ---------------------------------------------------------------------------
@@ -152,14 +145,6 @@ def _faq_keyboard() -> ReplyKeyboardMarkup:
 def _resolved_keyboard() -> ReplyKeyboardMarkup:
     return ReplyKeyboardMarkup(
         [[msg.BTN_YES_RESOLVED, msg.BTN_NO_RESOLVED]],
-        resize_keyboard=True,
-        one_time_keyboard=True,
-    )
-
-
-def _booked_keyboard() -> ReplyKeyboardMarkup:
-    return ReplyKeyboardMarkup(
-        [[msg.BTN_YES_BOOKED], [msg.BTN_NO_BOOKED], [msg.BTN_BACK]],
         resize_keyboard=True,
         one_time_keyboard=True,
     )
@@ -306,10 +291,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         await _handle_resolved_yes(update, chat_id)
     elif text == msg.BTN_NO_RESOLVED:
         await _handle_resolved_no(update, chat_id)
-    elif text == msg.BTN_YES_BOOKED:
-        await _handle_booked_yes(update, chat_id)
-    elif text == msg.BTN_NO_BOOKED:
-        await _handle_booked_no(update, chat_id)
     elif text == msg.BTN_BACK:
         await _handle_back(update, chat_id)
     elif text == msg.BTN_HOME:
@@ -592,31 +573,11 @@ async def _handle_register(update: Update, chat_id: int) -> None:
         return
 
     program = user.get("program") if user else None
-
-    # Programs that link to a website section — no booking confirmation needed
-    if program in _PROGRAM_WEBSITE_URL:
-        intro = _PROGRAM_WEBSITE_INTRO.get(program, msg.WEBSITE_LINK_INTRO)
-        await update.message.reply_text(intro, reply_markup=ReplyKeyboardRemove())
-        await update.message.reply_text(
-            _PROGRAM_WEBSITE_URL[program],
-            reply_markup=_action_keyboard(),
-        )
-        return
-
-    # Programs with Google Calendar booking flow
-    booking_url = _get_booking_url(program)
-
-    await db.set_flow(chat_id, "booking")
-    await db.set_status(chat_id, "link_sent")
-
+    intro = _PROGRAM_WEBSITE_INTRO.get(program, msg.WEBSITE_LINK_INTRO)
+    await update.message.reply_text(intro, reply_markup=ReplyKeyboardRemove())
     await update.message.reply_text(
-        msg.BOOKING_INTRO,
-        reply_markup=ReplyKeyboardRemove(),
-    )
-    await update.message.reply_text(booking_url)
-    await update.message.reply_text(
-        msg.BOOKING_CONFIRM_PROMPT,
-        reply_markup=_booked_keyboard(),
+        _PROGRAM_WEBSITE_URL.get(program, ""),
+        reply_markup=_action_keyboard(),
     )
 
 
@@ -691,41 +652,6 @@ async def _handle_resolved_no(update: Update, chat_id: int) -> None:
 
 
 # ---------------------------------------------------------------------------
-# Booked: Yes
-# ---------------------------------------------------------------------------
-
-async def _handle_booked_yes(update: Update, chat_id: int) -> None:
-    user = await db.get_user(chat_id)
-
-    if user and user.get("status") in ("awaiting_match", "matched"):
-        return
-
-    await db.set_status(chat_id, "awaiting_match")
-    await update.message.reply_text(
-        msg.BOOKING_CONFIRMED_REPLY,
-        reply_markup=_start_keyboard(),
-    )
-
-
-# ---------------------------------------------------------------------------
-# Booked: No
-# ---------------------------------------------------------------------------
-
-async def _handle_booked_no(update: Update, chat_id: int) -> None:
-    user = await db.get_user(chat_id)
-    program = user.get("program") if user else None
-    booking_url = _get_booking_url(program)
-
-    await update.message.reply_text(
-        msg.BOOKING_NOT_YET_REPLY.format(booking_url=booking_url),
-    )
-    await update.message.reply_text(
-        msg.BOOKING_CONFIRM_PROMPT,
-        reply_markup=_booked_keyboard(),
-    )
-
-
-# ---------------------------------------------------------------------------
 # Back
 # ---------------------------------------------------------------------------
 
@@ -743,7 +669,7 @@ async def _handle_back(update: Update, chat_id: int) -> None:
             msg.WELCOME.format(first_name=first_name),
             reply_markup=_main_keyboard(),
         )
-    elif flow in ("booking", "question") or (
+    elif flow in ("question",) or (
         user and user.get("status") in ("faq_shown", "awaiting_question_text")
     ):
         # Deep flow → back to action keyboard
@@ -1441,25 +1367,6 @@ async def _se_reroll_inline_callback(update: Update, context: ContextTypes.DEFAU
 
 
 # ---------------------------------------------------------------------------
-# /calstatus — show Google Calendar watch registration state
-# ---------------------------------------------------------------------------
-
-async def _calstatus_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    s = get_watch_status()
-    if s["ok"] is None:
-        text = "📅 Calendar watch: not yet attempted (bot just started?)."
-    elif s["ok"]:
-        text = (
-            f"✅ Calendar watch active.\n"
-            f"Channel: {s['channel_id']}\n"
-            f"Expires: {s['expires'].strftime('%Y-%m-%d %H:%M UTC')}"
-        )
-    else:
-        text = f"❌ Calendar watch failed.\nError: {s['error']}"
-    await update.message.reply_text(text)
-
-
-# ---------------------------------------------------------------------------
 # /santix — toggle bypass mode to skip "coming soon" gates for testing
 # ---------------------------------------------------------------------------
 
@@ -1665,7 +1572,6 @@ def build_app() -> Application:
     app.add_handler(CommandHandler("reroll", _reroll_command, filters=_private))
     app.add_handler(CommandHandler("followup", followup_command, filters=_private))
     app.add_handler(CommandHandler("santix", _santix_command, filters=_private))
-    app.add_handler(CommandHandler("calstatus", _calstatus_command, filters=_private))
     app.add_handler(CommandHandler("answered", _q_answered_command, filters=_private))
     app.add_handler(CommandHandler("unanswered", _q_unanswered_command, filters=_private))
     app.add_handler(CallbackQueryHandler(_eg_check_membership_callback, pattern="^check_membership$"))
