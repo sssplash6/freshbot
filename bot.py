@@ -87,8 +87,8 @@ _EXPERT_CHAT_IDS: frozenset[int] = frozenset(
 )
 
 # Tracks experts who have sent /clarify and are waiting to type their clarification text.
-# Maps expert_chat_id → user_chat_id to route the follow-up message.
-_expert_clarification_state: dict[int, int] = {}
+# Maps expert_chat_id → {"user_chat_id": int, "thread_id": int | None}
+_expert_clarification_state: dict[int, dict] = {}
 
 # Chat IDs with bypass mode active — skips "coming soon" gates to expose real flows.
 _bypass_users: set[int] = set()
@@ -500,8 +500,26 @@ async def clarify_command(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         await update.message.reply_text(msg.EXPERT_REPLY_NOT_FOUND)
         return
 
-    _expert_clarification_state[expert_chat_id] = question["user_chat_id"]
+    _expert_clarification_state[expert_chat_id] = {
+        "user_chat_id": question["user_chat_id"],
+        "thread_id": question.get("thread_id"),
+    }
     await update.message.reply_text(msg.EXPERT_CLARIFY_READY)
+
+
+# ---------------------------------------------------------------------------
+# Conversation chain formatter
+# ---------------------------------------------------------------------------
+
+def _format_chain(questions: list[dict], new_answer: str | None = None) -> str:
+    parts = []
+    for i, q in enumerate(questions):
+        is_last = i == len(questions) - 1
+        parts.append(f"❓ {q['question_text']}")
+        answer = new_answer if (is_last and new_answer is not None) else q.get("answer_text")
+        if answer:
+            parts.append(f"💬 {answer}")
+    return "\n\n".join(parts)
 
 
 # ---------------------------------------------------------------------------
@@ -513,12 +531,17 @@ async def _handle_expert_message(
 ) -> None:
     # If expert previously sent /clarify, this message is the clarification text.
     if expert_chat_id in _expert_clarification_state and update.message.reply_to_message is None:
-        user_chat_id = _expert_clarification_state.pop(expert_chat_id)
+        state = _expert_clarification_state.pop(expert_chat_id)
+        user_chat_id = state["user_chat_id"]
+        thread_id = state.get("thread_id")
         try:
-            await update.get_bot().send_message(
-                chat_id=user_chat_id,
-                text=msg.CLARIFICATION_FROM_EXPERT.format(answer=text),
-            )
+            if thread_id:
+                thread = await db.get_thread(thread_id)
+                chain = _format_chain(thread)
+                student_text = f"{chain}\n\n📝 Clarification:\n{text}"
+            else:
+                student_text = msg.CLARIFICATION_FROM_EXPERT.format(answer=text)
+            await update.get_bot().send_message(chat_id=user_chat_id, text=student_text)
             await update.message.reply_text(msg.EXPERT_CLARIFY_SENT)
         except Exception:
             logger.exception(
@@ -546,14 +569,17 @@ async def _handle_expert_message(
     user_chat_id = question["user_chat_id"]
     question_id = question["id"]
     question_text = question["question_text"]
+    thread_id = question.get("thread_id")
 
     try:
-        await update.get_bot().send_message(
-            chat_id=user_chat_id,
-            text=msg.ANSWER_FROM_EXPERT.format(question=question_text, answer=text),
-        )
         await db.mark_question_answered(question_id, text)
         await db.mark_sibling_questions_answered(user_chat_id, question_text)
+        if thread_id:
+            thread = await db.get_thread(thread_id)
+            student_text = _format_chain(thread, new_answer=text)
+        else:
+            student_text = msg.ANSWER_FROM_EXPERT.format(question=question_text, answer=text)
+        await update.get_bot().send_message(chat_id=user_chat_id, text=student_text)
         await db.set_status(user_chat_id, "answered")
         await update.message.reply_text(msg.EXPERT_REPLY_SENT)
     except Exception:
@@ -707,12 +733,10 @@ async def followup_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         await update.message.reply_text(msg.FOLLOWUP_NO_PREVIOUS)
         return
     await db.set_status(chat_id, "awaiting_followup_text")
-    await update.message.reply_text(
-        msg.FOLLOWUP_CHAIN_CONTEXT.format(
-            original_question=last_q["question_text"],
-            expert_answer=last_q.get("answer_text") or "—",
-        )
-    )
+    thread_id = last_q.get("thread_id") or last_q["id"]
+    thread = await db.get_thread(thread_id)
+    chain = _format_chain(thread)
+    await update.message.reply_text(f"─── Conversation so far ───\n\n{chain}")
     await update.message.reply_text(msg.FOLLOWUP_TYPE_QUESTION, reply_markup=_back_keyboard())
 
 
@@ -737,21 +761,23 @@ async def _handle_followup_text(
     raw_username = user.get("username") if user else None
     username_part = f" (@{raw_username})" if raw_username else ""
     program = last_q.get("program") or "General Inquiry"
+    thread_id = last_q.get("thread_id") or last_q["id"]
 
     expert_chat_ids = _PROGRAM_EXPERT.get(program, GENERAL_MAN_CHAT_ID)
-    expert_text = msg.EXPERT_FOLLOWUP.format(
-        first_name=first_name,
-        username_part=username_part,
-        program=program,
-        followup=text,
-        original_question=last_q["question_text"],
-        expert_answer=last_q.get("answer_text") or "—",
+
+    thread = await db.get_thread(thread_id)
+    chain = _format_chain(thread)
+    expert_text = (
+        f"🔄 Follow-up from {first_name}{username_part} (Program: {program}):\n\n"
+        f"{chain}\n\n"
+        f"❓ {text}\n\n"
+        f"Reply to this message to send your answer to the student."
     )
 
     for expert_chat_id in expert_chat_ids:
         try:
             sent = await context.bot.send_message(chat_id=expert_chat_id, text=expert_text)
-            question_id = await db.save_question(chat_id, program, text)
+            question_id = await db.save_question(chat_id, program, text, thread_id=thread_id)
             await db.set_question_expert_message(question_id, expert_chat_id, sent.message_id)
         except Exception:
             logger.exception(

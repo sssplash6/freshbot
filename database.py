@@ -65,6 +65,12 @@ async def init_db() -> None:
             await db.commit()
         except Exception:
             pass
+        # Add thread_id for conversation chain tracking
+        try:
+            await db.execute("ALTER TABLE questions ADD COLUMN thread_id INTEGER")
+            await db.commit()
+        except Exception:
+            pass
         await db.execute("""
             CREATE TABLE IF NOT EXISTS eg_issued_links (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -257,16 +263,33 @@ async def get_pending_jobs() -> list[dict]:
 # Question operations
 # ---------------------------------------------------------------------------
 
-async def save_question(user_chat_id: int, program: str, question_text: str) -> int:
+async def save_question(
+    user_chat_id: int, program: str, question_text: str, thread_id: int | None = None
+) -> int:
     now = datetime.now(timezone.utc).isoformat()
     async with aiosqlite.connect(DB_PATH) as db:
         cursor = await db.execute(
-            """INSERT INTO questions (user_chat_id, program, question_text, created_at)
-               VALUES (?, ?, ?, ?)""",
-            (user_chat_id, program, question_text, now),
+            """INSERT INTO questions (user_chat_id, program, question_text, created_at, thread_id)
+               VALUES (?, ?, ?, ?, ?)""",
+            (user_chat_id, program, question_text, now, thread_id),
         )
         await db.commit()
-        return cursor.lastrowid
+        question_id = cursor.lastrowid
+        if thread_id is None:
+            await db.execute("UPDATE questions SET thread_id = ? WHERE id = ?", (question_id, question_id))
+            await db.commit()
+        return question_id
+
+
+async def get_thread(thread_id: int) -> list[dict]:
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute(
+            "SELECT * FROM questions WHERE thread_id = ? ORDER BY created_at ASC",
+            (thread_id,),
+        ) as cursor:
+            rows = await cursor.fetchall()
+            return [dict(r) for r in rows]
 
 
 async def set_question_expert_message(
