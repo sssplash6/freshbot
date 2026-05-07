@@ -1191,6 +1191,25 @@ async def _sevent_command(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     await update.message.reply_text(msg.SEVENT_SEND_POST)
 
 
+async def _ping_experts_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    if update.effective_user.id != PERSON_X_CHAT_ID:
+        return
+    ok, fail = [], []
+    seen = set()
+    for program, expert_ids in _PROGRAM_EXPERT.items():
+        for eid in expert_ids:
+            if eid in seen:
+                continue
+            seen.add(eid)
+            try:
+                await context.bot.send_message(chat_id=eid, text="✅ Ping from bot — you are reachable.")
+                ok.append(f"✅ {eid} ({program})")
+            except Exception as e:
+                fail.append(f"❌ {eid} ({program}): {e}")
+    lines = ["*Ping results:*", ""] + ok + ([""] + fail if fail else [])
+    await update.message.reply_text("\n".join(lines), parse_mode="Markdown")
+
+
 async def _sevent_participants_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if update.effective_user.id != PERSON_X_CHAT_ID:
         return
@@ -1628,6 +1647,7 @@ def build_app() -> Application:
     app.add_handler(CommandHandler("setvideo", _video_admin_command, filters=_private))
     app.add_handler(CommandHandler("sevent", _sevent_command, filters=_private))
     app.add_handler(CommandHandler("sparticipants", _sevent_participants_command, filters=_private))
+    app.add_handler(CommandHandler("pingexperts", _ping_experts_command, filters=_private))
     app.add_handler(CommandHandler("roll", _roll_command, filters=_private))
     app.add_handler(CommandHandler("reroll", _reroll_command, filters=_private))
     app.add_handler(CommandHandler("followup", followup_command, filters=_private))
