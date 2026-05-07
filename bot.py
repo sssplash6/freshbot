@@ -1200,7 +1200,15 @@ async def _sevent_participants_command(update: Update, context: ContextTypes.DEF
         await update.message.reply_text("No participants yet.")
         return
     lines = [f"{i + 1}. {p['first_name']}" + (f" (@{p['username']})" if p.get("username") else "") for i, p in enumerate(participants)]
-    await update.message.reply_text(f"Special event participants: {count}\n\n" + "\n".join(lines))
+    header = f"Special event participants: {count}\n\n"
+    chunks, current = [], header
+    for line in lines:
+        if len(current) + len(line) + 1 > 4096:
+            await update.message.reply_text(current)
+            current = ""
+        current += line + "\n"
+    if current:
+        await update.message.reply_text(current)
 
 
 async def _sevent_message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
