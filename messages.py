@@ -600,7 +600,7 @@ SE_MUST_JOIN = (
 SE_ALREADY_PARTICIPATING = "You're already signed up! We'll notify you on June 1. 🎉"
 SE_NOW_PARTICIPATING = (
     "🎉 You are now participating!\n\n"
-    "We will notify the results through the bot on June 1."
+    "We will release the results through the bot on June 1."
 )
 
 # ---------------------------------------------------------------------------
