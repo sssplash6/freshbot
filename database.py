@@ -332,6 +332,21 @@ async def get_question_by_expert_message_any_status(
             return dict(row) if row else None
 
 
+async def append_clarification(question_id: int, clarification: str) -> None:
+    async with aiosqlite.connect(DB_PATH) as db:
+        async with db.execute(
+            "SELECT answer_text FROM questions WHERE id = ?", (question_id,)
+        ) as cursor:
+            row = await cursor.fetchone()
+        existing = (row[0] or "") if row else ""
+        updated = f"{existing}\n\n📝 Clarification:\n{clarification}".strip()
+        await db.execute(
+            "UPDATE questions SET answer_text = ? WHERE id = ?",
+            (updated, question_id),
+        )
+        await db.commit()
+
+
 async def mark_question_answered(question_id: int, answer_text: str | None = None) -> None:
     async with aiosqlite.connect(DB_PATH) as db:
         await db.execute(

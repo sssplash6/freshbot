@@ -503,6 +503,7 @@ async def clarify_command(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     _expert_clarification_state[expert_chat_id] = {
         "user_chat_id": question["user_chat_id"],
         "thread_id": question.get("thread_id"),
+        "question_id": question["id"],
     }
     await update.message.reply_text(msg.EXPERT_CLARIFY_READY)
 
@@ -534,11 +535,13 @@ async def _handle_expert_message(
         state = _expert_clarification_state.pop(expert_chat_id)
         user_chat_id = state["user_chat_id"]
         thread_id = state.get("thread_id")
+        question_id = state.get("question_id")
         try:
+            if question_id:
+                await db.append_clarification(question_id, text)
             if thread_id:
                 thread = await db.get_thread(thread_id)
-                chain = _format_chain(thread)
-                student_text = f"{chain}\n\n📝 Clarification:\n{text}"
+                student_text = _format_chain(thread)
             else:
                 student_text = msg.CLARIFICATION_FROM_EXPERT.format(answer=text)
             await update.get_bot().send_message(chat_id=user_chat_id, text=student_text)
