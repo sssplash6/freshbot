@@ -350,9 +350,6 @@ async def _handle_program(update: Update, chat_id: int, program: str) -> None:
 # ---------------------------------------------------------------------------
 
 async def _handle_general_inquiry(update: Update, chat_id: int) -> None:
-    if chat_id not in _bypass_users:
-        await update.message.reply_text(msg.PROGRAMS_COMING_SOON, reply_markup=_main_keyboard())
-        return
     await db.set_flow(chat_id, "general_inquiry")
     await db.set_status(chat_id, "awaiting_question_text")
     await update.message.reply_text(msg.FAQ_TYPE_QUESTION, reply_markup=_back_keyboard())
