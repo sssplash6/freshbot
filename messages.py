@@ -490,6 +490,7 @@ CANCEL_REPLY = "Session reset. Type /start to begin."
 # ---------------------------------------------------------------------------
 BTN_PROGRAMS = "📚 Programs"
 BTN_SPECIAL_EVENTS = "Consultation Giveaway with Valera"
+BTN_SPECIAL_OFFER_AE = "Special Offer - Advanced English"
 BTN_GET_LINK = "🔗 Get Event Link"
 BTN_CLICK_TO_JOIN = "Click to join! 🎉"
 BTN_SE_CHECK = "✅ I've joined — check again"

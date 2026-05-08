@@ -103,6 +103,7 @@ def _main_keyboard() -> ReplyKeyboardMarkup:
         [
             [msg.BTN_PROGRAMS],
             [msg.BTN_SPECIAL_EVENTS],
+            [msg.BTN_SPECIAL_OFFER_AE],
             [msg.BTN_GET_LINK],
             [msg.BTN_GENERAL_INQUIRY],
         ],
@@ -261,6 +262,8 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         await _handle_programs(update, chat_id)
     elif text == msg.BTN_SPECIAL_EVENTS:
         await _handle_special_events(update, chat_id, context)
+    elif text == msg.BTN_SPECIAL_OFFER_AE:
+        await _handle_special_offer_ae(update, chat_id)
     elif text == msg.BTN_GENERAL_INQUIRY:
         await _handle_general_inquiry(update, chat_id)
     elif text == msg.BTN_GET_LINK:
@@ -1237,6 +1240,14 @@ async def _sevent_message_handler(update: Update, context: ContextTypes.DEFAULT_
     await db.se_save_post(msg_obj.chat_id, msg_obj.message_id)
     _sevent_admin_state["step"] = None
     await msg_obj.reply_text(msg.SEVENT_SAVED)
+
+
+# ---------------------------------------------------------------------------
+# Special Offer — Advanced English
+# ---------------------------------------------------------------------------
+
+async def _handle_special_offer_ae(update: Update, chat_id: int) -> None:
+    await update.message.reply_text("Coming soon!", reply_markup=_main_keyboard())
 
 
 # ---------------------------------------------------------------------------
