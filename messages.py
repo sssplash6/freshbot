@@ -600,7 +600,10 @@ EG_ADMIN_HELP = (
     "/help \u2014 show this message"
 )
 
-BROADCAST_KEYBOARD_MESSAGE = "We\u2019ve updated our menu! Here\u2019s what\u2019s available now \U0001f447"
+BROADCAST_KEYBOARD_MESSAGE = (
+    "\U0001f399 Early Access to the Freshman Podcast is now live!\n\n"
+    "Tap the button below to get access \u2014 don\u2019t miss out \U0001f447"
+)
 BROADCAST_KEYBOARD_DONE = "Keyboard broadcast: {sent} sent, {failed} failed ({total} total users)."
 
 # ---------------------------------------------------------------------------
