@@ -66,3 +66,7 @@ LINK_EXPIRY_HOURS: int = int(os.getenv("LINK_EXPIRY_HOURS", "24"))
 
 SPECIAL_EVENT_CHANNEL_IDS: list[int] = _optional_int_list("SPECIAL_EVENT_CHANNEL_IDS")
 SPECIAL_EVENT_CHANNEL_HANDLES: list[str] = _optional_str_list("SPECIAL_EVENT_CHANNEL_HANDLES")
+
+PODCAST_CHANNEL_IDS: list[int] = _optional_int_list("PODCAST_CHANNEL_IDS")
+PODCAST_CHANNEL_HANDLES: list[str] = _optional_str_list("PODCAST_CHANNEL_HANDLES")
+PODCAST_YOUTUBE_URL: str = os.getenv("PODCAST_YOUTUBE_URL", "")
