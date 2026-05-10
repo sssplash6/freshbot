@@ -1292,9 +1292,6 @@ async def _podcast_get_missing(bot, chat_id: int) -> list[str]:
 
 
 async def _handle_podcast(update: Update, chat_id: int) -> None:
-    if chat_id not in _bypass_users:
-        await update.message.reply_text(msg.PODCAST_COMING_SOON, reply_markup=_main_keyboard())
-        return
     missing = await _podcast_get_missing(update.get_bot(), chat_id)
     if missing:
         channel_list = "\n".join(f"• {h}" for h in missing)
@@ -1315,13 +1312,6 @@ async def _podcast_check_callback(update: Update, context: ContextTypes.DEFAULT_
     query = update.callback_query
     await query.answer()
     chat_id = update.effective_user.id
-    if chat_id not in _bypass_users:
-        try:
-            await query.edit_message_text(msg.PODCAST_COMING_SOON)
-        except TelegramError as e:
-            if "not modified" not in str(e).lower():
-                raise
-        return
     missing = await _podcast_get_missing(context.bot, chat_id)
     if missing:
         channel_list = "\n".join(f"• {h}" for h in missing)
