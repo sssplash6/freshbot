@@ -518,9 +518,9 @@ BTN_NO_BOOKED = "Not yet \u274c"
 BTN_BACK = "\u2b05\ufe0f Back"
 BTN_HOME = "\U0001f3e0 Home"
 BTN_START = "Fresh Start"
-BTN_PODCAST = "\ud83c\udf99 Early Access: Freshman Podcast"
+BTN_PODCAST = "\U0001f399 Early Access: Freshman Podcast"
 
-PODCAST_COMING_SOON = "\ud83d\udd12 Early Access to Freshman Podcast is coming soon. Stay tuned!"
+PODCAST_COMING_SOON = "\U0001f512 Early Access to Freshman Podcast is coming soon. Stay tuned!"
 
 PODCAST_MUST_JOIN = (
     "To access the Freshman Podcast, please subscribe to the following channels first:\n"
@@ -529,7 +529,7 @@ PODCAST_MUST_JOIN = (
 )
 
 PODCAST_ACCESS_GRANTED = (
-    "\ud83c\udf99 Welcome to Freshman Podcast \u2014 Early Access!\n\n"
+    "\U0001f399 Welcome to Freshman Podcast \u2014 Early Access!\n\n"
     "Here is your link:\n{youtube_url}"
 )
 
