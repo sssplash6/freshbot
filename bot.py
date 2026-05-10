@@ -38,6 +38,9 @@ from config import (
     REQUIRED_GROUP_INVITES,
     RI_MAN_CHAT_ID,
     SAT_MAN_CHAT_ID,
+    PODCAST_CHANNEL_IDS,
+    PODCAST_CHANNEL_HANDLES,
+    PODCAST_YOUTUBE_URL,
     SPECIAL_EVENT_CHANNEL_IDS,
     SPECIAL_EVENT_CHANNEL_HANDLES,
     TELEGRAM_BOT_TOKEN,
@@ -263,6 +266,8 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         await _handle_special_events(update, chat_id, context)
     elif text == msg.BTN_GENERAL_INQUIRY:
         await _handle_general_inquiry(update, chat_id)
+    elif text == msg.BTN_PODCAST:
+        await _handle_podcast(update, chat_id)
     elif text == msg.BTN_GET_LINK:
         await _eg_student_get_link(update, chat_id, context)
     elif text == msg.BTN_SAT:
@@ -1272,6 +1277,74 @@ async def _se_get_missing_handles(bot, student_chat_id: int) -> list[str]:
     return missing
 
 
+async def _podcast_get_missing(bot, chat_id: int) -> list[str]:
+    if not PODCAST_CHANNEL_IDS:
+        return []
+    missing = []
+    for channel_id, handle in zip(PODCAST_CHANNEL_IDS, PODCAST_CHANNEL_HANDLES):
+        try:
+            member = await bot.get_chat_member(channel_id, chat_id)
+            if member.status not in _EG_MEMBER_STATUSES:
+                missing.append(handle)
+        except TelegramError:
+            logger.warning("Cannot check podcast membership in %s. Failing open.", channel_id)
+    return missing
+
+
+async def _handle_podcast(update: Update, chat_id: int) -> None:
+    if chat_id not in _bypass_users:
+        await update.message.reply_text(msg.PODCAST_COMING_SOON, reply_markup=_main_keyboard())
+        return
+    missing = await _podcast_get_missing(update.get_bot(), chat_id)
+    if missing:
+        channel_list = "\n".join(f"• {h}" for h in missing)
+        await update.message.reply_text(
+            msg.PODCAST_MUST_JOIN.format(channel_list=channel_list),
+            reply_markup=InlineKeyboardMarkup(
+                [[InlineKeyboardButton(msg.BTN_PODCAST_CHECK, callback_data="podcast_check")]]
+            ),
+        )
+        return
+    await update.message.reply_text(
+        msg.PODCAST_ACCESS_GRANTED.format(youtube_url=PODCAST_YOUTUBE_URL),
+        reply_markup=_main_keyboard(),
+    )
+
+
+async def _podcast_check_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    query = update.callback_query
+    await query.answer()
+    chat_id = update.effective_user.id
+    if chat_id not in _bypass_users:
+        try:
+            await query.edit_message_text(msg.PODCAST_COMING_SOON)
+        except TelegramError as e:
+            if "not modified" not in str(e).lower():
+                raise
+        return
+    missing = await _podcast_get_missing(context.bot, chat_id)
+    if missing:
+        channel_list = "\n".join(f"• {h}" for h in missing)
+        try:
+            await query.edit_message_text(
+                msg.PODCAST_MUST_JOIN.format(channel_list=channel_list),
+                reply_markup=InlineKeyboardMarkup(
+                    [[InlineKeyboardButton(msg.BTN_PODCAST_CHECK, callback_data="podcast_check")]]
+                ),
+            )
+        except TelegramError as e:
+            if "not modified" not in str(e).lower():
+                raise
+        return
+    try:
+        await query.edit_message_text(
+            msg.PODCAST_ACCESS_GRANTED.format(youtube_url=PODCAST_YOUTUBE_URL),
+        )
+    except TelegramError as e:
+        if "not modified" not in str(e).lower():
+            raise
+
+
 async def _se_edit(query, *args, **kwargs) -> None:
     try:
         await query.edit_message_text(*args, **kwargs)
@@ -1659,6 +1732,7 @@ def build_app() -> Application:
     app.add_handler(CallbackQueryHandler(_video_admin_program_callback, pattern="^setvideo_"))
     app.add_handler(CallbackQueryHandler(_q_program_callback, pattern="^qp:"))
     app.add_handler(CallbackQueryHandler(_q_date_callback, pattern="^qd:"))
+    app.add_handler(CallbackQueryHandler(_podcast_check_callback, pattern="^podcast_check$"))
     app.add_handler(MessageHandler(_private & ~filters.COMMAND, handle_message))
     app.add_handler(ChatJoinRequestHandler(_eg_join_request_handler))
 
