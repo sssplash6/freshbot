@@ -490,7 +490,6 @@ CANCEL_REPLY = "Session reset. Type /start to begin."
 # ---------------------------------------------------------------------------
 BTN_PROGRAMS = "📚 Programs"
 BTN_SPECIAL_EVENTS = "Consultation Giveaway with Valera"
-BTN_SPECIAL_OFFER_AE = "Special Offer - Advanced English"
 BTN_GET_LINK = "🔗 Get Event Link"
 BTN_CLICK_TO_JOIN = "Click to join! 🎉"
 BTN_SE_CHECK = "✅ I've joined — check again"
@@ -519,6 +518,22 @@ BTN_NO_BOOKED = "Not yet \u274c"
 BTN_BACK = "\u2b05\ufe0f Back"
 BTN_HOME = "\U0001f3e0 Home"
 BTN_START = "Fresh Start"
+BTN_PODCAST = "\ud83c\udf99 Early Access: Freshman Podcast"
+
+PODCAST_COMING_SOON = "\ud83d\udd12 Early Access to Freshman Podcast is coming soon. Stay tuned!"
+
+PODCAST_MUST_JOIN = (
+    "To access the Freshman Podcast, please subscribe to the following channels first:\n"
+    "{channel_list}\n\n"
+    "Once you've subscribed, tap the button below."
+)
+
+PODCAST_ACCESS_GRANTED = (
+    "\ud83c\udf99 Welcome to Freshman Podcast \u2014 Early Access!\n\n"
+    "Here is your link:\n{youtube_url}"
+)
+
+BTN_PODCAST_CHECK = "\u2705 I've subscribed \u2014 check again"
 
 # ---------------------------------------------------------------------------
 # Event gate \u2014 student flow
