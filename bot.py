@@ -96,6 +96,12 @@ _expert_clarification_state: dict[int, dict] = {}
 # Chat IDs with bypass mode active — skips "coming soon" gates to expose real flows.
 _bypass_users: set[int] = set()
 
+# Top-level nav buttons that escape any active capture state (question/followup input).
+_NAV_BUTTONS: frozenset[str] = frozenset({
+    msg.BTN_PROGRAMS, msg.BTN_GENERAL_INQUIRY, msg.BTN_PODCAST,
+    msg.BTN_SPECIAL_EVENTS, msg.BTN_GET_LINK, msg.BTN_HOME, msg.BTN_START,
+})
+
 
 # ---------------------------------------------------------------------------
 # Keyboards
@@ -251,14 +257,23 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         await _handle_back(update, chat_id)
         return
 
-    # Capture free-text input from user
+    # Capture free-text input from user.
+    # Nav buttons always escape capture state — reset and fall through to routing.
     user = await db.get_user(chat_id)
     if user and user.get("status") == "awaiting_question_text":
-        await _handle_question_text(update, chat_id, text, context)
-        return
+        if text in _NAV_BUTTONS:
+            await db.set_flow(chat_id, None)
+            await db.set_status(chat_id, None)
+        else:
+            await _handle_question_text(update, chat_id, text, context)
+            return
     if user and user.get("status") == "awaiting_followup_text":
-        await _handle_followup_text(update, chat_id, text, context)
-        return
+        if text in _NAV_BUTTONS:
+            await db.set_flow(chat_id, None)
+            await db.set_status(chat_id, None)
+        else:
+            await _handle_followup_text(update, chat_id, text, context)
+            return
 
     if text == msg.BTN_PROGRAMS:
         await _handle_programs(update, chat_id)
