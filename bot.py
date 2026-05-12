@@ -393,15 +393,26 @@ async def _handle_general_inquiry(update: Update, chat_id: int) -> None:
 
 
 async def _handle_adv_english(update: Update, chat_id: int) -> None:
+    keyboard = InlineKeyboardMarkup([
+        [InlineKeyboardButton(msg.BTN_AE_APPLY_NOW, callback_data="ae_apply_now")]
+    ])
+    await update.message.reply_text(msg.AE_INTRO, reply_markup=keyboard)
+
+
+async def _ae_apply_now_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    query = update.callback_query
+    await query.answer()
+    chat_id = update.effective_chat.id
+
     existing = await db.ae_get_application(chat_id)
     if existing:
-        await update.message.reply_text(msg.AE_ALREADY_APPLIED, reply_markup=_main_keyboard())
+        await query.message.reply_text(msg.AE_ALREADY_APPLIED, reply_markup=_main_keyboard())
         return
 
     _ae_state[chat_id] = {}
     await db.set_flow(chat_id, "adv_english")
     await db.set_status(chat_id, "ae_step_full_name")
-    await update.message.reply_text(msg.AE_PROMPT_FULL_NAME, reply_markup=_back_keyboard())
+    await query.message.reply_text(msg.AE_PROMPT_FULL_NAME, reply_markup=_back_keyboard())
 
 
 _AE_STEPS = [
@@ -1919,6 +1930,7 @@ def build_app() -> Application:
     app.add_handler(CallbackQueryHandler(_q_program_callback, pattern="^qp:"))
     app.add_handler(CallbackQueryHandler(_q_date_callback, pattern="^qd:"))
     app.add_handler(CallbackQueryHandler(_podcast_check_callback, pattern="^podcast_check$"))
+    app.add_handler(CallbackQueryHandler(_ae_apply_now_callback, pattern="^ae_apply_now$"))
     app.add_handler(CallbackQueryHandler(_ae_accept_callback, pattern="^ae_accept:"))
     app.add_handler(CallbackQueryHandler(_ae_reject_callback, pattern="^ae_reject:"))
     app.add_handler(MessageHandler(_private & ~filters.COMMAND, handle_message))

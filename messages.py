@@ -537,6 +537,10 @@ BTN_PODCAST_CHECK = "\u2705 I've subscribed \u2014 check again"
 
 BTN_ADV_ENGLISH = "Special Offer \u2013 Advanced English"
 
+AE_INTRO = "intro"
+
+BTN_AE_APPLY_NOW = "Apply Now"
+
 AE_ALREADY_APPLIED = "You've already applied. We'll be in touch!"
 
 AE_PROMPT_FULL_NAME = "Please enter your full name:"
