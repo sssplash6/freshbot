@@ -393,6 +393,10 @@ async def _handle_general_inquiry(update: Update, chat_id: int) -> None:
 
 
 async def _handle_adv_english(update: Update, chat_id: int) -> None:
+    if chat_id not in _bypass_users:
+        await update.message.reply_text(msg.PROGRAMS_COMING_SOON)
+        return
+
     keyboard = InlineKeyboardMarkup([
         [InlineKeyboardButton(msg.BTN_AE_APPLY_NOW, callback_data="ae_apply_now")]
     ])
