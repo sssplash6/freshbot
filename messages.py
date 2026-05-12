@@ -561,6 +561,16 @@ AE_PROMPT_RESOURCES = (
     "you enjoy. (100 words)"
 )
 
+AE_WORD_COUNT_TOO_SHORT = (
+    "Your answer is too short ({count} words — minimum {min}). Please expand and try again."
+)
+AE_WORD_COUNT_TOO_LONG = (
+    "Your answer is too long ({count} words — maximum {max}). Please shorten and try again."
+)
+AE_WORD_COUNT_EXACT = (
+    "Your answer must be exactly {exact} words (yours: {count}). Please adjust and try again."
+)
+
 AE_SUBMITTED = (
     "Thank you! Your application has been submitted. We\u2019ll notify you of the decision."
 )

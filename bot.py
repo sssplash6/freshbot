@@ -422,6 +422,28 @@ _AE_STEPS = [
     ("ae_step_perspective", "perspective_answer", "ae_step_resources",   msg.AE_PROMPT_RESOURCES),
 ]
 
+# (min_words, max_words) per essay step — None means no limit.
+_AE_WORD_LIMITS: dict[str, tuple[int, int]] = {
+    "ae_step_why": (50, 100),
+    "ae_step_perspective": (100, 150),
+    "ae_step_resources": (100, 100),
+}
+
+
+def _ae_check_word_count(status: str, text: str) -> str | None:
+    limits = _AE_WORD_LIMITS.get(status)
+    if not limits:
+        return None
+    min_w, max_w = limits
+    count = len(text.split())
+    if min_w == max_w and count != min_w:
+        return msg.AE_WORD_COUNT_EXACT.format(exact=min_w, count=count)
+    if count < min_w:
+        return msg.AE_WORD_COUNT_TOO_SHORT.format(count=count, min=min_w)
+    if count > max_w:
+        return msg.AE_WORD_COUNT_TOO_LONG.format(count=count, max=max_w)
+    return None
+
 
 async def _handle_ae_step(
     update: Update, chat_id: int, text: str, context: ContextTypes.DEFAULT_TYPE
@@ -431,12 +453,20 @@ async def _handle_ae_step(
 
     for current_status, field, next_status, next_prompt in _AE_STEPS:
         if status == current_status:
+            error = _ae_check_word_count(current_status, text)
+            if error:
+                await update.message.reply_text(error, reply_markup=_back_keyboard())
+                return
             _ae_state.setdefault(chat_id, {})[field] = text
             await db.set_status(chat_id, next_status)
             await update.message.reply_text(next_prompt, reply_markup=_back_keyboard())
             return
 
     if status == "ae_step_resources":
+        error = _ae_check_word_count("ae_step_resources", text)
+        if error:
+            await update.message.reply_text(error, reply_markup=_back_keyboard())
+            return
         _ae_state.setdefault(chat_id, {})["resources_answer"] = text
         await _ae_finish(update, chat_id, context)
 
