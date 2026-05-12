@@ -489,7 +489,7 @@ CANCEL_REPLY = "Session reset. Type /start to begin."
 # Button labels
 # ---------------------------------------------------------------------------
 BTN_PROGRAMS = "📚 Programs"
-BTN_SPECIAL_EVENTS = "Consultation Giveaway with Valera"
+BTN_SPECIAL_EVENTS = "Consultation Giveaway w/ Valera"
 BTN_GET_LINK = "🔗 Get Event Link"
 BTN_CLICK_TO_JOIN = "Click to join! 🎉"
 BTN_SE_CHECK = "✅ I've joined — check again"
@@ -534,6 +534,45 @@ PODCAST_ACCESS_GRANTED = (
 )
 
 BTN_PODCAST_CHECK = "\u2705 I've subscribed \u2014 check again"
+
+BTN_ADV_ENGLISH = "Special Offer \u2013 Advanced English"
+
+AE_ALREADY_APPLIED = "You've already applied. We'll be in touch!"
+
+AE_PROMPT_FULL_NAME = "Please enter your full name:"
+
+AE_PROMPT_IELTS = "What is your IELTS score?"
+
+AE_PROMPT_WHY = "Why do you want to join Advanced English? (50\u2013100 words)"
+
+AE_PROMPT_PERSPECTIVE = (
+    "What is a topic, book, or idea you have encountered recently that completely changed "
+    "your perspective on a subject? (100\u2013150 words)"
+)
+
+AE_PROMPT_RESOURCES = (
+    "List a selection of texts, resources and outlets that have contributed to your "
+    "intellectual development outside of academic courses, including but not limited to "
+    "books, journals, websites, podcasts, essays, plays, videos, and other content that "
+    "you enjoy. (100 words)"
+)
+
+AE_SUBMITTED = (
+    "Thank you! Your application has been submitted. We\u2019ll notify you of the decision."
+)
+
+AE_ACCEPTED = "Congratulations! You\u2019ve been accepted to Advanced English. \U0001f389"
+
+AE_REJECTED = "Thank you for applying. Unfortunately, you have not been accepted at this time."
+
+AE_REVIEWER_CAPTION = "\U0001f4cb New Advanced English application from {first_name}{username_part}"
+
+BTN_AE_ACCEPT = "\u2705 Accept"
+BTN_AE_REJECT = "\u274c Reject"
+
+AE_REVIEWER_ACCEPTED = "\u2705 Accepted. Applicant has been notified."
+AE_REVIEWER_REJECTED = "\u274c Rejected. Applicant has been notified."
+AE_REVIEWER_ALREADY_DECIDED = "\u2139\ufe0f Decision already recorded for this application."
 
 # ---------------------------------------------------------------------------
 # Event gate \u2014 student flow
