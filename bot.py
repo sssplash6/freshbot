@@ -38,6 +38,7 @@ from config import (
     REQUIRED_GROUP_INVITES,
     RI_MAN_CHAT_ID,
     SAT_MAN_CHAT_ID,
+    ADV_ENGLISH_REVIEWER_CHAT_ID,
     PODCAST_CHANNEL_IDS,
     PODCAST_CHANNEL_HANDLES,
     PODCAST_YOUTUBE_URL,
@@ -100,6 +101,7 @@ _bypass_users: set[int] = set()
 _NAV_BUTTONS: frozenset[str] = frozenset({
     msg.BTN_PROGRAMS, msg.BTN_GENERAL_INQUIRY, msg.BTN_PODCAST,
     msg.BTN_SPECIAL_EVENTS, msg.BTN_GET_LINK, msg.BTN_HOME, msg.BTN_START,
+    msg.BTN_ADV_ENGLISH,
 })
 
 
@@ -111,8 +113,8 @@ def _main_keyboard() -> ReplyKeyboardMarkup:
     return ReplyKeyboardMarkup(
         [
             [msg.BTN_PROGRAMS, msg.BTN_GENERAL_INQUIRY],
-            [msg.BTN_PODCAST],
-            [msg.BTN_SPECIAL_EVENTS],
+            [msg.BTN_ADV_ENGLISH],
+            [msg.BTN_SPECIAL_EVENTS, msg.BTN_PODCAST],
             [msg.BTN_GET_LINK],
         ],
         resize_keyboard=True,
