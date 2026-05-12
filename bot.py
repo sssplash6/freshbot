@@ -404,6 +404,104 @@ async def _handle_adv_english(update: Update, chat_id: int) -> None:
     await update.message.reply_text(msg.AE_PROMPT_FULL_NAME, reply_markup=_back_keyboard())
 
 
+_AE_STEPS = [
+    ("ae_step_full_name",   "full_name",          "ae_step_ielts",       msg.AE_PROMPT_IELTS),
+    ("ae_step_ielts",       "ielts",              "ae_step_why",         msg.AE_PROMPT_WHY),
+    ("ae_step_why",         "why_adv_english",    "ae_step_perspective", msg.AE_PROMPT_PERSPECTIVE),
+    ("ae_step_perspective", "perspective_answer", "ae_step_resources",   msg.AE_PROMPT_RESOURCES),
+]
+
+
+async def _handle_ae_step(
+    update: Update, chat_id: int, text: str, context: ContextTypes.DEFAULT_TYPE
+) -> None:
+    user = await db.get_user(chat_id)
+    status = user.get("status") if user else None
+
+    for current_status, field, next_status, next_prompt in _AE_STEPS:
+        if status == current_status:
+            _ae_state.setdefault(chat_id, {})[field] = text
+            await db.set_status(chat_id, next_status)
+            await update.message.reply_text(next_prompt, reply_markup=_back_keyboard())
+            return
+
+    if status == "ae_step_resources":
+        _ae_state.setdefault(chat_id, {})["resources_answer"] = text
+        await _ae_finish(update, chat_id, context)
+
+
+async def _ae_finish(
+    update: Update, chat_id: int, context: ContextTypes.DEFAULT_TYPE
+) -> None:
+    answers = _ae_state.pop(chat_id, {})
+    user = await db.get_user(chat_id)
+    username = user.get("username") if user else None
+    first_name = user["first_name"] if user else "Unknown"
+
+    full_name       = answers.get("full_name", "")
+    ielts           = answers.get("ielts", "")
+    why_adv_english = answers.get("why_adv_english", "")
+    perspective     = answers.get("perspective_answer", "")
+    resources       = answers.get("resources_answer", "")
+
+    application_id = await db.ae_save_application(
+        chat_id=chat_id,
+        username=username,
+        full_name=full_name,
+        ielts=ielts,
+        why_adv_english=why_adv_english,
+        perspective_answer=perspective,
+        resources_answer=resources,
+    )
+
+    await db.set_flow(chat_id, None)
+    await db.set_status(chat_id, None)
+
+    await update.message.reply_text(msg.AE_SUBMITTED, reply_markup=_main_keyboard())
+
+    username_part = f" (@{username})" if username else ""
+    file_content = (
+        f"ADVANCED ENGLISH APPLICATION\n"
+        f"{'=' * 40}\n"
+        f"Name:     {full_name}\n"
+        f"Username: @{username or 'N/A'}\n"
+        f"IELTS:    {ielts}\n\n"
+        f"Why Advanced English?\n"
+        f"{'-' * 30}\n"
+        f"{why_adv_english}\n\n"
+        f"A topic, book, or idea that changed your perspective:\n"
+        f"{'-' * 30}\n"
+        f"{perspective}\n\n"
+        f"Texts, resources and outlets:\n"
+        f"{'-' * 30}\n"
+        f"{resources}\n"
+    ).encode("utf-8")
+
+    file_obj = io.BytesIO(file_content)
+    file_obj.name = f"ae_application_{chat_id}.txt"
+
+    keyboard = InlineKeyboardMarkup([
+        [
+            InlineKeyboardButton(msg.BTN_AE_ACCEPT, callback_data=f"ae_accept:{application_id}"),
+            InlineKeyboardButton(msg.BTN_AE_REJECT, callback_data=f"ae_reject:{application_id}"),
+        ]
+    ])
+
+    caption = msg.AE_REVIEWER_CAPTION.format(
+        first_name=first_name,
+        username_part=username_part,
+    )
+
+    sent = await context.bot.send_document(
+        chat_id=ADV_ENGLISH_REVIEWER_CHAT_ID,
+        document=file_obj,
+        filename=f"ae_application_{chat_id}.txt",
+        caption=caption,
+        reply_markup=keyboard,
+    )
+    await db.ae_set_reviewer_message(application_id, sent.message_id)
+
+
 # ---------------------------------------------------------------------------
 # Ask a Question — shows FAQ then routes to expert if needed
 # ---------------------------------------------------------------------------
