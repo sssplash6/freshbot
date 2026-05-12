@@ -880,7 +880,16 @@ async def _handle_back(update: Update, chat_id: int) -> None:
     description = msg.PROGRAM_DESCRIPTIONS.get(program or "", "")
     first_name = user["first_name"] if user else "there"
 
-    if flow == "general_inquiry":
+    if flow == "adv_english":
+        _ae_state.pop(chat_id, None)
+        await db.set_flow(chat_id, None)
+        await db.set_status(chat_id, None)
+        await update.message.reply_text(
+            msg.WELCOME.format(first_name=first_name),
+            reply_markup=_main_keyboard(),
+        )
+        return
+    elif flow == "general_inquiry":
         await db.set_flow(chat_id, None)
         await db.set_status(chat_id, None)
         await update.message.reply_text(
