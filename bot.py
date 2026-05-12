@@ -555,6 +555,13 @@ async def _ae_reject_callback(update: Update, context: ContextTypes.DEFAULT_TYPE
     await _ae_decision_callback(update, context, "rejected")
 
 
+async def _clear_adv_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    if update.effective_chat.id != PERSON_X_CHAT_ID:
+        return
+    count = await db.ae_clear_all_applications()
+    await update.message.reply_text(f"✅ Cleared {count} Advanced English application(s).")
+
+
 # ---------------------------------------------------------------------------
 # Ask a Question — shows FAQ then routes to expert if needed
 # ---------------------------------------------------------------------------
@@ -1920,6 +1927,7 @@ def build_app() -> Application:
     app.add_handler(CommandHandler("followup", followup_command, filters=_private))
     app.add_handler(CommandHandler("santix", _santix_command, filters=_private))
     app.add_handler(CommandHandler("answered", _q_answered_command, filters=_private))
+    app.add_handler(CommandHandler("clear_adv", _clear_adv_command, filters=_private))
     app.add_handler(CommandHandler("unanswered", _q_unanswered_command, filters=_private))
     app.add_handler(CallbackQueryHandler(_eg_check_membership_callback, pattern="^check_membership$"))
     app.add_handler(CallbackQueryHandler(_se_join_callback, pattern="^se_join$"))

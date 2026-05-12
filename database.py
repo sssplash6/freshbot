@@ -760,3 +760,10 @@ async def ae_set_status(application_id: int, status: str) -> None:
             (status, application_id),
         )
         await db.commit()
+
+
+async def ae_clear_all_applications() -> int:
+    async with aiosqlite.connect(DB_PATH) as db:
+        cursor = await db.execute("DELETE FROM adv_english_applications")
+        await db.commit()
+        return cursor.rowcount
