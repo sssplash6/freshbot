@@ -1,4 +1,5 @@
 import asyncio
+import io
 import logging
 import time
 from datetime import datetime, timedelta, timezone
@@ -93,6 +94,9 @@ _EXPERT_CHAT_IDS: frozenset[int] = frozenset(
 # Tracks experts who have sent /clarify and are waiting to type their clarification text.
 # Maps expert_chat_id → {"user_chat_id": int, "thread_id": int | None}
 _expert_clarification_state: dict[int, dict] = {}
+
+# Accumulates Advanced English application answers per chat_id across steps.
+_ae_state: dict[int, dict] = {}
 
 # Chat IDs with bypass mode active — skips "coming soon" gates to expose real flows.
 _bypass_users: set[int] = set()
@@ -277,10 +281,24 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             await _handle_followup_text(update, chat_id, text, context)
             return
 
+    if user and user.get("flow") == "adv_english" and user.get("status") in (
+        "ae_step_full_name", "ae_step_ielts", "ae_step_why",
+        "ae_step_perspective", "ae_step_resources",
+    ):
+        if text in _NAV_BUTTONS:
+            _ae_state.pop(chat_id, None)
+            await db.set_flow(chat_id, None)
+            await db.set_status(chat_id, None)
+        else:
+            await _handle_ae_step(update, chat_id, text, context)
+            return
+
     if text == msg.BTN_PROGRAMS:
         await _handle_programs(update, chat_id)
     elif text == msg.BTN_SPECIAL_EVENTS:
         await _handle_special_events(update, chat_id, context)
+    elif text == msg.BTN_ADV_ENGLISH:
+        await _handle_adv_english(update, chat_id)
     elif text == msg.BTN_GENERAL_INQUIRY:
         await _handle_general_inquiry(update, chat_id)
     elif text == msg.BTN_PODCAST:
@@ -372,6 +390,18 @@ async def _handle_general_inquiry(update: Update, chat_id: int) -> None:
     await db.set_flow(chat_id, "general_inquiry")
     await db.set_status(chat_id, "awaiting_question_text")
     await update.message.reply_text(msg.FAQ_TYPE_QUESTION, reply_markup=_back_keyboard())
+
+
+async def _handle_adv_english(update: Update, chat_id: int) -> None:
+    existing = await db.ae_get_application(chat_id)
+    if existing:
+        await update.message.reply_text(msg.AE_ALREADY_APPLIED, reply_markup=_main_keyboard())
+        return
+
+    _ae_state[chat_id] = {}
+    await db.set_flow(chat_id, "adv_english")
+    await db.set_status(chat_id, "ae_step_full_name")
+    await update.message.reply_text(msg.AE_PROMPT_FULL_NAME, reply_markup=_back_keyboard())
 
 
 # ---------------------------------------------------------------------------
