@@ -502,6 +502,48 @@ async def _ae_finish(
     await db.ae_set_reviewer_message(application_id, sent.message_id)
 
 
+async def _ae_decision_callback(
+    update: Update, context: ContextTypes.DEFAULT_TYPE, decision: str
+) -> None:
+    query = update.callback_query
+    await query.answer()
+
+    application_id = int(query.data.split(":")[1])
+    application = await db.ae_get_application_by_id(application_id)
+
+    if not application:
+        await query.edit_message_reply_markup(reply_markup=None)
+        return
+
+    if application["status"] != "pending":
+        await query.answer(msg.AE_REVIEWER_ALREADY_DECIDED, show_alert=True)
+        return
+
+    await db.ae_set_status(application_id, decision)
+
+    applicant_chat_id = application["chat_id"]
+    applicant_msg = msg.AE_ACCEPTED if decision == "accepted" else msg.AE_REJECTED
+    reviewer_confirmation = msg.AE_REVIEWER_ACCEPTED if decision == "accepted" else msg.AE_REVIEWER_REJECTED
+
+    try:
+        await context.bot.send_message(chat_id=applicant_chat_id, text=applicant_msg)
+    except Exception:
+        logger.exception("Failed to notify applicant chat_id=%d", applicant_chat_id)
+
+    await query.edit_message_caption(
+        caption=f"{query.message.caption}\n\n{reviewer_confirmation}",
+        reply_markup=None,
+    )
+
+
+async def _ae_accept_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    await _ae_decision_callback(update, context, "accepted")
+
+
+async def _ae_reject_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    await _ae_decision_callback(update, context, "rejected")
+
+
 # ---------------------------------------------------------------------------
 # Ask a Question — shows FAQ then routes to expert if needed
 # ---------------------------------------------------------------------------
@@ -1868,6 +1910,8 @@ def build_app() -> Application:
     app.add_handler(CallbackQueryHandler(_q_program_callback, pattern="^qp:"))
     app.add_handler(CallbackQueryHandler(_q_date_callback, pattern="^qd:"))
     app.add_handler(CallbackQueryHandler(_podcast_check_callback, pattern="^podcast_check$"))
+    app.add_handler(CallbackQueryHandler(_ae_accept_callback, pattern="^ae_accept:"))
+    app.add_handler(CallbackQueryHandler(_ae_reject_callback, pattern="^ae_reject:"))
     app.add_handler(MessageHandler(_private & ~filters.COMMAND, handle_message))
     app.add_handler(ChatJoinRequestHandler(_eg_join_request_handler))
 
