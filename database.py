@@ -116,6 +116,21 @@ async def init_db() -> None:
                 participated_at TEXT NOT NULL
             )
         """)
+        await db.execute("""
+            CREATE TABLE IF NOT EXISTS adv_english_applications (
+                id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+                chat_id             INTEGER NOT NULL UNIQUE,
+                username            TEXT,
+                full_name           TEXT NOT NULL,
+                ielts               TEXT NOT NULL,
+                why_adv_english     TEXT NOT NULL,
+                perspective_answer  TEXT NOT NULL,
+                resources_answer    TEXT NOT NULL,
+                status              TEXT NOT NULL DEFAULT 'pending',
+                reviewer_message_id INTEGER,
+                created_at          TEXT NOT NULL
+            )
+        """)
         await db.commit()
 
 
@@ -679,5 +694,69 @@ async def se_add_participant(
                (student_chat_id, first_name, username, participated_at)
                VALUES (?, ?, ?, ?)""",
             (student_chat_id, first_name, username, now),
+        )
+        await db.commit()
+
+
+# ---------------------------------------------------------------------------
+# Advanced English application operations
+# ---------------------------------------------------------------------------
+
+async def ae_save_application(
+    chat_id: int,
+    username: str | None,
+    full_name: str,
+    ielts: str,
+    why_adv_english: str,
+    perspective_answer: str,
+    resources_answer: str,
+) -> int:
+    now = datetime.now(timezone.utc).isoformat()
+    async with aiosqlite.connect(DB_PATH) as db:
+        cursor = await db.execute("""
+            INSERT INTO adv_english_applications
+                (chat_id, username, full_name, ielts, why_adv_english,
+                 perspective_answer, resources_answer, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        """, (chat_id, username, full_name, ielts, why_adv_english,
+               perspective_answer, resources_answer, now))
+        await db.commit()
+        return cursor.lastrowid
+
+
+async def ae_get_application(chat_id: int) -> dict | None:
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute(
+            "SELECT * FROM adv_english_applications WHERE chat_id = ?", (chat_id,)
+        ) as cursor:
+            row = await cursor.fetchone()
+            return dict(row) if row else None
+
+
+async def ae_get_application_by_id(application_id: int) -> dict | None:
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute(
+            "SELECT * FROM adv_english_applications WHERE id = ?", (application_id,)
+        ) as cursor:
+            row = await cursor.fetchone()
+            return dict(row) if row else None
+
+
+async def ae_set_reviewer_message(application_id: int, message_id: int) -> None:
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute(
+            "UPDATE adv_english_applications SET reviewer_message_id = ? WHERE id = ?",
+            (message_id, application_id),
+        )
+        await db.commit()
+
+
+async def ae_set_status(application_id: int, status: str) -> None:
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute(
+            "UPDATE adv_english_applications SET status = ? WHERE id = ?",
+            (status, application_id),
         )
         await db.commit()
