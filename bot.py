@@ -462,7 +462,7 @@ _AE_STEPS = [
 _AE_WORD_LIMITS: dict[str, tuple[int, int]] = {
     "ae_step_why": (45, 105),
     "ae_step_perspective": (70, 105),
-    "ae_step_resources": (25, 35),
+    "ae_step_resources": (0, 100),
 }
 
 

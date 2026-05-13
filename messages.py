@@ -577,7 +577,7 @@ AE_PROMPT_PERSPECTIVE = (
 
 AE_PROMPT_RESOURCES = (
     "List texts, resources, and outlets that have shaped your intellectual development \u2014 "
-    "books, journals, podcasts, essays, videos, or other content you value. (~30 words)"
+    "books, journals, podcasts, essays, videos, or other content you value. (up to 100 words)"
 )
 
 AE_WORD_COUNT_TOO_SHORT = (
