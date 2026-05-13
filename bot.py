@@ -1069,9 +1069,15 @@ async def _handle_resolved_no(update: Update, chat_id: int) -> None:
     bot = update.get_bot()
     await bot.send_message(chat_id=PERSON_X_CHAT_ID, text=admin_text)
     await bot.send_message(chat_id=PERSON_Z_CHAT_ID, text=admin_text)
+    thread_id = last_q.get("thread_id") or (last_q["id"] if last_q else None)
     for expert_id in (_PROGRAM_EXPERT.get(program or "") or []):
         try:
-            await bot.send_message(chat_id=expert_id, text=expert_text)
+            sent = await bot.send_message(chat_id=expert_id, text=expert_text)
+            if thread_id:
+                question_id = await db.save_question(
+                    chat_id, program or "", question_text, thread_id=thread_id
+                )
+                await db.set_question_expert_message(question_id, expert_id, sent.message_id)
         except Exception:
             logger.exception("Failed to send escalation to expert %d", expert_id)
     await update.message.reply_text(
