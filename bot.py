@@ -627,9 +627,9 @@ async def _ae_view_callback(
         f"<b>Name:</b> {app['full_name']}{username_part}\n"
         f"<b>Status:</b> {app['status']}\n"
         f"<b>SAT:</b> {app.get('sat_score') or 'N/A'}\n\n"
-        f"<b>Why Advanced English?</b>\n{app['why_adv_english']}\n\n"
-        f"<b>Perspective shift:</b>\n{app['perspective_answer']}\n\n"
-        f"<b>Resources:</b>\n{app['resources_answer']}"
+        f"<b>Q: Why do you want to join Advanced English?</b>\n{app['why_adv_english']}\n\n"
+        f"<b>Q: What is a topic, book, or idea you have encountered recently that completely changed your perspective on a subject?</b>\n{app['perspective_answer']}\n\n"
+        f"<b>Q: List texts, resources, and outlets that have shaped your intellectual development — books, journals, podcasts, essays, videos, or other content you value.</b>\n{app['resources_answer']}"
     )
     reviewer_chat_id = query.message.chat.id
     await context.bot.send_message(
