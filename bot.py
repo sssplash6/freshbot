@@ -709,6 +709,14 @@ async def _ae_decision_callback(
 
     try:
         await context.bot.send_message(chat_id=applicant_chat_id, text=applicant_msg)
+        if decision == "accepted":
+            terms_file_id = await db.get_setting("ae_terms_file_id")
+            if terms_file_id:
+                await context.bot.send_document(
+                    chat_id=applicant_chat_id,
+                    document=terms_file_id,
+                    caption=msg.AE_TERMS_CAPTION,
+                )
     except Exception:
         logger.exception("Failed to notify applicant chat_id=%d", applicant_chat_id)
 
@@ -724,6 +732,19 @@ async def _ae_accept_callback(update: Update, context: ContextTypes.DEFAULT_TYPE
 
 async def _ae_reject_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     await _ae_decision_callback(update, context, "rejected")
+
+
+async def _ae_set_terms_command(
+    update: Update, context: ContextTypes.DEFAULT_TYPE
+) -> None:
+    if update.effective_chat.id != ADV_ENGLISH_REVIEWER_CHAT_ID:
+        return
+    reply = update.message.reply_to_message
+    if not reply or not reply.document:
+        await update.message.reply_text(msg.AE_SET_TERMS_USAGE)
+        return
+    await db.set_setting("ae_terms_file_id", reply.document.file_id)
+    await update.message.reply_text(msg.AE_SET_TERMS_SUCCESS)
 
 
 async def _clear_adv_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -2101,6 +2122,7 @@ def build_app() -> Application:
     app.add_handler(CommandHandler("clear_adv", _clear_adv_command, filters=_private))
     app.add_handler(CommandHandler("unanswered", _q_unanswered_command, filters=_private))
     app.add_handler(CommandHandler("ae_list", _ae_list_command, filters=_private))
+    app.add_handler(CommandHandler("ae_set_terms", _ae_set_terms_command, filters=_private))
     app.add_handler(CallbackQueryHandler(_eg_check_membership_callback, pattern="^check_membership$"))
     app.add_handler(CallbackQueryHandler(_se_join_callback, pattern="^se_join$"))
     app.add_handler(CallbackQueryHandler(_se_check_callback, pattern="^se_check$"))

@@ -596,6 +596,13 @@ AE_SUBMITTED = (
 
 AE_ACCEPTED = "Congratulations! You\u2019ve been accepted to Advanced English. \U0001f389"
 
+AE_TERMS_CAPTION = (
+    "\U0001f4dc Please read and sign the terms and conditions below to complete your enrollment."
+)
+
+AE_SET_TERMS_SUCCESS = "\u2705 Terms & Conditions PDF saved successfully."
+AE_SET_TERMS_USAGE = "Reply to a PDF document with /ae_set_terms to save it."
+
 AE_REJECTED = "Thank you for applying. Unfortunately, you have not been accepted at this time."
 
 AE_REVIEWER_CAPTION = "\U0001f4cb New Advanced English application from {first_name}{username_part}"
