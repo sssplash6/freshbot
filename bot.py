@@ -44,6 +44,7 @@ from config import (
     PODCAST_YOUTUBE_URL,
     SPECIAL_EVENT_CHANNEL_IDS,
     SPECIAL_EVENT_CHANNEL_HANDLES,
+    VALERA_CHAT_ID,
     TELEGRAM_BOT_TOKEN,
     WEBSITE_URL_ADMISSIONS,
     WEBSITE_URL_FULL_SUPPORT,
@@ -1475,7 +1476,7 @@ async def _eg_admin_help(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 
 
 async def _stats_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    if update.effective_user.id != PERSON_X_CHAT_ID:
+    if update.effective_user.id not in {PERSON_X_CHAT_ID, VALERA_CHAT_ID}:
         return
     s = await db.get_stats()
 

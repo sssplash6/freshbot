@@ -19,6 +19,7 @@ TELEGRAM_BOT_TOKEN: str = _require("TELEGRAM_BOT_TOKEN")
 
 PERSON_X_CHAT_ID: int = int(_require("PERSON_X_CHAT_ID"))
 PERSON_Z_CHAT_ID: int = int(_require("PERSON_Z_CHAT_ID"))
+VALERA_CHAT_ID: int | None = int(v) if (v := os.getenv("VALERA_CHAT_ID", "").strip()) else None
 ADV_ENGLISH_REVIEWER_CHAT_ID: int = int(_require("ADV_ENGLISH_REVIEWER_CHAT_ID"))
 
 # Expert chat IDs for each program's question routing (comma-separated for multiple)
