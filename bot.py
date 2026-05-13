@@ -432,7 +432,7 @@ async def _handle_adv_english(update: Update, chat_id: int) -> None:
     keyboard = InlineKeyboardMarkup([
         [InlineKeyboardButton(msg.BTN_AE_APPLY_NOW, callback_data="ae_apply_now")]
     ])
-    await update.message.reply_text(msg.AE_INTRO, reply_markup=keyboard)
+    await update.message.reply_text(msg.AE_INTRO, reply_markup=keyboard, parse_mode="HTML")
 
 
 async def _ae_apply_now_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:

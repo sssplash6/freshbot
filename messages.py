@@ -537,7 +537,20 @@ BTN_PODCAST_CHECK = "\u2705 I've subscribed \u2014 check again"
 
 BTN_ADV_ENGLISH = "Special Offer \u2013 Advanced English"
 
-AE_INTRO = "intro"
+AE_INTRO = (
+    "\U0001f4a5<b>Special Offer: Advanced English</b>\n\n"
+    "<b>What is included?</b>\n\n"
+    "✅ 8 Offline Seminars\n"
+    "✅ Q&amp;A sessions\n"
+    "✅ Weekly Homework\n"
+    "✅ New Curriculum\n"
+    "✅ Presentation Review\n"
+    "✅ Freshman Alumni Network Membership\n"
+    "✅ Access to the Nest One Co-working Space\n\n"
+    "\U0001f4cd <b>Where:</b> <a href=\"https://yandex.uz/maps/-/CPftJ6OW\">Freshman Office</a>\n"
+    "\U0001f4c5 <b>When:</b> Tuesdays and Saturdays from 1:00 PM to 2:30 PM\n\n"
+    "\U0001f4b8 <b>Price:</b> <s>$199</s> $149"
+)
 
 BTN_AE_APPLY_NOW = "Apply Now"
 
