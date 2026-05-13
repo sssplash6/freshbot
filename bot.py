@@ -1522,6 +1522,7 @@ async def _broadcast_keyboard_command(
                 chat_id=cid,
                 text=msg.BROADCAST_KEYBOARD_MESSAGE,
                 reply_markup=_main_keyboard(),
+                parse_mode="HTML",
             )
             sent += 1
         except Exception as e:

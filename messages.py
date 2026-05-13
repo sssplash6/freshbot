@@ -693,8 +693,8 @@ EG_ADMIN_HELP = (
 )
 
 BROADCAST_KEYBOARD_MESSAGE = (
-    "\U0001f399 Early Access to the Freshman Podcast is now live!\n\n"
-    "Tap the button below to get access \u2014 don\u2019t miss out \U0001f447"
+    "\U0001f4a5 <b>Special Offer: Advanced English</b> is now open!\n\n"
+    "Tap the button below to learn more and apply \U0001f447"
 )
 BROADCAST_KEYBOARD_DONE = "Keyboard broadcast: {sent} sent, {failed} failed ({total} total users)."
 
