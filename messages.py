@@ -577,8 +577,8 @@ AE_IELTS_REQUIRED = (
 )
 
 AE_PROMPT_SAT = (
-    "What is your SAT score? Please include your total score and subscores "
-    "(Evidence-Based Reading & Writing, and Math)."
+    "What is your SAT Evidence-Based Reading & Writing (EBRW) score? "
+    "If you don't have an SAT score, write N/A."
 )
 
 AE_PROMPT_WHY = "Why do you want to join Advanced English? (50\u2013100 words)"
