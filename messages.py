@@ -555,7 +555,13 @@ AE_VIDEO_REQUIRED = (
     "Record a short introduction (about 1 minute) and send it here."
 )
 
-AE_PROMPT_IELTS = "What is your IELTS score?"
+AE_PROMPT_IELTS = (
+    "Please send a screenshot or file of your IELTS certificate."
+)
+
+AE_IELTS_REQUIRED = (
+    "Please send a photo or file of your IELTS certificate to continue."
+)
 
 AE_PROMPT_SAT = (
     "What is your SAT score? Please include your total score and subscores "

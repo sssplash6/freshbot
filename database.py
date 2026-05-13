@@ -138,6 +138,7 @@ async def init_db() -> None:
             "ALTER TABLE adv_english_applications ADD COLUMN video_file_id TEXT",
             "ALTER TABLE adv_english_applications ADD COLUMN video_type TEXT",
             "ALTER TABLE adv_english_applications ADD COLUMN sat_score TEXT",
+            "ALTER TABLE adv_english_applications ADD COLUMN ielts_file_type TEXT",
         ]:
             try:
                 await db.execute(_col)
@@ -722,6 +723,7 @@ async def ae_save_application(
     video_file_id: str,
     video_type: str,
     ielts: str,
+    ielts_file_type: str,
     sat_score: str,
     why_adv_english: str,
     perspective_answer: str,
@@ -731,11 +733,11 @@ async def ae_save_application(
     async with aiosqlite.connect(DB_PATH) as db:
         cursor = await db.execute("""
             INSERT INTO adv_english_applications
-                (chat_id, username, full_name, video_file_id, video_type, ielts, sat_score,
-                 why_adv_english, perspective_answer, resources_answer, created_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        """, (chat_id, username, full_name, video_file_id, video_type, ielts, sat_score,
-               why_adv_english, perspective_answer, resources_answer, now))
+                (chat_id, username, full_name, video_file_id, video_type, ielts, ielts_file_type,
+                 sat_score, why_adv_english, perspective_answer, resources_answer, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, (chat_id, username, full_name, video_file_id, video_type, ielts, ielts_file_type,
+               sat_score, why_adv_english, perspective_answer, resources_answer, now))
         await db.commit()
         return cursor.lastrowid
 

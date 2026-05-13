@@ -102,9 +102,17 @@ _bypass_users: set[int] = set()
 
 # Top-level nav buttons that escape any active capture state (question/followup input).
 _NAV_BUTTONS: frozenset[str] = frozenset({
+    # Main menu
     msg.BTN_PROGRAMS, msg.BTN_GENERAL_INQUIRY, msg.BTN_PODCAST,
     msg.BTN_SPECIAL_EVENTS, msg.BTN_GET_LINK, msg.BTN_HOME, msg.BTN_START,
     msg.BTN_ADV_ENGLISH,
+    # Program sub-menu
+    msg.BTN_SAT, msg.BTN_ADMISSIONS, msg.BTN_FULL_SUPPORT, msg.BTN_MASTERS,
+    msg.BTN_ADV_PLACEMENT, msg.BTN_IMKON, msg.BTN_RESEARCH_INSTITUTE,
+    # Action / FAQ / resolved keyboards
+    msg.BTN_ASK_QUESTION, msg.BTN_REGISTER,
+    msg.BTN_FAQ_YES, msg.BTN_FAQ_NO,
+    msg.BTN_YES_RESOLVED, msg.BTN_NO_RESOLVED,
 })
 
 
@@ -253,17 +261,27 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             await _handle_expert_message(update, chat_id, text)
         return
 
-    # Allow video messages through only for ae_step_video
+    # Allow video/photo/document through for AE media steps
     if text is None:
         video = update.message.video
         video_note = update.message.video_note
-        if video or video_note:
+        photo = update.message.photo
+        document = update.message.document
+        if video or video_note or photo or document:
             user_v = await db.get_user(chat_id)
-            if (user_v and user_v.get("flow") == "adv_english"
-                    and user_v.get("status") == "ae_step_video"):
-                fid = (video or video_note).file_id
-                await _handle_ae_video(update, chat_id, fid, video_note is not None)
-                return
+            if user_v and user_v.get("flow") == "adv_english":
+                status_v = user_v.get("status")
+                if status_v == "ae_step_video" and (video or video_note):
+                    fid = (video or video_note).file_id
+                    await _handle_ae_video(update, chat_id, fid, video_note is not None)
+                    return
+                if status_v == "ae_step_ielts" and (photo or document):
+                    if photo:
+                        fid, ftype = photo[-1].file_id, "photo"
+                    else:
+                        fid, ftype = document.file_id, "document"
+                    await _handle_ae_ielts_file(update, chat_id, fid, ftype)
+                    return
         return
 
     # Back always takes priority over free-text capture states
@@ -299,6 +317,9 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             await db.set_status(chat_id, None)
         elif user.get("status") == "ae_step_video":
             await update.message.reply_text(msg.AE_VIDEO_REQUIRED, reply_markup=_back_keyboard())
+            return
+        elif user.get("status") == "ae_step_ielts":
+            await update.message.reply_text(msg.AE_IELTS_REQUIRED, reply_markup=_back_keyboard())
             return
         else:
             await _handle_ae_step(update, chat_id, text, context)
@@ -432,7 +453,6 @@ async def _ae_apply_now_callback(update: Update, context: ContextTypes.DEFAULT_T
 
 _AE_STEPS = [
     ("ae_step_full_name",   "full_name",          "ae_step_video",       msg.AE_PROMPT_VIDEO),
-    ("ae_step_ielts",       "ielts",              "ae_step_sat",         msg.AE_PROMPT_SAT),
     ("ae_step_sat",         "sat_score",          "ae_step_why",         msg.AE_PROMPT_WHY),
     ("ae_step_why",         "why_adv_english",    "ae_step_perspective", msg.AE_PROMPT_PERSPECTIVE),
     ("ae_step_perspective", "perspective_answer", "ae_step_resources",   msg.AE_PROMPT_RESOURCES),
@@ -496,6 +516,15 @@ async def _handle_ae_video(
     await update.message.reply_text(msg.AE_PROMPT_IELTS, reply_markup=_back_keyboard())
 
 
+async def _handle_ae_ielts_file(
+    update: Update, chat_id: int, file_id: str, file_type: str
+) -> None:
+    _ae_state.setdefault(chat_id, {})["ielts"] = file_id
+    _ae_state[chat_id]["ielts_file_type"] = file_type
+    await db.set_status(chat_id, "ae_step_sat")
+    await update.message.reply_text(msg.AE_PROMPT_SAT, reply_markup=_back_keyboard())
+
+
 async def _ae_finish(
     update: Update, chat_id: int, context: ContextTypes.DEFAULT_TYPE
 ) -> None:
@@ -508,6 +537,7 @@ async def _ae_finish(
     video_file_id   = answers.get("video_file_id", "")
     video_type      = answers.get("video_type", "video")
     ielts           = answers.get("ielts", "")
+    ielts_file_type = answers.get("ielts_file_type", "photo")
     sat_score       = answers.get("sat_score", "")
     why_adv_english = answers.get("why_adv_english", "")
     perspective     = answers.get("perspective_answer", "")
@@ -520,6 +550,7 @@ async def _ae_finish(
         video_file_id=video_file_id,
         video_type=video_type,
         ielts=ielts,
+        ielts_file_type=ielts_file_type,
         sat_score=sat_score,
         why_adv_english=why_adv_english,
         perspective_answer=perspective,
@@ -595,7 +626,6 @@ async def _ae_view_callback(
         f"{'─' * 28}\n"
         f"<b>Name:</b> {app['full_name']}{username_part}\n"
         f"<b>Status:</b> {app['status']}\n"
-        f"<b>IELTS:</b> {app['ielts']}\n"
         f"<b>SAT:</b> {app.get('sat_score') or 'N/A'}\n\n"
         f"<b>Why Advanced English?</b>\n{app['why_adv_english']}\n\n"
         f"<b>Perspective shift:</b>\n{app['perspective_answer']}\n\n"
@@ -605,6 +635,23 @@ async def _ae_view_callback(
     await context.bot.send_message(
         chat_id=reviewer_chat_id, text=text, parse_mode="HTML"
     )
+
+    ielts_fid = app.get("ielts")
+    ielts_ftype = app.get("ielts_file_type", "photo")
+    if ielts_fid:
+        try:
+            if ielts_ftype == "document":
+                await context.bot.send_document(
+                    chat_id=reviewer_chat_id, document=ielts_fid, caption="IELTS certificate"
+                )
+            else:
+                await context.bot.send_photo(
+                    chat_id=reviewer_chat_id, photo=ielts_fid, caption="IELTS certificate"
+                )
+        except Exception:
+            await context.bot.send_message(
+                chat_id=reviewer_chat_id, text="⚠️ Could not load IELTS certificate."
+            )
 
     video_file_id = app.get("video_file_id")
     video_type = app.get("video_type", "video")
