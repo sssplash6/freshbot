@@ -1504,6 +1504,10 @@ async def _stats_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             total_approvals=s["total_approvals"],
             pending_jobs=s["pending_jobs"],
             videos_set=videos,
+            ae_total=s["ae_total"],
+            ae_pending=s["ae_pending"],
+            ae_accepted=s["ae_accepted"],
+            ae_rejected=s["ae_rejected"],
         )
     )
 

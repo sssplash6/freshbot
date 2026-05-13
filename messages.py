@@ -771,6 +771,12 @@ ADMIN_STATS = (
     "\n"
     "⏰ Scheduled jobs pending: {pending_jobs}\n"
     "\n"
-    "\U0001f3a5 Intro videos set: {videos_set}"
+    "\U0001f3a5 Intro videos set: {videos_set}\n"
+    "\n"
+    "\U0001f4da Advanced English Applications\n"
+    "  Total: {ae_total}\n"
+    "  Pending: {ae_pending}\n"
+    "  Accepted: {ae_accepted}\n"
+    "  Rejected: {ae_rejected}"
 )
 

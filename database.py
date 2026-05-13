@@ -625,6 +625,11 @@ async def get_stats() -> dict:
 
         videos_set        = await rows("SELECT program FROM program_videos")
 
+        ae_total     = await scalar("SELECT COUNT(*) FROM adv_english_applications")
+        ae_pending   = await scalar("SELECT COUNT(*) FROM adv_english_applications WHERE status = 'pending'")
+        ae_accepted  = await scalar("SELECT COUNT(*) FROM adv_english_applications WHERE status = 'accepted'")
+        ae_rejected  = await scalar("SELECT COUNT(*) FROM adv_english_applications WHERE status = 'rejected'")
+
     return {
         "total_users": total_users,
         "active_users_7d": active_users_7d,
@@ -638,6 +643,10 @@ async def get_stats() -> dict:
         "total_links": total_links,
         "total_approvals": total_approvals,
         "videos_set": [r[0] for r in videos_set],
+        "ae_total": ae_total,
+        "ae_pending": ae_pending,
+        "ae_accepted": ae_accepted,
+        "ae_rejected": ae_rejected,
     }
 
 
