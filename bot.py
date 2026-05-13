@@ -957,12 +957,16 @@ async def _handle_expert_message(
         await update.message.reply_text(msg.EXPERT_USE_REPLY)
         return
 
-    question = await db.get_question_by_expert_message(
+    question = await db.get_question_by_expert_message_any_status(
         expert_chat_id, reply_to.message_id
     )
 
     if not question:
         await update.message.reply_text(msg.EXPERT_REPLY_NOT_FOUND)
+        return
+
+    if question["status"] != "pending":
+        await update.message.reply_text(msg.EXPERT_ALREADY_ANSWERED)
         return
 
     user_chat_id = question["user_chat_id"]
