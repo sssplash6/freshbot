@@ -1475,6 +1475,13 @@ async def _eg_admin_help(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     await update.message.reply_text(msg.EG_ADMIN_HELP)
 
 
+async def _export_db_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    if update.effective_user.id != PERSON_X_CHAT_ID:
+        return
+    with open(db.DB_PATH, "rb") as f:
+        await update.message.reply_document(document=f, filename="bot.db")
+
+
 async def _stats_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if update.effective_user.id not in {PERSON_X_CHAT_ID, VALERA_CHAT_ID}:
         return
@@ -2112,6 +2119,7 @@ def build_app() -> Application:
     app.add_handler(CommandHandler("help", _eg_admin_help, filters=_private))
     app.add_handler(CommandHandler("broadcastkeyboard", _broadcast_keyboard_command, filters=_private))
     app.add_handler(CommandHandler("stats", _stats_command, filters=_private))
+    app.add_handler(CommandHandler("export_db", _export_db_command, filters=_private))
     app.add_handler(CommandHandler("setvideo", _video_admin_command, filters=_private))
     app.add_handler(CommandHandler("sevent", _sevent_command, filters=_private))
     app.add_handler(CommandHandler("sparticipants", _sevent_participants_command, filters=_private))
