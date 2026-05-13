@@ -122,7 +122,10 @@ async def init_db() -> None:
                 chat_id             INTEGER NOT NULL UNIQUE,
                 username            TEXT,
                 full_name           TEXT NOT NULL,
+                video_file_id       TEXT,
+                video_type          TEXT,
                 ielts               TEXT NOT NULL,
+                sat_score           TEXT,
                 why_adv_english     TEXT NOT NULL,
                 perspective_answer  TEXT NOT NULL,
                 resources_answer    TEXT NOT NULL,
@@ -131,6 +134,16 @@ async def init_db() -> None:
                 created_at          TEXT NOT NULL
             )
         """)
+        for _col in [
+            "ALTER TABLE adv_english_applications ADD COLUMN video_file_id TEXT",
+            "ALTER TABLE adv_english_applications ADD COLUMN video_type TEXT",
+            "ALTER TABLE adv_english_applications ADD COLUMN sat_score TEXT",
+        ]:
+            try:
+                await db.execute(_col)
+                await db.commit()
+            except Exception:
+                pass
         await db.commit()
 
 
@@ -706,7 +719,10 @@ async def ae_save_application(
     chat_id: int,
     username: str | None,
     full_name: str,
+    video_file_id: str,
+    video_type: str,
     ielts: str,
+    sat_score: str,
     why_adv_english: str,
     perspective_answer: str,
     resources_answer: str,
@@ -715,13 +731,23 @@ async def ae_save_application(
     async with aiosqlite.connect(DB_PATH) as db:
         cursor = await db.execute("""
             INSERT INTO adv_english_applications
-                (chat_id, username, full_name, ielts, why_adv_english,
-                 perspective_answer, resources_answer, created_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-        """, (chat_id, username, full_name, ielts, why_adv_english,
-               perspective_answer, resources_answer, now))
+                (chat_id, username, full_name, video_file_id, video_type, ielts, sat_score,
+                 why_adv_english, perspective_answer, resources_answer, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, (chat_id, username, full_name, video_file_id, video_type, ielts, sat_score,
+               why_adv_english, perspective_answer, resources_answer, now))
         await db.commit()
         return cursor.lastrowid
+
+
+async def ae_get_all_applications() -> list[dict]:
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute(
+            "SELECT * FROM adv_english_applications ORDER BY created_at DESC"
+        ) as cursor:
+            rows = await cursor.fetchall()
+            return [dict(r) for r in rows]
 
 
 async def ae_get_application(chat_id: int) -> dict | None:

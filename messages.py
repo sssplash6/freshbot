@@ -545,20 +545,33 @@ AE_ALREADY_APPLIED = "You've already applied. We'll be in touch!"
 
 AE_PROMPT_FULL_NAME = "Please enter your full name:"
 
+AE_PROMPT_VIDEO = (
+    "Please record a 1-minute video message in this chat introducing yourself \u2014 "
+    "who you are, where you\u2019re from, and what draws you to language and learning."
+)
+
+AE_VIDEO_REQUIRED = (
+    "Please send a video message in this chat to continue. "
+    "Record a short introduction (about 1 minute) and send it here."
+)
+
 AE_PROMPT_IELTS = "What is your IELTS score?"
+
+AE_PROMPT_SAT = (
+    "What is your SAT score? Please include your total score and subscores "
+    "(Evidence-Based Reading & Writing, and Math)."
+)
 
 AE_PROMPT_WHY = "Why do you want to join Advanced English? (50\u2013100 words)"
 
 AE_PROMPT_PERSPECTIVE = (
     "What is a topic, book, or idea you have encountered recently that completely changed "
-    "your perspective on a subject? (100\u2013150 words)"
+    "your perspective on a subject? (75\u2013100 words)"
 )
 
 AE_PROMPT_RESOURCES = (
-    "List a selection of texts, resources and outlets that have contributed to your "
-    "intellectual development outside of academic courses, including but not limited to "
-    "books, journals, websites, podcasts, essays, plays, videos, and other content that "
-    "you enjoy. (100 words)"
+    "List texts, resources, and outlets that have shaped your intellectual development \u2014 "
+    "books, journals, podcasts, essays, videos, or other content you value. (~30 words)"
 )
 
 AE_WORD_COUNT_TOO_SHORT = (

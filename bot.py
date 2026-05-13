@@ -1,5 +1,4 @@
 import asyncio
-import io
 import logging
 import time
 from datetime import datetime, timedelta, timezone
@@ -254,8 +253,17 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             await _handle_expert_message(update, chat_id, text)
         return
 
-    # Ignore non-text messages from regular users
+    # Allow video messages through only for ae_step_video
     if text is None:
+        video = update.message.video
+        video_note = update.message.video_note
+        if video or video_note:
+            user_v = await db.get_user(chat_id)
+            if (user_v and user_v.get("flow") == "adv_english"
+                    and user_v.get("status") == "ae_step_video"):
+                fid = (video or video_note).file_id
+                await _handle_ae_video(update, chat_id, fid, video_note is not None)
+                return
         return
 
     # Back always takes priority over free-text capture states
@@ -282,13 +290,16 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             return
 
     if user and user.get("flow") == "adv_english" and user.get("status") in (
-        "ae_step_full_name", "ae_step_ielts", "ae_step_why",
-        "ae_step_perspective", "ae_step_resources",
+        "ae_step_full_name", "ae_step_video", "ae_step_ielts", "ae_step_sat",
+        "ae_step_why", "ae_step_perspective", "ae_step_resources",
     ):
         if text in _NAV_BUTTONS:
             _ae_state.pop(chat_id, None)
             await db.set_flow(chat_id, None)
             await db.set_status(chat_id, None)
+        elif user.get("status") == "ae_step_video":
+            await update.message.reply_text(msg.AE_VIDEO_REQUIRED, reply_markup=_back_keyboard())
+            return
         else:
             await _handle_ae_step(update, chat_id, text, context)
             return
@@ -420,17 +431,18 @@ async def _ae_apply_now_callback(update: Update, context: ContextTypes.DEFAULT_T
 
 
 _AE_STEPS = [
-    ("ae_step_full_name",   "full_name",          "ae_step_ielts",       msg.AE_PROMPT_IELTS),
-    ("ae_step_ielts",       "ielts",              "ae_step_why",         msg.AE_PROMPT_WHY),
+    ("ae_step_full_name",   "full_name",          "ae_step_video",       msg.AE_PROMPT_VIDEO),
+    ("ae_step_ielts",       "ielts",              "ae_step_sat",         msg.AE_PROMPT_SAT),
+    ("ae_step_sat",         "sat_score",          "ae_step_why",         msg.AE_PROMPT_WHY),
     ("ae_step_why",         "why_adv_english",    "ae_step_perspective", msg.AE_PROMPT_PERSPECTIVE),
     ("ae_step_perspective", "perspective_answer", "ae_step_resources",   msg.AE_PROMPT_RESOURCES),
 ]
 
-# (min_words, max_words) per essay step — None means no limit.
+# (min_words, max_words) per essay step — ±5 word tolerance applied to all limits.
 _AE_WORD_LIMITS: dict[str, tuple[int, int]] = {
-    "ae_step_why": (50, 100),
-    "ae_step_perspective": (100, 150),
-    "ae_step_resources": (100, 100),
+    "ae_step_why": (45, 105),
+    "ae_step_perspective": (70, 105),
+    "ae_step_resources": (25, 35),
 }
 
 
@@ -475,6 +487,15 @@ async def _handle_ae_step(
         await _ae_finish(update, chat_id, context)
 
 
+async def _handle_ae_video(
+    update: Update, chat_id: int, file_id: str, is_note: bool
+) -> None:
+    _ae_state.setdefault(chat_id, {})["video_file_id"] = file_id
+    _ae_state[chat_id]["video_type"] = "video_note" if is_note else "video"
+    await db.set_status(chat_id, "ae_step_ielts")
+    await update.message.reply_text(msg.AE_PROMPT_IELTS, reply_markup=_back_keyboard())
+
+
 async def _ae_finish(
     update: Update, chat_id: int, context: ContextTypes.DEFAULT_TYPE
 ) -> None:
@@ -484,16 +505,22 @@ async def _ae_finish(
     first_name = user["first_name"] if user else "Unknown"
 
     full_name       = answers.get("full_name", "")
+    video_file_id   = answers.get("video_file_id", "")
+    video_type      = answers.get("video_type", "video")
     ielts           = answers.get("ielts", "")
+    sat_score       = answers.get("sat_score", "")
     why_adv_english = answers.get("why_adv_english", "")
     perspective     = answers.get("perspective_answer", "")
     resources       = answers.get("resources_answer", "")
 
-    application_id = await db.ae_save_application(
+    await db.ae_save_application(
         chat_id=chat_id,
         username=username,
         full_name=full_name,
+        video_file_id=video_file_id,
+        video_type=video_type,
         ielts=ielts,
+        sat_score=sat_score,
         why_adv_english=why_adv_english,
         perspective_answer=perspective,
         resources_answer=resources,
@@ -501,50 +528,113 @@ async def _ae_finish(
 
     await db.set_flow(chat_id, None)
     await db.set_status(chat_id, None)
-
     await update.message.reply_text(msg.AE_SUBMITTED, reply_markup=_main_keyboard())
 
     username_part = f" (@{username})" if username else ""
-    file_content = (
-        f"ADVANCED ENGLISH APPLICATION\n"
-        f"{'=' * 40}\n"
-        f"Name:     {full_name}\n"
-        f"Username: @{username or 'N/A'}\n"
-        f"IELTS:    {ielts}\n\n"
-        f"Why Advanced English?\n"
-        f"{'-' * 30}\n"
-        f"{why_adv_english}\n\n"
-        f"A topic, book, or idea that changed your perspective:\n"
-        f"{'-' * 30}\n"
-        f"{perspective}\n\n"
-        f"Texts, resources and outlets:\n"
-        f"{'-' * 30}\n"
-        f"{resources}\n"
-    ).encode("utf-8")
-
-    file_obj = io.BytesIO(file_content)
-    file_obj.name = f"ae_application_{chat_id}.txt"
-
-    keyboard = InlineKeyboardMarkup([
-        [
-            InlineKeyboardButton(msg.BTN_AE_ACCEPT, callback_data=f"ae_accept:{application_id}"),
-            InlineKeyboardButton(msg.BTN_AE_REJECT, callback_data=f"ae_reject:{application_id}"),
-        ]
-    ])
-
-    caption = msg.AE_REVIEWER_CAPTION.format(
-        first_name=first_name,
-        username_part=username_part,
-    )
-
-    sent = await context.bot.send_document(
+    keyboard = InlineKeyboardMarkup([[
+        InlineKeyboardButton("\U0001f4cb View Applications", callback_data="ae_list"),
+    ]])
+    await context.bot.send_message(
         chat_id=ADV_ENGLISH_REVIEWER_CHAT_ID,
-        document=file_obj,
-        filename=f"ae_application_{chat_id}.txt",
-        caption=caption,
+        text=f"\U0001f4e9 New AE application from {first_name}{username_part}",
         reply_markup=keyboard,
     )
-    await db.ae_set_reviewer_message(application_id, sent.message_id)
+
+
+async def _ae_list_handler(
+    context: ContextTypes.DEFAULT_TYPE, target_chat_id: int
+) -> None:
+    applications = await db.ae_get_all_applications()
+    if not applications:
+        await context.bot.send_message(chat_id=target_chat_id, text="No AE applications yet.")
+        return
+    buttons = [
+        [InlineKeyboardButton(
+            f"{app['full_name']} — {app['status']}",
+            callback_data=f"ae_view:{app['id']}",
+        )]
+        for app in applications
+    ]
+    await context.bot.send_message(
+        chat_id=target_chat_id,
+        text=f"\U0001f4cb Advanced English Applications ({len(applications)}):",
+        reply_markup=InlineKeyboardMarkup(buttons),
+    )
+
+
+async def _ae_list_callback(
+    update: Update, context: ContextTypes.DEFAULT_TYPE
+) -> None:
+    await update.callback_query.answer()
+    await _ae_list_handler(context, update.callback_query.message.chat.id)
+
+
+async def _ae_list_command(
+    update: Update, context: ContextTypes.DEFAULT_TYPE
+) -> None:
+    if update.effective_chat.id != ADV_ENGLISH_REVIEWER_CHAT_ID:
+        return
+    await _ae_list_handler(context, update.effective_chat.id)
+
+
+async def _ae_view_callback(
+    update: Update, context: ContextTypes.DEFAULT_TYPE
+) -> None:
+    query = update.callback_query
+    await query.answer()
+    application_id = int(query.data.split(":")[1])
+    application = await db.ae_get_application_by_id(application_id)
+    if not application:
+        await query.message.reply_text("Application not found.")
+        return
+
+    app = dict(application)
+    username_part = f" (@{app['username']})" if app.get("username") else ""
+    text = (
+        f"<b>Advanced English Application</b>\n"
+        f"{'─' * 28}\n"
+        f"<b>Name:</b> {app['full_name']}{username_part}\n"
+        f"<b>Status:</b> {app['status']}\n"
+        f"<b>IELTS:</b> {app['ielts']}\n"
+        f"<b>SAT:</b> {app.get('sat_score') or 'N/A'}\n\n"
+        f"<b>Why Advanced English?</b>\n{app['why_adv_english']}\n\n"
+        f"<b>Perspective shift:</b>\n{app['perspective_answer']}\n\n"
+        f"<b>Resources:</b>\n{app['resources_answer']}"
+    )
+    reviewer_chat_id = query.message.chat.id
+    await context.bot.send_message(
+        chat_id=reviewer_chat_id, text=text, parse_mode="HTML"
+    )
+
+    video_file_id = app.get("video_file_id")
+    video_type = app.get("video_type", "video")
+    if video_file_id:
+        try:
+            if video_type == "video_note":
+                await context.bot.send_video_note(
+                    chat_id=reviewer_chat_id, video_note=video_file_id
+                )
+            else:
+                await context.bot.send_video(
+                    chat_id=reviewer_chat_id, video=video_file_id,
+                    caption="Video introduction",
+                )
+        except Exception:
+            await context.bot.send_message(
+                chat_id=reviewer_chat_id, text="⚠️ Could not load video."
+            )
+
+    if app["status"] == "pending":
+        keyboard = InlineKeyboardMarkup([[
+            InlineKeyboardButton(msg.BTN_AE_ACCEPT, callback_data=f"ae_accept:{application_id}"),
+            InlineKeyboardButton(msg.BTN_AE_REJECT, callback_data=f"ae_reject:{application_id}"),
+        ]])
+        await context.bot.send_message(
+            chat_id=reviewer_chat_id,
+            text=f"Decision for <b>{app['full_name']}</b>:",
+            parse_mode="HTML",
+            reply_markup=keyboard,
+        )
 
 
 async def _ae_decision_callback(
@@ -575,8 +665,8 @@ async def _ae_decision_callback(
     except Exception:
         logger.exception("Failed to notify applicant chat_id=%d", applicant_chat_id)
 
-    await query.edit_message_caption(
-        caption=f"{query.message.caption}\n\n{reviewer_confirmation}",
+    await query.edit_message_text(
+        text=f"{query.message.text}\n\n{reviewer_confirmation}",
         reply_markup=None,
     )
 
@@ -1963,6 +2053,7 @@ def build_app() -> Application:
     app.add_handler(CommandHandler("answered", _q_answered_command, filters=_private))
     app.add_handler(CommandHandler("clear_adv", _clear_adv_command, filters=_private))
     app.add_handler(CommandHandler("unanswered", _q_unanswered_command, filters=_private))
+    app.add_handler(CommandHandler("ae_list", _ae_list_command, filters=_private))
     app.add_handler(CallbackQueryHandler(_eg_check_membership_callback, pattern="^check_membership$"))
     app.add_handler(CallbackQueryHandler(_se_join_callback, pattern="^se_join$"))
     app.add_handler(CallbackQueryHandler(_se_check_callback, pattern="^se_check$"))
@@ -1973,6 +2064,8 @@ def build_app() -> Application:
     app.add_handler(CallbackQueryHandler(_q_date_callback, pattern="^qd:"))
     app.add_handler(CallbackQueryHandler(_podcast_check_callback, pattern="^podcast_check$"))
     app.add_handler(CallbackQueryHandler(_ae_apply_now_callback, pattern="^ae_apply_now$"))
+    app.add_handler(CallbackQueryHandler(_ae_list_callback, pattern="^ae_list$"))
+    app.add_handler(CallbackQueryHandler(_ae_view_callback, pattern="^ae_view:"))
     app.add_handler(CallbackQueryHandler(_ae_accept_callback, pattern="^ae_accept:"))
     app.add_handler(CallbackQueryHandler(_ae_reject_callback, pattern="^ae_reject:"))
     app.add_handler(MessageHandler(_private & ~filters.COMMAND, handle_message))
