@@ -631,7 +631,7 @@ AE_REVIEWER_ALREADY_DECIDED = "\u2139\ufe0f Decision already recorded for this a
 # SAT Program Giveaway
 # ---------------------------------------------------------------------------
 
-BTN_SAT_GIVEAWAY = "\U0001f3ab SAT Program Giveaway"
+BTN_SAT_GIVEAWAY = "SAT Program Giveaway"
 
 SAT_GIVEAWAY_NO_POST = "\U0001f512 The giveaway isn't active yet. Stay tuned!"
 

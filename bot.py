@@ -130,8 +130,7 @@ def _main_keyboard() -> ReplyKeyboardMarkup:
         [
             [msg.BTN_PROGRAMS, msg.BTN_GENERAL_INQUIRY],
             [msg.BTN_SPECIAL_EVENTS, msg.BTN_PODCAST],
-            [msg.BTN_ADV_ENGLISH],
-            [msg.BTN_SAT_GIVEAWAY],
+            [msg.BTN_ADV_ENGLISH, msg.BTN_SAT_GIVEAWAY],
             [msg.BTN_GET_LINK],
         ],
         resize_keyboard=True,
