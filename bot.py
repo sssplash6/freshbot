@@ -72,6 +72,10 @@ _FLOW_PROGRAM: dict[str, str] = {
     "general_inquiry": "General Inquiry",
 }
 
+_AE_REVIEWER_IDS: frozenset[int] = frozenset(
+    x for x in (ADV_ENGLISH_REVIEWER_CHAT_ID, VALERA_CHAT_ID) if x is not None
+)
+
 _PROGRAM_WEBSITE_URL: dict[str, str] = {
     msg.BTN_SAT: SAT_BOOKING_URL,
     msg.BTN_ADV_PLACEMENT: WEBSITE_URL_ADV_PLACEMENT,
@@ -600,7 +604,7 @@ async def _ae_list_callback(
 async def _ae_list_command(
     update: Update, context: ContextTypes.DEFAULT_TYPE
 ) -> None:
-    if update.effective_chat.id != ADV_ENGLISH_REVIEWER_CHAT_ID:
+    if update.effective_chat.id not in _AE_REVIEWER_IDS:
         return
     await _ae_list_handler(context, update.effective_chat.id)
 
@@ -734,7 +738,7 @@ async def _ae_reject_callback(update: Update, context: ContextTypes.DEFAULT_TYPE
 async def _ae_set_terms_command(
     update: Update, context: ContextTypes.DEFAULT_TYPE
 ) -> None:
-    if update.effective_chat.id != ADV_ENGLISH_REVIEWER_CHAT_ID:
+    if update.effective_chat.id not in _AE_REVIEWER_IDS:
         return
     reply = update.message.reply_to_message
     if not reply or not reply.document:
