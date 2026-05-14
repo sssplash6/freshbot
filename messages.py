@@ -737,7 +737,7 @@ EG_ADMIN_HELP = (
 )
 
 BROADCAST_KEYBOARD_MESSAGE = (
-    "\U0001f3ab <b>Introducing: SAT Program Giveaway!</b>\n\n"
+    "\U0001f381 <b>Introducing: SAT Program Giveaway!</b>\n\n"
     "We’re giving away <b>2 seats</b> in our SAT Program.\n\n"
     "Tap the button below to participate \U0001f447"
 )
