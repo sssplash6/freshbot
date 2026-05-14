@@ -110,7 +110,7 @@ _NAV_BUTTONS: frozenset[str] = frozenset({
     # Main menu
     msg.BTN_PROGRAMS, msg.BTN_GENERAL_INQUIRY, msg.BTN_PODCAST,
     msg.BTN_SPECIAL_EVENTS, msg.BTN_GET_LINK, msg.BTN_HOME, msg.BTN_START,
-    msg.BTN_ADV_ENGLISH,
+    msg.BTN_ADV_ENGLISH, msg.BTN_SAT_GIVEAWAY,
     # Program sub-menu
     msg.BTN_SAT, msg.BTN_ADMISSIONS, msg.BTN_FULL_SUPPORT, msg.BTN_MASTERS,
     msg.BTN_ADV_PLACEMENT, msg.BTN_IMKON, msg.BTN_RESEARCH_INSTITUTE,
@@ -131,6 +131,7 @@ def _main_keyboard() -> ReplyKeyboardMarkup:
             [msg.BTN_PROGRAMS, msg.BTN_GENERAL_INQUIRY],
             [msg.BTN_SPECIAL_EVENTS, msg.BTN_PODCAST],
             [msg.BTN_ADV_ENGLISH],
+            [msg.BTN_SAT_GIVEAWAY],
             [msg.BTN_GET_LINK],
         ],
         resize_keyboard=True,
@@ -287,6 +288,14 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
                         fid, ftype = document.file_id, "document"
                     await _handle_ae_ielts_file(update, chat_id, fid, ftype)
                     return
+            if user_v and user_v.get("flow") == "sat_giveaway" and user_v.get("status") == "sat_step_screenshot":
+                if photo or document:
+                    if photo:
+                        fid, ftype = photo[-1].file_id, "photo"
+                    else:
+                        fid, ftype = document.file_id, "document"
+                    await _handle_sat_screenshot(update, chat_id, fid, ftype, context)
+                    return
         return
 
     # Back always takes priority over free-text capture states
@@ -310,6 +319,14 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             await db.set_status(chat_id, None)
         else:
             await _handle_followup_text(update, chat_id, text, context)
+            return
+
+    if user and user.get("flow") == "sat_giveaway" and user.get("status") == "sat_step_screenshot":
+        if text in _NAV_BUTTONS:
+            await db.set_flow(chat_id, None)
+            await db.set_status(chat_id, None)
+        else:
+            await update.message.reply_text(msg.SAT_GIVEAWAY_SCREENSHOT_REQUIRED)
             return
 
     if user and user.get("flow") == "adv_english" and user.get("status") in (
@@ -336,6 +353,8 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         await _handle_special_events(update, chat_id, context)
     elif text == msg.BTN_ADV_ENGLISH:
         await _handle_adv_english(update, chat_id)
+    elif text == msg.BTN_SAT_GIVEAWAY:
+        await _handle_sat_giveaway(update, chat_id, context)
     elif text == msg.BTN_GENERAL_INQUIRY:
         await _handle_general_inquiry(update, chat_id)
     elif text == msg.BTN_PODCAST:
@@ -1830,6 +1849,147 @@ async def _se_check_callback(update: Update, context: ContextTypes.DEFAULT_TYPE)
 
 
 # ---------------------------------------------------------------------------
+# SAT Program Giveaway — student flow, admin commands, reviewer callbacks
+# ---------------------------------------------------------------------------
+
+async def _handle_sat_giveaway(
+    update: Update, chat_id: int, context: ContextTypes.DEFAULT_TYPE
+) -> None:
+    post = await db.sat_get_active_post()
+    if not post:
+        await update.message.reply_text(msg.SAT_GIVEAWAY_NO_POST)
+        return
+
+    entry = await db.sat_get_entry(chat_id)
+    if entry and entry["status"] in ("pending", "approved"):
+        await update.message.reply_text(msg.SAT_GIVEAWAY_ALREADY_SUBMITTED)
+        return
+
+    await context.bot.copy_message(
+        chat_id=chat_id,
+        from_chat_id=post["post_chat_id"],
+        message_id=post["post_message_id"],
+    )
+    await update.message.reply_text(msg.SAT_GIVEAWAY_PROMPT, reply_markup=_back_keyboard())
+    await db.set_flow(chat_id, "sat_giveaway")
+    await db.set_status(chat_id, "sat_step_screenshot")
+
+
+async def _handle_sat_screenshot(
+    update: Update,
+    chat_id: int,
+    file_id: str,
+    file_type: str,
+    context: ContextTypes.DEFAULT_TYPE,
+) -> None:
+    user = await db.get_user(chat_id)
+    first_name = user["first_name"] if user else "Unknown"
+    username = user["username"] if user else None
+
+    await db.sat_save_entry(chat_id, username, first_name, file_id, file_type)
+    await db.set_flow(chat_id, None)
+    await db.set_status(chat_id, None)
+    await update.message.reply_text(msg.SAT_GIVEAWAY_SUBMITTED, reply_markup=_main_keyboard())
+
+    username_part = f" (@{username})" if username else ""
+    keyboard = InlineKeyboardMarkup([[
+        InlineKeyboardButton(msg.BTN_SAT_APPROVE, callback_data=f"sat_approve:{chat_id}"),
+        InlineKeyboardButton(msg.BTN_SAT_REJECT, callback_data=f"sat_reject:{chat_id}"),
+    ]])
+
+    for reviewer_id in SAT_MAN_CHAT_ID:
+        if file_type == "photo":
+            sent = await context.bot.send_photo(
+                chat_id=reviewer_id,
+                photo=file_id,
+                caption=msg.SAT_REVIEWER_ENTRY.format(
+                    first_name=first_name, username_part=username_part
+                ),
+                reply_markup=keyboard,
+            )
+        else:
+            sent = await context.bot.send_document(
+                chat_id=reviewer_id,
+                document=file_id,
+                caption=msg.SAT_REVIEWER_ENTRY.format(
+                    first_name=first_name, username_part=username_part
+                ),
+                reply_markup=keyboard,
+            )
+        await db.sat_set_entry_reviewer_message(chat_id, sent.message_id)
+
+
+async def _sat_decision_callback(
+    update: Update, context: ContextTypes.DEFAULT_TYPE, decision: str
+) -> None:
+    query = update.callback_query
+    await query.answer()
+
+    applicant_chat_id = int(query.data.split(":")[1])
+    entry = await db.sat_get_entry(applicant_chat_id)
+
+    if not entry or entry["status"] != "pending":
+        await query.answer(msg.SAT_REVIEWER_ALREADY_DECIDED, show_alert=True)
+        return
+
+    await db.sat_set_entry_status(applicant_chat_id, decision)
+
+    student_msg = msg.SAT_GIVEAWAY_APPROVED if decision == "approved" else msg.SAT_GIVEAWAY_REJECTED
+    reviewer_confirmation = msg.SAT_REVIEWER_ACCEPTED if decision == "approved" else msg.SAT_REVIEWER_REJECTED
+
+    try:
+        await context.bot.send_message(chat_id=applicant_chat_id, text=student_msg)
+    except Exception:
+        logger.exception("Failed to notify SAT giveaway participant chat_id=%d", applicant_chat_id)
+
+    caption = query.message.caption or ""
+    await query.edit_message_caption(
+        caption=f"{caption}\n\n{reviewer_confirmation}",
+        reply_markup=None,
+    )
+
+
+async def _sat_approve_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    await _sat_decision_callback(update, context, "approved")
+
+
+async def _sat_reject_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    await _sat_decision_callback(update, context, "rejected")
+
+
+async def _sat_post_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    if update.effective_user.id != PERSON_X_CHAT_ID:
+        return
+    reply = update.message.reply_to_message
+    if not reply:
+        await update.message.reply_text(msg.SAT_POST_USAGE)
+        return
+    await db.sat_save_post(reply.chat.id, reply.message_id)
+    await update.message.reply_text(msg.SAT_POST_SET)
+
+
+async def _sat_reroll_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    if update.effective_user.id != PERSON_X_CHAT_ID:
+        return
+    approved = await db.sat_get_all_approved()
+    if len(approved) < 2:
+        await update.message.reply_text(
+            msg.SAT_REROLL_NOT_ENOUGH if approved else msg.SAT_REROLL_NO_ENTRIES
+        )
+        return
+    winners = _random.sample(approved, 2)
+
+    def _fmt(p: dict) -> str:
+        upart = f" (@{p['username']})" if p.get("username") else ""
+        return f'<a href="tg://user?id={p["chat_id"]}">{p["first_name"]}</a>{upart}'
+
+    await update.message.reply_text(
+        msg.SAT_REROLL_RESULT.format(winner1=_fmt(winners[0]), winner2=_fmt(winners[1])),
+        parse_mode="HTML",
+    )
+
+
+# ---------------------------------------------------------------------------
 # /roll and /reroll — pick a random special event participant (PERSON_X only)
 # ---------------------------------------------------------------------------
 
@@ -2147,6 +2307,10 @@ def build_app() -> Application:
     app.add_handler(CommandHandler("unanswered", _q_unanswered_command, filters=_private))
     app.add_handler(CommandHandler("ae_list", _ae_list_command, filters=_private))
     app.add_handler(CommandHandler("ae_set_terms", _ae_set_terms_command, filters=_private))
+    app.add_handler(CommandHandler("sat_post", _sat_post_command, filters=_private))
+    app.add_handler(CommandHandler("sat_reroll", _sat_reroll_command, filters=_private))
+    app.add_handler(CallbackQueryHandler(_sat_approve_callback, pattern="^sat_approve:"))
+    app.add_handler(CallbackQueryHandler(_sat_reject_callback, pattern="^sat_reject:"))
     app.add_handler(CallbackQueryHandler(_eg_check_membership_callback, pattern="^check_membership$"))
     app.add_handler(CallbackQueryHandler(_se_join_callback, pattern="^se_join$"))
     app.add_handler(CallbackQueryHandler(_se_check_callback, pattern="^se_check$"))

@@ -628,6 +628,50 @@ AE_REVIEWER_REJECTED = "\u274c Rejected. Applicant has been notified."
 AE_REVIEWER_ALREADY_DECIDED = "\u2139\ufe0f Decision already recorded for this application."
 
 # ---------------------------------------------------------------------------
+# SAT Program Giveaway
+# ---------------------------------------------------------------------------
+
+BTN_SAT_GIVEAWAY = "\U0001f3ab SAT Program Giveaway"
+
+SAT_GIVEAWAY_NO_POST = "\U0001f512 The giveaway isn't active yet. Stay tuned!"
+
+SAT_GIVEAWAY_ALREADY_SUBMITTED = (
+    "You've already submitted an entry. We'll notify you once it's reviewed!"
+)
+
+SAT_GIVEAWAY_PROMPT = (
+    "Repost the post above to your story or feed, then send a screenshot here confirming you did."
+)
+
+SAT_GIVEAWAY_SUBMITTED = "\u23f3 Your entry is under review. We'll notify you of the result!"
+
+SAT_GIVEAWAY_APPROVED = "\u2705 Your entry was approved \u2014 you're in the giveaway! Good luck!"
+
+SAT_GIVEAWAY_REJECTED = "\u274c Your entry wasn't approved. Make sure the screenshot clearly shows the repost."
+
+SAT_GIVEAWAY_SCREENSHOT_REQUIRED = "Please send a photo or document screenshot to continue."
+
+SAT_REVIEWER_ENTRY = "\U0001f4f8 New SAT Giveaway entry from {first_name}{username_part}"
+
+SAT_REVIEWER_ACCEPTED = "\u2705 Approved. Participant notified."
+SAT_REVIEWER_REJECTED = "\u274c Rejected. Participant notified."
+SAT_REVIEWER_ALREADY_DECIDED = "\u2139\ufe0f Decision already recorded for this entry."
+
+BTN_SAT_APPROVE = "\u2705 Approve"
+BTN_SAT_REJECT = "\u274c Reject"
+
+SAT_POST_SET = "\u2705 Giveaway post saved."
+SAT_POST_USAGE = "Reply to a message with /sat_post to set it as the giveaway post."
+
+SAT_REROLL_NO_ENTRIES = "No approved entries yet."
+SAT_REROLL_NOT_ENOUGH = "Need at least 2 approved entries to draw 2 winners."
+SAT_REROLL_RESULT = (
+    "\U0001f3ab SAT Giveaway Winners:\n"
+    "1. {winner1}\n"
+    "2. {winner2}"
+)
+
+# ---------------------------------------------------------------------------
 # Event gate \u2014 student flow
 # ---------------------------------------------------------------------------
 EG_NOT_MEMBER = (

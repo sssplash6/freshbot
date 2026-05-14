@@ -140,6 +140,28 @@ async def init_db() -> None:
                 value TEXT NOT NULL
             )
         """)
+        await db.execute("""
+            CREATE TABLE IF NOT EXISTS sat_giveaway_posts (
+                id              INTEGER PRIMARY KEY AUTOINCREMENT,
+                post_chat_id    INTEGER NOT NULL,
+                post_message_id INTEGER NOT NULL,
+                is_active       INTEGER NOT NULL DEFAULT 1,
+                created_at      TEXT NOT NULL
+            )
+        """)
+        await db.execute("""
+            CREATE TABLE IF NOT EXISTS sat_giveaway_entries (
+                id                   INTEGER PRIMARY KEY AUTOINCREMENT,
+                chat_id              INTEGER NOT NULL UNIQUE,
+                username             TEXT,
+                first_name           TEXT NOT NULL,
+                screenshot_file_id   TEXT NOT NULL,
+                screenshot_file_type TEXT NOT NULL DEFAULT 'photo',
+                status               TEXT NOT NULL DEFAULT 'pending',
+                reviewer_message_id  INTEGER,
+                created_at           TEXT NOT NULL
+            )
+        """)
         for _col in [
             "ALTER TABLE adv_english_applications ADD COLUMN video_file_id TEXT",
             "ALTER TABLE adv_english_applications ADD COLUMN video_type TEXT",
@@ -829,3 +851,93 @@ async def set_setting(key: str, value: str) -> None:
             (key, value),
         )
         await db.commit()
+
+
+# ---------------------------------------------------------------------------
+# SAT Giveaway operations
+# ---------------------------------------------------------------------------
+
+async def sat_save_post(post_chat_id: int, post_message_id: int) -> None:
+    now = datetime.now(timezone.utc).isoformat()
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute("UPDATE sat_giveaway_posts SET is_active = 0 WHERE is_active = 1")
+        await db.execute(
+            "INSERT INTO sat_giveaway_posts (post_chat_id, post_message_id, is_active, created_at)"
+            " VALUES (?, ?, 1, ?)",
+            (post_chat_id, post_message_id, now),
+        )
+        await db.commit()
+
+
+async def sat_get_active_post() -> dict | None:
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute(
+            "SELECT * FROM sat_giveaway_posts WHERE is_active = 1 ORDER BY id DESC LIMIT 1"
+        ) as cursor:
+            row = await cursor.fetchone()
+            return dict(row) if row else None
+
+
+async def sat_save_entry(
+    chat_id: int,
+    username: str | None,
+    first_name: str,
+    screenshot_file_id: str,
+    screenshot_file_type: str,
+) -> None:
+    now = datetime.now(timezone.utc).isoformat()
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute(
+            """INSERT INTO sat_giveaway_entries
+               (chat_id, username, first_name, screenshot_file_id, screenshot_file_type, status, created_at)
+               VALUES (?, ?, ?, ?, ?, 'pending', ?)
+               ON CONFLICT(chat_id) DO UPDATE SET
+                   username = excluded.username,
+                   first_name = excluded.first_name,
+                   screenshot_file_id = excluded.screenshot_file_id,
+                   screenshot_file_type = excluded.screenshot_file_type,
+                   status = 'pending',
+                   reviewer_message_id = NULL,
+                   created_at = excluded.created_at""",
+            (chat_id, username, first_name, screenshot_file_id, screenshot_file_type, now),
+        )
+        await db.commit()
+
+
+async def sat_get_entry(chat_id: int) -> dict | None:
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute(
+            "SELECT * FROM sat_giveaway_entries WHERE chat_id = ?", (chat_id,)
+        ) as cursor:
+            row = await cursor.fetchone()
+            return dict(row) if row else None
+
+
+async def sat_set_entry_reviewer_message(chat_id: int, message_id: int) -> None:
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute(
+            "UPDATE sat_giveaway_entries SET reviewer_message_id = ? WHERE chat_id = ?",
+            (message_id, chat_id),
+        )
+        await db.commit()
+
+
+async def sat_set_entry_status(chat_id: int, status: str) -> None:
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute(
+            "UPDATE sat_giveaway_entries SET status = ? WHERE chat_id = ?",
+            (status, chat_id),
+        )
+        await db.commit()
+
+
+async def sat_get_all_approved() -> list[dict]:
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute(
+            "SELECT * FROM sat_giveaway_entries WHERE status = 'approved' ORDER BY created_at"
+        ) as cursor:
+            rows = await cursor.fetchall()
+            return [dict(r) for r in rows]
