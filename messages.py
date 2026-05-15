@@ -677,8 +677,8 @@ SAT_REMIND_SCREENSHOT = (
 SAT_REMIND_DONE = "Reminder sent: {sent} delivered, {failed} failed ({total} total)."
 
 SAT_WEBINAR_REMINDER = (
-    "\ud83c\udf93 <b>SAT Webinar starts in 10 minutes!</b>\n\n"
-    "Join us live on our Telegram channel right now \U0001f447"
+    "\ud83c\udf93 <b>The SAT Webinar is starting now!</b>\n\n"
+    "Join us live on our Telegram channel \U0001f447"
 )
 SAT_WEBINAR_DONE = "Webinar reminder sent: {sent} delivered, {failed} failed ({total} total)."
 
