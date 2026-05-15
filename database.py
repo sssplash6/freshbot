@@ -933,6 +933,16 @@ async def sat_set_entry_status(chat_id: int, status: str) -> None:
         await db.commit()
 
 
+async def sat_get_users_awaiting_screenshot() -> list[dict]:
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute(
+            "SELECT * FROM users WHERE flow = 'sat_giveaway' AND status = 'sat_step_screenshot'"
+        ) as cursor:
+            rows = await cursor.fetchall()
+            return [dict(r) for r in rows]
+
+
 async def sat_get_all_approved() -> list[dict]:
     async with aiosqlite.connect(DB_PATH) as db:
         db.row_factory = aiosqlite.Row

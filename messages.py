@@ -660,6 +660,12 @@ SAT_REVIEWER_ALREADY_DECIDED = "\u2139\ufe0f Decision already recorded for this 
 BTN_SAT_APPROVE = "\u2705 Approve"
 BTN_SAT_REJECT = "\u274c Reject"
 
+SAT_REMIND_SCREENSHOT = (
+    "\u23f0 <b>Only 2 hours left until the webinar!</b>\n\n"
+    "Make sure to repost our post and send the screenshot here to secure your spot in the giveaway!"
+)
+SAT_REMIND_DONE = "Reminder sent: {sent} delivered, {failed} failed ({total} total)."
+
 SAT_POST_SET = "\u2705 Giveaway post saved."
 SAT_POST_USAGE = "Reply to a message with /sat_post to set it as the giveaway post."
 

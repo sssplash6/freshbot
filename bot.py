@@ -1967,6 +1967,27 @@ async def _sat_post_command(update: Update, context: ContextTypes.DEFAULT_TYPE) 
     await update.message.reply_text(msg.SAT_POST_SET)
 
 
+async def _sat_remind_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    if update.effective_user.id != PERSON_X_CHAT_ID:
+        return
+    users = await db.sat_get_users_awaiting_screenshot()
+    sent = failed = 0
+    for u in users:
+        try:
+            await context.bot.send_message(
+                chat_id=u["chat_id"],
+                text=msg.SAT_REMIND_SCREENSHOT,
+                parse_mode="HTML",
+            )
+            sent += 1
+        except Exception:
+            logger.warning("Failed to remind SAT user chat_id=%d", u["chat_id"])
+            failed += 1
+    await update.message.reply_text(
+        msg.SAT_REMIND_DONE.format(sent=sent, failed=failed, total=len(users))
+    )
+
+
 async def _sat_reroll_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if update.effective_user.id != PERSON_X_CHAT_ID:
         return
@@ -2307,6 +2328,7 @@ def build_app() -> Application:
     app.add_handler(CommandHandler("ae_list", _ae_list_command, filters=_private))
     app.add_handler(CommandHandler("ae_set_terms", _ae_set_terms_command, filters=_private))
     app.add_handler(CommandHandler("sat_post", _sat_post_command, filters=_private))
+    app.add_handler(CommandHandler("sat_remind", _sat_remind_command, filters=_private))
     app.add_handler(CommandHandler("sat_reroll", _sat_reroll_command, filters=_private))
     app.add_handler(CallbackQueryHandler(_sat_approve_callback, pattern="^sat_approve:"))
     app.add_handler(CallbackQueryHandler(_sat_reject_callback, pattern="^sat_reject:"))
