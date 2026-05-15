@@ -625,6 +625,43 @@ AE_TERMS_CAPTION = (
 AE_SET_TERMS_SUCCESS = "\u2705 Terms & Conditions PDF saved successfully."
 AE_SET_TERMS_USAGE = "Reply to a PDF document with /ae_set_terms to save it."
 
+BTN_AE_ACCEPT_TERMS = "\u2705 I have read and accept the terms"
+
+AE_PAYMENT_PROMPT = (
+    "\U0001f4b3 <b>Payment</b>\n\n"
+    "Please make a payment of <b>1,785,000 sums</b> using the QR code above.\n\n"
+    "Once you have completed the payment, tap the button below."
+)
+BTN_AE_PAYMENT_MADE = "\U0001f4b3 I\u2019ve made the payment \u2014 share screenshot"
+
+AE_PAYMENT_SCREENSHOT_PROMPT = (
+    "Please send a screenshot confirming your payment."
+)
+AE_PAYMENT_SCREENSHOT_REQUIRED = "Please send a photo or document screenshot of your payment to continue."
+
+AE_PAYMENT_SUBMITTED = "\u23f3 Your payment screenshot is under review. We\u2019ll notify you shortly!"
+
+AE_PAYMENT_CONFIRMED = (
+    "\u2705 <b>Payment confirmed!</b>\n\n"
+    "Welcome to Advanced English! Here is your one-time invite link to join the group:\n{link}"
+)
+AE_PAYMENT_REJECTED = (
+    "\u274c Your payment screenshot wasn\u2019t approved.\n\n"
+    "Please double-check and send a new screenshot confirming your payment."
+)
+
+AE_PAYMENT_REVIEWER_ENTRY = (
+    "\U0001f4b8 Payment screenshot from {first_name}{username_part}"
+)
+BTN_AE_CONFIRM_PAYMENT = "\u2705 Confirm Payment"
+BTN_AE_REJECT_PAYMENT = "\u274c Reject"
+AE_PAYMENT_REVIEWER_CONFIRMED = "\u2705 Payment confirmed. Invite link sent to applicant."
+AE_PAYMENT_REVIEWER_REJECTED = "\u274c Payment rejected. Applicant notified."
+AE_PAYMENT_ALREADY_DECIDED = "\u2139\ufe0f Decision already recorded for this payment."
+
+AE_SET_QR_SUCCESS = "\u2705 Payment QR code saved."
+AE_SET_QR_USAGE = "Reply to a photo with /ae_set_qr to save it."
+
 AE_REJECTED = "Thank you for applying. Unfortunately, you have not been accepted at this time."
 
 AE_REVIEWER_CAPTION = "\U0001f4cb New Advanced English application from {first_name}{username_part}"

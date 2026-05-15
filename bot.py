@@ -39,6 +39,7 @@ from config import (
     RI_MAN_CHAT_ID,
     SAT_MAN_CHAT_ID,
     ADV_ENGLISH_REVIEWER_CHAT_ID,
+    AE_GROUP_CHAT_ID,
     PODCAST_CHANNEL_IDS,
     PODCAST_CHANNEL_HANDLES,
     PODCAST_YOUTUBE_URL,
@@ -287,6 +288,14 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
                         fid, ftype = document.file_id, "document"
                     await _handle_ae_ielts_file(update, chat_id, fid, ftype)
                     return
+            if user_v and user_v.get("flow") == "ae_payment" and user_v.get("status") == "ae_payment_step_screenshot":
+                if photo or document:
+                    if photo:
+                        fid, ftype = photo[-1].file_id, "photo"
+                    else:
+                        fid, ftype = document.file_id, "document"
+                    await _handle_ae_payment_screenshot(update, chat_id, fid, ftype, context)
+                    return
             if user_v and user_v.get("flow") == "sat_giveaway" and user_v.get("status") == "sat_step_screenshot":
                 if photo or document:
                     if photo:
@@ -318,6 +327,14 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             await db.set_status(chat_id, None)
         else:
             await _handle_followup_text(update, chat_id, text, context)
+            return
+
+    if user and user.get("flow") == "ae_payment" and user.get("status") == "ae_payment_step_screenshot":
+        if text in _NAV_BUTTONS:
+            await db.set_flow(chat_id, None)
+            await db.set_status(chat_id, None)
+        else:
+            await update.message.reply_text(msg.AE_PAYMENT_SCREENSHOT_REQUIRED)
             return
 
     if user and user.get("flow") == "sat_giveaway" and user.get("status") == "sat_step_screenshot":
@@ -735,6 +752,12 @@ async def _ae_decision_callback(
                     chat_id=applicant_chat_id,
                     document=terms_file_id,
                     caption=msg.AE_TERMS_CAPTION,
+                    reply_markup=InlineKeyboardMarkup([[
+                        InlineKeyboardButton(
+                            msg.BTN_AE_ACCEPT_TERMS,
+                            callback_data=f"ae_terms_accept:{applicant_chat_id}",
+                        )
+                    ]]),
                 )
     except Exception:
         logger.exception("Failed to notify applicant chat_id=%d", applicant_chat_id)
@@ -1848,6 +1871,185 @@ async def _se_check_callback(update: Update, context: ContextTypes.DEFAULT_TYPE)
 
 
 # ---------------------------------------------------------------------------
+# AE payment flow — terms acceptance, payment QR, screenshot review, invite link
+# ---------------------------------------------------------------------------
+
+async def _ae_terms_accept_callback(
+    update: Update, context: ContextTypes.DEFAULT_TYPE
+) -> None:
+    query = update.callback_query
+    await query.answer()
+    applicant_chat_id = int(query.data.split(":")[1])
+
+    application = await db.ae_get_application(applicant_chat_id)
+    if not application or application["status"] not in ("accepted",):
+        return
+
+    await db.ae_set_status_by_chat_id(applicant_chat_id, "terms_accepted")
+    await query.edit_message_reply_markup(reply_markup=None)
+
+    qr_file_id = await db.get_setting("ae_qr_file_id")
+    payment_keyboard = InlineKeyboardMarkup([[
+        InlineKeyboardButton(msg.BTN_AE_PAYMENT_MADE, callback_data=f"ae_payment_made:{applicant_chat_id}"),
+    ]])
+    if qr_file_id:
+        await context.bot.send_photo(
+            chat_id=applicant_chat_id,
+            photo=qr_file_id,
+            caption=msg.AE_PAYMENT_PROMPT,
+            parse_mode="HTML",
+            reply_markup=payment_keyboard,
+        )
+    else:
+        await context.bot.send_message(
+            chat_id=applicant_chat_id,
+            text=msg.AE_PAYMENT_PROMPT,
+            parse_mode="HTML",
+            reply_markup=payment_keyboard,
+        )
+
+
+async def _ae_payment_made_callback(
+    update: Update, context: ContextTypes.DEFAULT_TYPE
+) -> None:
+    query = update.callback_query
+    await query.answer()
+    applicant_chat_id = int(query.data.split(":")[1])
+
+    application = await db.ae_get_application(applicant_chat_id)
+    if not application or application["status"] not in ("terms_accepted",):
+        return
+
+    await query.edit_message_reply_markup(reply_markup=None)
+    await db.set_flow(applicant_chat_id, "ae_payment")
+    await db.set_status(applicant_chat_id, "ae_payment_step_screenshot")
+    await context.bot.send_message(
+        chat_id=applicant_chat_id,
+        text=msg.AE_PAYMENT_SCREENSHOT_PROMPT,
+        reply_markup=_back_keyboard(),
+    )
+
+
+async def _handle_ae_payment_screenshot(
+    update: Update,
+    chat_id: int,
+    file_id: str,
+    file_type: str,
+    context: ContextTypes.DEFAULT_TYPE,
+) -> None:
+    await db.ae_set_payment_screenshot(chat_id, file_id, file_type)
+    await db.set_flow(chat_id, None)
+    await db.set_status(chat_id, None)
+    await update.message.reply_text(msg.AE_PAYMENT_SUBMITTED, reply_markup=_main_keyboard())
+
+    user = await db.get_user(chat_id)
+    first_name = user["first_name"] if user else "Unknown"
+    username = user["username"] if user else None
+    username_part = f" (@{username})" if username else ""
+
+    keyboard = InlineKeyboardMarkup([[
+        InlineKeyboardButton(msg.BTN_AE_CONFIRM_PAYMENT, callback_data=f"ae_payment_confirm:{chat_id}"),
+        InlineKeyboardButton(msg.BTN_AE_REJECT_PAYMENT, callback_data=f"ae_payment_reject:{chat_id}"),
+    ]])
+
+    for reviewer_id in _AE_REVIEWER_IDS:
+        if file_type == "photo":
+            await context.bot.send_photo(
+                chat_id=reviewer_id,
+                photo=file_id,
+                caption=msg.AE_PAYMENT_REVIEWER_ENTRY.format(
+                    first_name=first_name, username_part=username_part
+                ),
+                reply_markup=keyboard,
+            )
+        else:
+            await context.bot.send_document(
+                chat_id=reviewer_id,
+                document=file_id,
+                caption=msg.AE_PAYMENT_REVIEWER_ENTRY.format(
+                    first_name=first_name, username_part=username_part
+                ),
+                reply_markup=keyboard,
+            )
+
+
+async def _ae_payment_decision_callback(
+    update: Update, context: ContextTypes.DEFAULT_TYPE, decision: str
+) -> None:
+    query = update.callback_query
+    await query.answer()
+
+    applicant_chat_id = int(query.data.split(":")[1])
+    application = await db.ae_get_application(applicant_chat_id)
+
+    if not application or application["status"] != "payment_pending":
+        await query.answer(msg.AE_PAYMENT_ALREADY_DECIDED, show_alert=True)
+        return
+
+    caption = query.message.caption or ""
+
+    if decision == "confirmed":
+        await db.ae_set_status_by_chat_id(applicant_chat_id, "payment_confirmed")
+        try:
+            invite = await context.bot.create_chat_invite_link(
+                chat_id=AE_GROUP_CHAT_ID,
+                member_limit=1,
+            )
+            await context.bot.send_message(
+                chat_id=applicant_chat_id,
+                text=msg.AE_PAYMENT_CONFIRMED.format(link=invite.invite_link),
+                parse_mode="HTML",
+            )
+        except Exception:
+            logger.exception("Failed to create invite or notify AE applicant chat_id=%d", applicant_chat_id)
+        await query.edit_message_caption(
+            caption=f"{caption}\n\n{msg.AE_PAYMENT_REVIEWER_CONFIRMED}",
+            reply_markup=None,
+        )
+    else:
+        await db.ae_set_status_by_chat_id(applicant_chat_id, "payment_rejected")
+        await db.set_flow(applicant_chat_id, "ae_payment")
+        await db.set_status(applicant_chat_id, "ae_payment_step_screenshot")
+        try:
+            await context.bot.send_message(
+                chat_id=applicant_chat_id,
+                text=msg.AE_PAYMENT_REJECTED,
+                reply_markup=_back_keyboard(),
+            )
+        except Exception:
+            logger.exception("Failed to notify AE applicant chat_id=%d", applicant_chat_id)
+        await query.edit_message_caption(
+            caption=f"{caption}\n\n{msg.AE_PAYMENT_REVIEWER_REJECTED}",
+            reply_markup=None,
+        )
+
+
+async def _ae_payment_confirm_callback(
+    update: Update, context: ContextTypes.DEFAULT_TYPE
+) -> None:
+    await _ae_payment_decision_callback(update, context, "confirmed")
+
+
+async def _ae_payment_reject_callback(
+    update: Update, context: ContextTypes.DEFAULT_TYPE
+) -> None:
+    await _ae_payment_decision_callback(update, context, "rejected")
+
+
+async def _ae_set_qr_command(
+    update: Update, context: ContextTypes.DEFAULT_TYPE
+) -> None:
+    if update.effective_chat.id not in _AE_REVIEWER_IDS:
+        return
+    reply = update.message.reply_to_message
+    if not reply or not reply.photo:
+        await update.message.reply_text(msg.AE_SET_QR_USAGE)
+        return
+    await db.set_setting("ae_qr_file_id", reply.photo[-1].file_id)
+    await update.message.reply_text(msg.AE_SET_QR_SUCCESS)
+
+
+# ---------------------------------------------------------------------------
 # SAT Program Giveaway — student flow, admin commands, reviewer callbacks
 # ---------------------------------------------------------------------------
 
@@ -2386,7 +2588,12 @@ def build_app() -> Application:
     app.add_handler(CommandHandler("unanswered", _q_unanswered_command, filters=_private))
     app.add_handler(CommandHandler("ae_list", _ae_list_command, filters=_private))
     app.add_handler(CommandHandler("ae_set_terms", _ae_set_terms_command, filters=_private))
+    app.add_handler(CommandHandler("ae_set_qr", _ae_set_qr_command, filters=_private))
     app.add_handler(CommandHandler("ae_remind", _ae_remind_command, filters=_private))
+    app.add_handler(CallbackQueryHandler(_ae_terms_accept_callback, pattern="^ae_terms_accept:"))
+    app.add_handler(CallbackQueryHandler(_ae_payment_made_callback, pattern="^ae_payment_made:"))
+    app.add_handler(CallbackQueryHandler(_ae_payment_confirm_callback, pattern="^ae_payment_confirm:"))
+    app.add_handler(CallbackQueryHandler(_ae_payment_reject_callback, pattern="^ae_payment_reject:"))
     app.add_handler(CommandHandler("sat_webinar", _sat_webinar_command, filters=_private))
     app.add_handler(CommandHandler("sat_post", _sat_post_command, filters=_private))
     app.add_handler(CommandHandler("sat_remind", _sat_remind_command, filters=_private))

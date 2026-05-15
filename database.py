@@ -167,6 +167,8 @@ async def init_db() -> None:
             "ALTER TABLE adv_english_applications ADD COLUMN video_type TEXT",
             "ALTER TABLE adv_english_applications ADD COLUMN sat_score TEXT",
             "ALTER TABLE adv_english_applications ADD COLUMN ielts_file_type TEXT",
+            "ALTER TABLE adv_english_applications ADD COLUMN payment_screenshot_file_id TEXT",
+            "ALTER TABLE adv_english_applications ADD COLUMN payment_screenshot_file_type TEXT",
         ]:
             try:
                 await db.execute(_col)
@@ -823,6 +825,28 @@ async def ae_set_status(application_id: int, status: str) -> None:
         await db.execute(
             "UPDATE adv_english_applications SET status = ? WHERE id = ?",
             (status, application_id),
+        )
+        await db.commit()
+
+
+async def ae_set_status_by_chat_id(chat_id: int, status: str) -> None:
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute(
+            "UPDATE adv_english_applications SET status = ? WHERE chat_id = ?",
+            (status, chat_id),
+        )
+        await db.commit()
+
+
+async def ae_set_payment_screenshot(
+    chat_id: int, file_id: str, file_type: str
+) -> None:
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute(
+            "UPDATE adv_english_applications"
+            " SET payment_screenshot_file_id = ?, payment_screenshot_file_type = ?, status = 'payment_pending'"
+            " WHERE chat_id = ?",
+            (file_id, file_type, chat_id),
         )
         await db.commit()
 
