@@ -556,11 +556,20 @@ BTN_AE_APPLY_NOW = "Apply Now"
 
 AE_ALREADY_APPLIED = "You've already applied. We'll be in touch!"
 
+AE_REMIND_CLOSING = (
+    "⏰ <b>Advanced English applications are closing in {days} day{s}!</b>\n\n"
+    "If you haven’t applied yet, this is your last chance — tap the button below to apply now \U0001f447"
+)
+AE_REMIND_DONE = "AE reminder sent: {sent} delivered, {failed} failed ({total} total)."
+AE_REMIND_USAGE = "Usage: /ae_remind 3 (or 2 or 1)"
+
 AE_PROMPT_FULL_NAME = "Please enter your full name:"
 
 AE_PROMPT_VIDEO = (
     "Please record a 1-minute video message in this chat introducing yourself \u2014 "
-    "who you are, where you\u2019re from, and what draws you to language and learning."
+    "who you are, where you\u2019re from, and what draws you to language and learning.\n\n"
+    "\U0001f512 <b>Confidentiality notice:</b> Your video will only be seen by our admissions team "
+    "and will not be shared with anyone outside of Freshman. It is used solely to evaluate your application."
 )
 
 AE_VIDEO_REQUIRED = (

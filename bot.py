@@ -1956,6 +1956,35 @@ async def _sat_reject_callback(update: Update, context: ContextTypes.DEFAULT_TYP
     await _sat_decision_callback(update, context, "rejected")
 
 
+async def _ae_remind_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    if update.effective_user.id != PERSON_X_CHAT_ID:
+        return
+    args = context.args
+    if not args or args[0] not in ("1", "2", "3"):
+        await update.message.reply_text(msg.AE_REMIND_USAGE)
+        return
+    days = int(args[0])
+    text = msg.AE_REMIND_CLOSING.format(days=days, s="" if days == 1 else "s")
+    chat_ids = await db.get_all_chat_ids()
+    sent = failed = 0
+    for cid in chat_ids:
+        try:
+            await context.bot.send_message(
+                chat_id=cid,
+                text=text,
+                reply_markup=_main_keyboard(),
+                parse_mode="HTML",
+            )
+            sent += 1
+        except Exception:
+            logger.warning("AE remind failed for chat_id=%d", cid)
+            failed += 1
+        await asyncio.sleep(0.05)
+    await update.message.reply_text(
+        msg.AE_REMIND_DONE.format(sent=sent, failed=failed, total=len(chat_ids))
+    )
+
+
 async def _sat_post_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if update.effective_user.id != PERSON_X_CHAT_ID:
         return
@@ -2327,6 +2356,7 @@ def build_app() -> Application:
     app.add_handler(CommandHandler("unanswered", _q_unanswered_command, filters=_private))
     app.add_handler(CommandHandler("ae_list", _ae_list_command, filters=_private))
     app.add_handler(CommandHandler("ae_set_terms", _ae_set_terms_command, filters=_private))
+    app.add_handler(CommandHandler("ae_remind", _ae_remind_command, filters=_private))
     app.add_handler(CommandHandler("sat_post", _sat_post_command, filters=_private))
     app.add_handler(CommandHandler("sat_remind", _sat_remind_command, filters=_private))
     app.add_handler(CommandHandler("sat_reroll", _sat_reroll_command, filters=_private))
