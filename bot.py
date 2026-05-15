@@ -1964,6 +1964,7 @@ async def _sat_webinar_command(update: Update, context: ContextTypes.DEFAULT_TYP
     ]])
     chat_ids = await db.get_all_chat_ids()
     sent = failed = 0
+    first_error: str | None = None
     for cid in chat_ids:
         try:
             await context.bot.send_message(
@@ -1973,13 +1974,16 @@ async def _sat_webinar_command(update: Update, context: ContextTypes.DEFAULT_TYP
                 parse_mode="HTML",
             )
             sent += 1
-        except Exception:
-            logger.warning("Webinar remind failed for chat_id=%d", cid)
+        except Exception as e:
+            if first_error is None:
+                first_error = f"{type(e).__name__}: {e}"
+            logger.warning("Webinar remind failed for chat_id=%d: %s", cid, e)
             failed += 1
         await asyncio.sleep(0.05)
-    await update.message.reply_text(
-        msg.SAT_WEBINAR_DONE.format(sent=sent, failed=failed, total=len(chat_ids))
-    )
+    result = msg.SAT_WEBINAR_DONE.format(sent=sent, failed=failed, total=len(chat_ids))
+    if first_error:
+        result += f"\n\nFirst error: {first_error}"
+    await update.message.reply_text(result)
 
 
 async def _ae_remind_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
