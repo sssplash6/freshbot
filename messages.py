@@ -815,9 +815,10 @@ EG_ADMIN_HELP = (
 )
 
 BROADCAST_KEYBOARD_MESSAGE = (
-    "\U0001f381 <b>Introducing: SAT Program Giveaway!</b>\n\n"
-    "We’re giving away <b>2 seats</b> in our SAT Program.\n\n"
-    "Tap the button below to participate \U0001f447"
+    "\U0001f3a8 <b>Freshman Research Institute</b>\n\n"
+    "<b>Building a Distinctive Academic Profile Through Research in the Humanities, Arts &amp; Culture</b>\n\n"
+    "Led by Jasmina Bakhtiyorova, incoming student at Amherst College.\n\n"
+    "Tap below to register \U0001f447"
 )
 BROADCAST_KEYBOARD_DONE = "Keyboard broadcast: {sent} sent, {failed} failed ({total} total users)."
 
