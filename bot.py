@@ -531,7 +531,7 @@ async def _handle_ae_step(
                 return
             _ae_state.setdefault(chat_id, {})[field] = text
             await db.set_status(chat_id, next_status)
-            await update.message.reply_text(next_prompt, reply_markup=_back_keyboard())
+            await update.message.reply_text(next_prompt, reply_markup=_back_keyboard(), parse_mode="HTML")
             return
 
     if status == "ae_step_resources":
