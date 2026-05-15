@@ -537,6 +537,29 @@ BTN_PODCAST_CHECK = "\u2705 I've subscribed \u2014 check again"
 
 BTN_ADV_ENGLISH = "Special Offer \u2013 Advanced English"
 
+BTN_RS = "Register for Upcoming Research Seminar"
+
+RS_NO_POST = "\U0001f512 Registration is not open yet. Stay tuned!"
+RS_SLOTS_FULL = (
+    "Unfortunately, all 30 spots for this event have been filled. "
+    "Stay tuned for future events!"
+)
+RS_ALREADY_REGISTERED = (
+    "\u2705 You\u2019re already registered! We\u2019ll see you at the seminar."
+)
+RS_ASK_FULL_NAME = "Please enter your full name:"
+RS_ASK_PHONE = (
+    "Please share your phone number using the button below."
+)
+BTN_RS_SHARE_PHONE = "\U0001f4f1 Share my phone number"
+RS_REGISTERED = (
+    "\U0001f389 You\u2019re registered for the Research Seminar!\n\n"
+    "Here is your invite link to join the group:\n{link}"
+)
+RS_POST_SET = "\u2705 Research Seminar intro post saved."
+RS_POST_USAGE = "Reply to a message with /rs_post to set the intro post."
+RS_EXPORT_EMPTY = "No registrations yet."
+
 AE_INTRO = (
     "\U0001f4a5<b>Special Offer: Advanced English</b>\n\n"
     "<b>What is included?</b>\n\n"

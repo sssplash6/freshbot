@@ -141,6 +141,26 @@ async def init_db() -> None:
             )
         """)
         await db.execute("""
+            CREATE TABLE IF NOT EXISTS rs_posts (
+                id              INTEGER PRIMARY KEY AUTOINCREMENT,
+                post_chat_id    INTEGER NOT NULL,
+                post_message_id INTEGER NOT NULL,
+                is_active       INTEGER NOT NULL DEFAULT 1,
+                created_at      TEXT NOT NULL
+            )
+        """)
+        await db.execute("""
+            CREATE TABLE IF NOT EXISTS rs_registrations (
+                id            INTEGER PRIMARY KEY AUTOINCREMENT,
+                chat_id       INTEGER NOT NULL UNIQUE,
+                username      TEXT,
+                first_name    TEXT NOT NULL,
+                full_name     TEXT NOT NULL,
+                phone         TEXT NOT NULL,
+                registered_at TEXT NOT NULL
+            )
+        """)
+        await db.execute("""
             CREATE TABLE IF NOT EXISTS sat_giveaway_posts (
                 id              INTEGER PRIMARY KEY AUTOINCREMENT,
                 post_chat_id    INTEGER NOT NULL,
@@ -880,6 +900,69 @@ async def set_setting(key: str, value: str) -> None:
 # ---------------------------------------------------------------------------
 # SAT Giveaway operations
 # ---------------------------------------------------------------------------
+
+async def rs_save_post(post_chat_id: int, post_message_id: int) -> None:
+    now = datetime.now(timezone.utc).isoformat()
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute("UPDATE rs_posts SET is_active = 0 WHERE is_active = 1")
+        await db.execute(
+            "INSERT INTO rs_posts (post_chat_id, post_message_id, is_active, created_at)"
+            " VALUES (?, ?, 1, ?)",
+            (post_chat_id, post_message_id, now),
+        )
+        await db.commit()
+
+
+async def rs_get_active_post() -> dict | None:
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute(
+            "SELECT * FROM rs_posts WHERE is_active = 1 ORDER BY id DESC LIMIT 1"
+        ) as cursor:
+            row = await cursor.fetchone()
+            return dict(row) if row else None
+
+
+async def rs_count_registrations() -> int:
+    async with aiosqlite.connect(DB_PATH) as db:
+        async with db.execute("SELECT COUNT(*) FROM rs_registrations") as cursor:
+            row = await cursor.fetchone()
+            return row[0] if row else 0
+
+
+async def rs_get_registration(chat_id: int) -> dict | None:
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute(
+            "SELECT * FROM rs_registrations WHERE chat_id = ?", (chat_id,)
+        ) as cursor:
+            row = await cursor.fetchone()
+            return dict(row) if row else None
+
+
+async def rs_save_registration(
+    chat_id: int, username: str | None, first_name: str, full_name: str, phone: str
+) -> None:
+    now = datetime.now(timezone.utc).isoformat()
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute(
+            """INSERT OR IGNORE INTO rs_registrations
+               (chat_id, username, first_name, full_name, phone, registered_at)
+               VALUES (?, ?, ?, ?, ?, ?)""",
+            (chat_id, username, first_name, full_name, phone, now),
+        )
+        await db.commit()
+
+
+async def rs_get_all_registrations() -> list[dict]:
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute(
+            "SELECT * FROM rs_registrations ORDER BY registered_at"
+        ) as cursor:
+            rows = await cursor.fetchall()
+            return [dict(r) for r in rows]
+
 
 async def sat_save_post(post_chat_id: int, post_message_id: int) -> None:
     now = datetime.now(timezone.utc).isoformat()

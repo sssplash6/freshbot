@@ -22,6 +22,7 @@ PERSON_Z_CHAT_ID: int = int(_require("PERSON_Z_CHAT_ID"))
 VALERA_CHAT_ID: int | None = int(v) if (v := os.getenv("VALERA_CHAT_ID", "").strip()) else None
 ADV_ENGLISH_REVIEWER_CHAT_ID: int = int(_require("ADV_ENGLISH_REVIEWER_CHAT_ID"))
 AE_GROUP_CHAT_ID: int = int(_require("AE_GROUP_CHAT_ID"))
+RS_GROUP_CHAT_ID: int = int(_require("RS_GROUP_CHAT_ID"))
 
 # Expert chat IDs for each program's question routing (comma-separated for multiple)
 SAT_MAN_CHAT_ID: list[int] = _require_int_list("SAT_MAN_CHAT_ID")

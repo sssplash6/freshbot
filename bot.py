@@ -40,6 +40,7 @@ from config import (
     SAT_MAN_CHAT_ID,
     ADV_ENGLISH_REVIEWER_CHAT_ID,
     AE_GROUP_CHAT_ID,
+    RS_GROUP_CHAT_ID,
     PODCAST_CHANNEL_IDS,
     PODCAST_CHANNEL_HANDLES,
     PODCAST_YOUTUBE_URL,
@@ -103,6 +104,9 @@ _expert_clarification_state: dict[int, dict] = {}
 # Accumulates Advanced English application answers per chat_id across steps.
 _ae_state: dict[int, dict] = {}
 
+# Accumulates Research Seminar registration answers per chat_id.
+_rs_state: dict[int, dict] = {}
+
 # Chat IDs with bypass mode active — skips "coming soon" gates to expose real flows.
 _bypass_users: set[int] = set()
 
@@ -111,7 +115,7 @@ _NAV_BUTTONS: frozenset[str] = frozenset({
     # Main menu
     msg.BTN_PROGRAMS, msg.BTN_GENERAL_INQUIRY, msg.BTN_PODCAST,
     msg.BTN_SPECIAL_EVENTS, msg.BTN_GET_LINK, msg.BTN_HOME, msg.BTN_START,
-    msg.BTN_ADV_ENGLISH, msg.BTN_SAT_GIVEAWAY,
+    msg.BTN_ADV_ENGLISH, msg.BTN_SAT_GIVEAWAY, msg.BTN_RS,
     # Program sub-menu
     msg.BTN_SAT, msg.BTN_ADMISSIONS, msg.BTN_FULL_SUPPORT, msg.BTN_MASTERS,
     msg.BTN_ADV_PLACEMENT, msg.BTN_IMKON, msg.BTN_RESEARCH_INSTITUTE,
@@ -131,7 +135,8 @@ def _main_keyboard() -> ReplyKeyboardMarkup:
         [
             [msg.BTN_PROGRAMS, msg.BTN_GENERAL_INQUIRY],
             [msg.BTN_SPECIAL_EVENTS],
-            [msg.BTN_ADV_ENGLISH, msg.BTN_SAT_GIVEAWAY],
+            [msg.BTN_ADV_ENGLISH],
+            [msg.BTN_RS],
             [msg.BTN_GET_LINK],
         ],
         resize_keyboard=True,
@@ -304,6 +309,12 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
                         fid, ftype = document.file_id, "document"
                     await _handle_sat_screenshot(update, chat_id, fid, ftype, context)
                     return
+        contact = update.message.contact
+        if contact:
+            user_v = await db.get_user(chat_id)
+            if user_v and user_v.get("flow") == "rs" and user_v.get("status") == "rs_step_phone":
+                await _handle_rs_phone(update, chat_id, contact.phone_number, context)
+                return
         return
 
     # Back always takes priority over free-text capture states
@@ -327,6 +338,16 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             await db.set_status(chat_id, None)
         else:
             await _handle_followup_text(update, chat_id, text, context)
+            return
+
+    if user and user.get("flow") == "rs":
+        if text in _NAV_BUTTONS:
+            await db.set_flow(chat_id, None)
+            await db.set_status(chat_id, None)
+        elif user.get("status") == "rs_step_name":
+            await _handle_rs_name(update, chat_id, text, context)
+            return
+        else:
             return
 
     if user and user.get("flow") == "ae_payment" and user.get("status") == "ae_payment_step_screenshot":
@@ -371,6 +392,8 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         await _handle_adv_english(update, chat_id)
     elif text == msg.BTN_SAT_GIVEAWAY:
         await _handle_sat_giveaway(update, chat_id, context)
+    elif text == msg.BTN_RS:
+        await _handle_rs(update, chat_id, context)
     elif text == msg.BTN_GENERAL_INQUIRY:
         await _handle_general_inquiry(update, chat_id)
     elif text == msg.BTN_PODCAST:
@@ -2050,6 +2073,122 @@ async def _ae_set_payment_command(
 
 
 # ---------------------------------------------------------------------------
+# Research Seminar — student flow, admin commands
+# ---------------------------------------------------------------------------
+
+RS_SLOT_LIMIT = 31
+
+def _rs_phone_keyboard() -> ReplyKeyboardMarkup:
+    from telegram import KeyboardButton
+    return ReplyKeyboardMarkup(
+        [[KeyboardButton(msg.BTN_RS_SHARE_PHONE, request_contact=True)]],
+        resize_keyboard=True,
+        one_time_keyboard=True,
+    )
+
+
+async def _handle_rs(
+    update: Update, chat_id: int, context: ContextTypes.DEFAULT_TYPE
+) -> None:
+    post = await db.rs_get_active_post()
+    if not post:
+        await update.message.reply_text(msg.RS_NO_POST)
+        return
+
+    count = await db.rs_count_registrations()
+    if count >= RS_SLOT_LIMIT:
+        await update.message.reply_text(msg.RS_SLOTS_FULL)
+        return
+
+    existing = await db.rs_get_registration(chat_id)
+    if existing:
+        await update.message.reply_text(msg.RS_ALREADY_REGISTERED)
+        return
+
+    await context.bot.copy_message(
+        chat_id=chat_id,
+        from_chat_id=post["post_chat_id"],
+        message_id=post["post_message_id"],
+    )
+    await update.message.reply_text(msg.RS_ASK_FULL_NAME, reply_markup=_back_keyboard())
+    await db.set_flow(chat_id, "rs")
+    await db.set_status(chat_id, "rs_step_name")
+
+
+async def _handle_rs_name(
+    update: Update, chat_id: int, full_name: str, context: ContextTypes.DEFAULT_TYPE
+) -> None:
+    _rs_state[chat_id] = {"full_name": full_name}
+    await db.set_status(chat_id, "rs_step_phone")
+    await update.message.reply_text(msg.RS_ASK_PHONE, reply_markup=_rs_phone_keyboard())
+
+
+async def _handle_rs_phone(
+    update: Update, chat_id: int, phone: str, context: ContextTypes.DEFAULT_TYPE
+) -> None:
+    state = _rs_state.pop(chat_id, {})
+    full_name = state.get("full_name", "")
+
+    user = await db.get_user(chat_id)
+    first_name = user["first_name"] if user else ""
+    username = user["username"] if user else None
+
+    await db.rs_save_registration(chat_id, username, first_name, full_name, phone)
+    await db.set_flow(chat_id, None)
+    await db.set_status(chat_id, None)
+
+    try:
+        invite = await context.bot.create_chat_invite_link(
+            chat_id=RS_GROUP_CHAT_ID,
+            member_limit=1,
+        )
+        await update.message.reply_text(
+            msg.RS_REGISTERED.format(link=invite.invite_link),
+            reply_markup=_main_keyboard(),
+        )
+    except Exception:
+        logger.exception("Failed to create RS invite for chat_id=%d", chat_id)
+        await update.message.reply_text(
+            msg.RS_REGISTERED.format(link="(error generating link — please contact support)"),
+            reply_markup=_main_keyboard(),
+        )
+
+
+async def _rs_post_command(
+    update: Update, context: ContextTypes.DEFAULT_TYPE
+) -> None:
+    if update.effective_user.id != PERSON_X_CHAT_ID:
+        return
+    reply = update.message.reply_to_message
+    if not reply:
+        await update.message.reply_text(msg.RS_POST_USAGE)
+        return
+    await db.rs_save_post(reply.chat.id, reply.message_id)
+    await update.message.reply_text(msg.RS_POST_SET)
+
+
+async def _rs_export_command(
+    update: Update, context: ContextTypes.DEFAULT_TYPE
+) -> None:
+    if update.effective_user.id != PERSON_X_CHAT_ID:
+        return
+    registrations = await db.rs_get_all_registrations()
+    if not registrations:
+        await update.message.reply_text(msg.RS_EXPORT_EMPTY)
+        return
+    lines = ["Research Seminar Registrations\n"]
+    for i, r in enumerate(registrations, 1):
+        upart = f" (@{r['username']})" if r.get("username") else ""
+        lines.append(f"{i}. {r['full_name']}{upart} — {r['phone']}")
+    content = "\n".join(lines).encode("utf-8")
+    import io
+    await update.message.reply_document(
+        document=io.BytesIO(content),
+        filename="rs_registrations.txt",
+    )
+
+
+# ---------------------------------------------------------------------------
 # SAT Program Giveaway — student flow, admin commands, reviewer callbacks
 # ---------------------------------------------------------------------------
 
@@ -2598,6 +2737,8 @@ def build_app() -> Application:
     app.add_handler(CommandHandler("sat_post", _sat_post_command, filters=_private))
     app.add_handler(CommandHandler("sat_remind", _sat_remind_command, filters=_private))
     app.add_handler(CommandHandler("sat_reroll", _sat_reroll_command, filters=_private))
+    app.add_handler(CommandHandler("rs_post", _rs_post_command, filters=_private))
+    app.add_handler(CommandHandler("rs_export", _rs_export_command, filters=_private))
     app.add_handler(CallbackQueryHandler(_sat_approve_callback, pattern="^sat_approve:"))
     app.add_handler(CallbackQueryHandler(_sat_reject_callback, pattern="^sat_reject:"))
     app.add_handler(CallbackQueryHandler(_eg_check_membership_callback, pattern="^check_membership$"))
@@ -2614,6 +2755,7 @@ def build_app() -> Application:
     app.add_handler(CallbackQueryHandler(_ae_view_callback, pattern="^ae_view:"))
     app.add_handler(CallbackQueryHandler(_ae_accept_callback, pattern="^ae_accept:"))
     app.add_handler(CallbackQueryHandler(_ae_reject_callback, pattern="^ae_reject:"))
+    app.add_handler(MessageHandler(_private & filters.CONTACT, handle_message))
     app.add_handler(MessageHandler(_private & ~filters.COMMAND, handle_message))
     app.add_handler(ChatJoinRequestHandler(_eg_join_request_handler))
 
