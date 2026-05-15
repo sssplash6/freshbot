@@ -662,7 +662,8 @@ BTN_SAT_REJECT = "\u274c Reject"
 
 SAT_REMIND_SCREENSHOT = (
     "\u23f0 <b>Only 2 hours left until the webinar!</b>\n\n"
-    "Make sure to repost our post and send the screenshot here to secure your spot in the giveaway!"
+    "Make sure to repost our post and send the screenshot here to secure your spot in the "
+    "<b>SAT Program Giveaway</b> \u2014 we're giving away <b>2 free seats</b> in our SAT Program!"
 )
 SAT_REMIND_DONE = "Reminder sent: {sent} delivered, {failed} failed ({total} total)."
 
