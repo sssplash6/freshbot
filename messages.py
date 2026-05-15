@@ -627,11 +627,7 @@ AE_SET_TERMS_USAGE = "Reply to a PDF document with /ae_set_terms to save it."
 
 BTN_AE_ACCEPT_TERMS = "\u2705 I have read and accept the terms"
 
-AE_PAYMENT_PROMPT = (
-    "\U0001f4b3 <b>Payment</b>\n\n"
-    "Please make a payment of <b>1,785,000 sums</b> using the QR code above.\n\n"
-    "Once you have completed the payment, tap the button below."
-)
+AE_PAYMENT_NOT_SET = "\U0001f4b3 Please make the payment and tap the button below once done."
 BTN_AE_PAYMENT_MADE = "\U0001f4b3 I\u2019ve made the payment \u2014 share screenshot"
 
 AE_PAYMENT_SCREENSHOT_PROMPT = (
@@ -659,8 +655,8 @@ AE_PAYMENT_REVIEWER_CONFIRMED = "\u2705 Payment confirmed. Invite link sent to a
 AE_PAYMENT_REVIEWER_REJECTED = "\u274c Payment rejected. Applicant notified."
 AE_PAYMENT_ALREADY_DECIDED = "\u2139\ufe0f Decision already recorded for this payment."
 
-AE_SET_QR_SUCCESS = "\u2705 Payment QR code saved."
-AE_SET_QR_USAGE = "Reply to a photo with /ae_set_qr to save it."
+AE_SET_PAYMENT_SUCCESS = "\u2705 Payment post saved."
+AE_SET_PAYMENT_USAGE = "Reply to any message with /ae_set_payment to save it as the payment post."
 
 AE_REJECTED = "Thank you for applying. Unfortunately, you have not been accepted at this time."
 

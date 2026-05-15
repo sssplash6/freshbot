@@ -1888,23 +1888,22 @@ async def _ae_terms_accept_callback(
     await db.ae_set_status_by_chat_id(applicant_chat_id, "terms_accepted")
     await query.edit_message_reply_markup(reply_markup=None)
 
-    qr_file_id = await db.get_setting("ae_qr_file_id")
     payment_keyboard = InlineKeyboardMarkup([[
         InlineKeyboardButton(msg.BTN_AE_PAYMENT_MADE, callback_data=f"ae_payment_made:{applicant_chat_id}"),
     ]])
-    if qr_file_id:
-        await context.bot.send_photo(
+    post_chat_id = await db.get_setting("ae_payment_post_chat_id")
+    post_message_id = await db.get_setting("ae_payment_post_message_id")
+    if post_chat_id and post_message_id:
+        await context.bot.copy_message(
             chat_id=applicant_chat_id,
-            photo=qr_file_id,
-            caption=msg.AE_PAYMENT_PROMPT,
-            parse_mode="HTML",
+            from_chat_id=int(post_chat_id),
+            message_id=int(post_message_id),
             reply_markup=payment_keyboard,
         )
     else:
         await context.bot.send_message(
             chat_id=applicant_chat_id,
-            text=msg.AE_PAYMENT_PROMPT,
-            parse_mode="HTML",
+            text=msg.AE_PAYMENT_NOT_SET,
             reply_markup=payment_keyboard,
         )
 
@@ -2036,17 +2035,18 @@ async def _ae_payment_reject_callback(
     await _ae_payment_decision_callback(update, context, "rejected")
 
 
-async def _ae_set_qr_command(
+async def _ae_set_payment_command(
     update: Update, context: ContextTypes.DEFAULT_TYPE
 ) -> None:
-    if update.effective_chat.id not in _AE_REVIEWER_IDS:
+    if update.effective_user.id != PERSON_X_CHAT_ID:
         return
     reply = update.message.reply_to_message
-    if not reply or not reply.photo:
-        await update.message.reply_text(msg.AE_SET_QR_USAGE)
+    if not reply:
+        await update.message.reply_text(msg.AE_SET_PAYMENT_USAGE)
         return
-    await db.set_setting("ae_qr_file_id", reply.photo[-1].file_id)
-    await update.message.reply_text(msg.AE_SET_QR_SUCCESS)
+    await db.set_setting("ae_payment_post_chat_id", str(reply.chat.id))
+    await db.set_setting("ae_payment_post_message_id", str(reply.message_id))
+    await update.message.reply_text(msg.AE_SET_PAYMENT_SUCCESS)
 
 
 # ---------------------------------------------------------------------------
@@ -2588,7 +2588,7 @@ def build_app() -> Application:
     app.add_handler(CommandHandler("unanswered", _q_unanswered_command, filters=_private))
     app.add_handler(CommandHandler("ae_list", _ae_list_command, filters=_private))
     app.add_handler(CommandHandler("ae_set_terms", _ae_set_terms_command, filters=_private))
-    app.add_handler(CommandHandler("ae_set_qr", _ae_set_qr_command, filters=_private))
+    app.add_handler(CommandHandler("ae_set_payment", _ae_set_payment_command, filters=_private))
     app.add_handler(CommandHandler("ae_remind", _ae_remind_command, filters=_private))
     app.add_handler(CallbackQueryHandler(_ae_terms_accept_callback, pattern="^ae_terms_accept:"))
     app.add_handler(CallbackQueryHandler(_ae_payment_made_callback, pattern="^ae_payment_made:"))
