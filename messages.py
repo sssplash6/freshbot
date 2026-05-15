@@ -676,6 +676,12 @@ SAT_REMIND_SCREENSHOT = (
 )
 SAT_REMIND_DONE = "Reminder sent: {sent} delivered, {failed} failed ({total} total)."
 
+SAT_WEBINAR_REMINDER = (
+    "\ud83c\udf93 <b>SAT Webinar starts in 10 minutes!</b>\n\n"
+    "Join us live on our Telegram channel right now \U0001f447"
+)
+SAT_WEBINAR_DONE = "Webinar reminder sent: {sent} delivered, {failed} failed ({total} total)."
+
 SAT_POST_SET = "\u2705 Giveaway post saved."
 SAT_POST_USAGE = "Reply to a message with /sat_post to set it as the giveaway post."
 
