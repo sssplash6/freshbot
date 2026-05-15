@@ -134,10 +134,8 @@ def _main_keyboard() -> ReplyKeyboardMarkup:
     return ReplyKeyboardMarkup(
         [
             [msg.BTN_PROGRAMS, msg.BTN_GENERAL_INQUIRY],
-            [msg.BTN_SPECIAL_EVENTS],
-            [msg.BTN_ADV_ENGLISH],
-            [msg.BTN_RS],
-            [msg.BTN_GET_LINK],
+            [msg.BTN_SPECIAL_EVENTS, msg.BTN_GET_LINK],
+            [msg.BTN_ADV_ENGLISH, msg.BTN_RS],
         ],
         resize_keyboard=True,
         is_persistent=True,
