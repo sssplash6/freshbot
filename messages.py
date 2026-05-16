@@ -552,6 +552,7 @@ RS_ASK_PHONE = (
     "Please share your phone number using the button below."
 )
 BTN_RS_SHARE_PHONE = "\U0001f4f1 Share my phone number"
+RS_PHONE_REQUIRED = "Please use the button below to share your phone number."
 RS_REGISTERED = (
     "\U0001f389 You\u2019re registered for the Research Seminar!\n\n"
     "Here is your invite link to join the group:\n{link}"

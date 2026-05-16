@@ -311,6 +311,9 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         if contact:
             user_v = await db.get_user(chat_id)
             if user_v and user_v.get("flow") == "rs" and user_v.get("status") == "rs_step_phone":
+                if contact.user_id != update.effective_user.id:
+                    await update.message.reply_text(msg.RS_PHONE_REQUIRED, reply_markup=_rs_phone_keyboard())
+                    return
                 await _handle_rs_phone(update, chat_id, contact.phone_number, context)
                 return
         return
@@ -346,6 +349,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             await _handle_rs_name(update, chat_id, text, context)
             return
         else:
+            await update.message.reply_text(msg.RS_PHONE_REQUIRED, reply_markup=_rs_phone_keyboard())
             return
 
     if user and user.get("flow") == "ae_payment" and user.get("status") == "ae_payment_step_screenshot":
@@ -1163,6 +1167,15 @@ async def _handle_back(update: Update, chat_id: int) -> None:
     description = msg.PROGRAM_DESCRIPTIONS.get(program or "", "")
     first_name = user["first_name"] if user else "there"
 
+    if flow == "rs":
+        _rs_state.pop(chat_id, None)
+        await db.set_flow(chat_id, None)
+        await db.set_status(chat_id, None)
+        await update.message.reply_text(
+            msg.WELCOME.format(first_name=first_name),
+            reply_markup=_main_keyboard(),
+        )
+        return
     if flow == "adv_english":
         _ae_state.pop(chat_id, None)
         await db.set_flow(chat_id, None)
@@ -1997,7 +2010,6 @@ async def _ae_payment_decision_callback(
     update: Update, context: ContextTypes.DEFAULT_TYPE, decision: str
 ) -> None:
     query = update.callback_query
-    await query.answer()
 
     applicant_chat_id = int(query.data.split(":")[1])
     application = await db.ae_get_application(applicant_chat_id)
@@ -2005,6 +2017,8 @@ async def _ae_payment_decision_callback(
     if not application or application["status"] != "payment_pending":
         await query.answer(msg.AE_PAYMENT_ALREADY_DECIDED, show_alert=True)
         return
+
+    await query.answer()
 
     caption = query.message.caption or ""
 
@@ -2079,7 +2093,10 @@ RS_SLOT_LIMIT = 31
 def _rs_phone_keyboard() -> ReplyKeyboardMarkup:
     from telegram import KeyboardButton
     return ReplyKeyboardMarkup(
-        [[KeyboardButton(msg.BTN_RS_SHARE_PHONE, request_contact=True)]],
+        [
+            [KeyboardButton(msg.BTN_RS_SHARE_PHONE, request_contact=True)],
+            [msg.BTN_BACK],
+        ],
         resize_keyboard=True,
         one_time_keyboard=True,
     )
@@ -2093,14 +2110,14 @@ async def _handle_rs(
         await update.message.reply_text(msg.RS_NO_POST)
         return
 
-    count = await db.rs_count_registrations()
-    if count >= RS_SLOT_LIMIT:
-        await update.message.reply_text(msg.RS_SLOTS_FULL)
-        return
-
     existing = await db.rs_get_registration(chat_id)
     if existing:
         await update.message.reply_text(msg.RS_ALREADY_REGISTERED)
+        return
+
+    count = await db.rs_count_registrations()
+    if count >= RS_SLOT_LIMIT:
+        await update.message.reply_text(msg.RS_SLOTS_FULL)
         return
 
     await context.bot.copy_message(
@@ -2125,7 +2142,19 @@ async def _handle_rs_phone(
     update: Update, chat_id: int, phone: str, context: ContextTypes.DEFAULT_TYPE
 ) -> None:
     state = _rs_state.pop(chat_id, {})
-    full_name = state.get("full_name", "")
+    full_name = state.get("full_name", "").strip()
+
+    if not full_name:
+        await db.set_status(chat_id, "rs_step_name")
+        await update.message.reply_text(msg.RS_ASK_FULL_NAME, reply_markup=_back_keyboard())
+        return
+
+    count = await db.rs_count_registrations()
+    if count >= RS_SLOT_LIMIT:
+        await db.set_flow(chat_id, None)
+        await db.set_status(chat_id, None)
+        await update.message.reply_text(msg.RS_SLOTS_FULL, reply_markup=_main_keyboard())
+        return
 
     user = await db.get_user(chat_id)
     first_name = user["first_name"] if user else ""
@@ -2162,7 +2191,7 @@ async def _rs_post_command(
         await update.message.reply_text(msg.RS_POST_USAGE)
         return
     await db.rs_save_post(reply.chat.id, reply.message_id)
-    await update.message.reply_text(msg.RS_POST_SET)
+    await update.message.reply_text(msg.RS_POST_SET + "\n\nPrevious registrations have been cleared.")
 
 
 async def _rs_export_command(

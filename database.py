@@ -910,6 +910,7 @@ async def rs_save_post(post_chat_id: int, post_message_id: int) -> None:
             " VALUES (?, ?, 1, ?)",
             (post_chat_id, post_message_id, now),
         )
+        await db.execute("DELETE FROM rs_registrations")
         await db.commit()
 
 
