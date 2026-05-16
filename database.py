@@ -182,6 +182,18 @@ async def init_db() -> None:
                 created_at           TEXT NOT NULL
             )
         """)
+        await db.execute("""
+            CREATE TABLE IF NOT EXISTS sat_enrollments (
+                id           INTEGER PRIMARY KEY AUTOINCREMENT,
+                chat_id      INTEGER NOT NULL UNIQUE,
+                username     TEXT,
+                first_name   TEXT NOT NULL,
+                full_name    TEXT NOT NULL,
+                sat_history  TEXT NOT NULL,
+                test_date    TEXT NOT NULL,
+                enrolled_at  TEXT NOT NULL
+            )
+        """)
         for _col in [
             "ALTER TABLE adv_english_applications ADD COLUMN video_file_id TEXT",
             "ALTER TABLE adv_english_applications ADD COLUMN video_type TEXT",
@@ -1056,6 +1068,46 @@ async def sat_get_all_approved() -> list[dict]:
         db.row_factory = aiosqlite.Row
         async with db.execute(
             "SELECT * FROM sat_giveaway_entries WHERE status = 'approved' ORDER BY created_at"
+        ) as cursor:
+            rows = await cursor.fetchall()
+            return [dict(r) for r in rows]
+
+
+# ---------------------------------------------------------------------------
+# SAT Program Enrollment operations
+# ---------------------------------------------------------------------------
+
+async def sat_enroll_save(
+    chat_id: int,
+    username: str | None,
+    first_name: str,
+    full_name: str,
+    sat_history: str,
+    test_date: str,
+) -> None:
+    now = datetime.now(timezone.utc).isoformat()
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute(
+            """INSERT INTO sat_enrollments
+               (chat_id, username, first_name, full_name, sat_history, test_date, enrolled_at)
+               VALUES (?, ?, ?, ?, ?, ?, ?)
+               ON CONFLICT(chat_id) DO UPDATE SET
+                   username = excluded.username,
+                   first_name = excluded.first_name,
+                   full_name = excluded.full_name,
+                   sat_history = excluded.sat_history,
+                   test_date = excluded.test_date,
+                   enrolled_at = excluded.enrolled_at""",
+            (chat_id, username, first_name, full_name, sat_history, test_date, now),
+        )
+        await db.commit()
+
+
+async def sat_enroll_get_all() -> list[dict]:
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute(
+            "SELECT * FROM sat_enrollments ORDER BY enrolled_at"
         ) as cursor:
             rows = await cursor.fetchall()
             return [dict(r) for r in rows]

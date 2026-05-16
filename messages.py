@@ -751,6 +751,36 @@ SAT_REROLL_RESULT = (
 )
 
 # ---------------------------------------------------------------------------
+# SAT Program Enrollment
+# ---------------------------------------------------------------------------
+
+BTN_SAT_ENROLL = "Enroll at SAT Program"
+
+SAT_ENROLL_INFO = (
+    "\U0001f393 <b>SAT Program by Freshman Academy</b>\n\n"
+    "More than just SAT prep \u2014 you\u2019ll learn alongside admissions-focused mentors "
+    "and driven peers, gaining early exposure to the college admissions world while improving your SAT.\n\n"
+    "\U0001f4b8 <b>Price:</b> <s>$240</s> $120/month (promotional)\n\n"
+    "\u26a0\ufe0f More than 50% of spots are already reserved.\n\n"
+    "Book a free consultation to register \u2014 fill in the short form below and our team will reach out to you shortly."
+)
+
+SAT_ENROLL_ASK_NAME = "What\u2019s your name?"
+SAT_ENROLL_ASK_HISTORY = (
+    "Have you taken the SAT before?\n\n"
+    "If yes, what was your score? If not, just type \u201cNo\u201d."
+)
+SAT_ENROLL_ASK_DATE = "When would you like to take the test? (e.g. \u201cJune 2025\u201d or a specific date)"
+SAT_ENROLL_SUBMITTED = "\u2705 Thank you! Freshman Team will reach out to you soon!"
+SAT_ENROLL_EXPERT_ENTRY = (
+    "\U0001f4cb New SAT Program enrollment\n"
+    "From: <a href=\"tg://user?id={chat_id}\">{first_name}</a>{username_part}\n\n"
+    "<b>Name:</b> {full_name}\n"
+    "<b>SAT History:</b> {sat_history}\n"
+    "<b>Desired Test Date:</b> {test_date}"
+)
+
+# ---------------------------------------------------------------------------
 # Event gate \u2014 student flow
 # ---------------------------------------------------------------------------
 EG_NOT_MEMBER = (

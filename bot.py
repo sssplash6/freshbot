@@ -107,6 +107,9 @@ _ae_state: dict[int, dict] = {}
 # Accumulates Research Seminar registration answers per chat_id.
 _rs_state: dict[int, dict] = {}
 
+# Accumulates SAT enrollment answers per chat_id.
+_sat_enroll_state: dict[int, dict] = {}
+
 # Chat IDs with bypass mode active — skips "coming soon" gates to expose real flows.
 _bypass_users: set[int] = set()
 
@@ -115,7 +118,7 @@ _NAV_BUTTONS: frozenset[str] = frozenset({
     # Main menu
     msg.BTN_PROGRAMS, msg.BTN_GENERAL_INQUIRY, msg.BTN_PODCAST,
     msg.BTN_SPECIAL_EVENTS, msg.BTN_GET_LINK, msg.BTN_HOME, msg.BTN_START,
-    msg.BTN_ADV_ENGLISH, msg.BTN_SAT_GIVEAWAY, msg.BTN_RS,
+    msg.BTN_ADV_ENGLISH, msg.BTN_SAT_GIVEAWAY, msg.BTN_RS, msg.BTN_SAT_ENROLL,
     # Program sub-menu
     msg.BTN_SAT, msg.BTN_ADMISSIONS, msg.BTN_FULL_SUPPORT, msg.BTN_MASTERS,
     msg.BTN_ADV_PLACEMENT, msg.BTN_IMKON, msg.BTN_RESEARCH_INSTITUTE,
@@ -136,6 +139,7 @@ def _main_keyboard() -> ReplyKeyboardMarkup:
             [msg.BTN_PROGRAMS, msg.BTN_GENERAL_INQUIRY],
             [msg.BTN_SPECIAL_EVENTS, msg.BTN_GET_LINK],
             [msg.BTN_ADV_ENGLISH, msg.BTN_RS],
+            [msg.BTN_SAT_ENROLL],
         ],
         resize_keyboard=True,
         is_persistent=True,
@@ -368,6 +372,15 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             await update.message.reply_text(msg.SAT_GIVEAWAY_SCREENSHOT_REQUIRED)
             return
 
+    if user and user.get("flow") == "sat_enroll":
+        if text in _NAV_BUTTONS:
+            _sat_enroll_state.pop(chat_id, None)
+            await db.set_flow(chat_id, None)
+            await db.set_status(chat_id, None)
+        else:
+            await _handle_sat_enroll_step(update, chat_id, text, context)
+            return
+
     if user and user.get("flow") == "adv_english" and user.get("status") in (
         "ae_step_full_name", "ae_step_video", "ae_step_ielts", "ae_step_sat",
         "ae_step_why", "ae_step_perspective", "ae_step_resources",
@@ -396,6 +409,8 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         await _handle_sat_giveaway(update, chat_id, context)
     elif text == msg.BTN_RS:
         await _handle_rs(update, chat_id, context)
+    elif text == msg.BTN_SAT_ENROLL:
+        await _handle_sat_enroll(update, chat_id, context)
     elif text == msg.BTN_GENERAL_INQUIRY:
         await _handle_general_inquiry(update, chat_id)
     elif text == msg.BTN_PODCAST:
@@ -1169,6 +1184,15 @@ async def _handle_back(update: Update, chat_id: int) -> None:
 
     if flow == "rs":
         _rs_state.pop(chat_id, None)
+        await db.set_flow(chat_id, None)
+        await db.set_status(chat_id, None)
+        await update.message.reply_text(
+            msg.WELCOME.format(first_name=first_name),
+            reply_markup=_main_keyboard(),
+        )
+        return
+    if flow == "sat_enroll":
+        _sat_enroll_state.pop(chat_id, None)
         await db.set_flow(chat_id, None)
         await db.set_status(chat_id, None)
         await update.message.reply_text(
@@ -2213,6 +2237,77 @@ async def _rs_export_command(
         document=io.BytesIO(content),
         filename="rs_registrations.txt",
     )
+
+
+# ---------------------------------------------------------------------------
+# SAT Program Enrollment — student flow
+# ---------------------------------------------------------------------------
+
+async def _handle_sat_enroll(
+    update: Update, chat_id: int, context: ContextTypes.DEFAULT_TYPE
+) -> None:
+    await update.message.reply_text(
+        msg.SAT_ENROLL_INFO,
+        parse_mode="HTML",
+    )
+    _sat_enroll_state[chat_id] = {}
+    await db.set_flow(chat_id, "sat_enroll")
+    await db.set_status(chat_id, "sat_enroll_step_name")
+    await update.message.reply_text(msg.SAT_ENROLL_ASK_NAME, reply_markup=_back_keyboard())
+
+
+async def _handle_sat_enroll_step(
+    update: Update, chat_id: int, text: str, context: ContextTypes.DEFAULT_TYPE
+) -> None:
+    user = await db.get_user(chat_id)
+    status = user.get("status") if user else None
+
+    if status == "sat_enroll_step_name":
+        if not text.strip():
+            await update.message.reply_text(msg.SAT_ENROLL_ASK_NAME, reply_markup=_back_keyboard())
+            return
+        _sat_enroll_state.setdefault(chat_id, {})["full_name"] = text.strip()
+        await db.set_status(chat_id, "sat_enroll_step_history")
+        await update.message.reply_text(msg.SAT_ENROLL_ASK_HISTORY, reply_markup=_back_keyboard())
+
+    elif status == "sat_enroll_step_history":
+        _sat_enroll_state.setdefault(chat_id, {})["sat_history"] = text.strip()
+        await db.set_status(chat_id, "sat_enroll_step_date")
+        await update.message.reply_text(msg.SAT_ENROLL_ASK_DATE, reply_markup=_back_keyboard())
+
+    elif status == "sat_enroll_step_date":
+        state = _sat_enroll_state.pop(chat_id, {})
+        full_name = state.get("full_name", "")
+        sat_history = state.get("sat_history", "")
+        test_date = text.strip()
+
+        u = await db.get_user(chat_id)
+        first_name = u["first_name"] if u else "Unknown"
+        username = u["username"] if u else None
+
+        await db.sat_enroll_save(chat_id, username, first_name, full_name, sat_history, test_date)
+        await db.set_flow(chat_id, None)
+        await db.set_status(chat_id, None)
+        await update.message.reply_text(msg.SAT_ENROLL_SUBMITTED, reply_markup=_main_keyboard())
+
+        username_part = f" (@{username})" if username else ""
+        expert_text = msg.SAT_ENROLL_EXPERT_ENTRY.format(
+            first_name=first_name,
+            username_part=username_part,
+            chat_id=chat_id,
+            full_name=full_name,
+            sat_history=sat_history,
+            test_date=test_date,
+        )
+        for expert_id in SAT_MAN_CHAT_ID:
+            try:
+                await context.bot.send_message(
+                    chat_id=expert_id,
+                    text=expert_text,
+                    parse_mode="HTML",
+                )
+            except Exception:
+                logger.exception("Failed to notify SAT expert %d for enrollment", expert_id)
 
 
 # ---------------------------------------------------------------------------
