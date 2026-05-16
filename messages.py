@@ -762,7 +762,7 @@ SAT_ENROLL_INFO = (
     "and driven peers, gaining early exposure to the college admissions world while improving your SAT.\n\n"
     "\U0001f4b8 <b>Price:</b> <s>$240</s> $120/month (promotional)\n\n"
     "\u26a0\ufe0f More than 50% of spots are already reserved.\n\n"
-    "Book a free consultation to register \u2014 fill in the short form below and our team will reach out to you shortly."
+    "If you want to enroll, fill in the short form below and our team will reach out to you shortly."
 )
 
 SAT_ENROLL_ASK_NAME = "What\u2019s your name?"
