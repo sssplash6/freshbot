@@ -580,6 +580,19 @@ BTN_AE_APPLY_NOW = "Apply Now"
 
 AE_ALREADY_APPLIED = "You've already applied. We'll be in touch!"
 
+AE_STUCK_REMINDER = (
+    "Hello, this is Gulrukh, an Advanced English Leader at Freshman! "
+    "I’m also a rising junior at University of Pennsylvania, majoring in Political Science and History.\n\n"
+    "I noticed that you may be stuck on one of the steps in the application for the Advanced English program.\n\n"
+    "I wanted to reassure you that all of the information you submit through the application bot will be viewed "
+    "only by me. There is also just one day left to apply, in case you’ve been putting it off!\n\n"
+    "If you have any questions about the program — whether you’re unsure what it involves, "
+    "whether it’s the right fit for you, or anything else — please feel free to reach out to me "
+    "on Telegram (@gulyashskartoshkoy).\n\n"
+    "Best regards,\nGulrukh Sodikova"
+)
+AE_STUCK_DONE = "AE stuck reminder sent: {sent} delivered, {failed} failed ({total} total)."
+
 AE_REMIND_CLOSING = (
     "⏰ <b>Advanced English applications are closing in {days} day{s}!</b>\n\n"
     "If you haven’t applied yet, this is your last chance — tap the button below to apply now \U0001f447"
