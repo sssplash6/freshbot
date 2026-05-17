@@ -2459,8 +2459,12 @@ async def _ae_remind_command(update: Update, context: ContextTypes.DEFAULT_TYPE)
     days = int(args[0])
     text = msg.AE_REMIND_CLOSING.format(days=days, s="" if days == 1 else "s")
     chat_ids = await db.get_all_chat_ids()
-    sent = failed = 0
+    stuck = {u["chat_id"] for u in await db.get_ae_stuck_users()}
+    sent = failed = skipped = 0
     for cid in chat_ids:
+        if cid in stuck:
+            skipped += 1
+            continue
         try:
             await context.bot.send_message(
                 chat_id=cid,
@@ -2475,6 +2479,7 @@ async def _ae_remind_command(update: Update, context: ContextTypes.DEFAULT_TYPE)
         await asyncio.sleep(0.05)
     await update.message.reply_text(
         msg.AE_REMIND_DONE.format(sent=sent, failed=failed, total=len(chat_ids))
+        + f" ({skipped} skipped — mid-application)"
     )
 
 
