@@ -594,8 +594,9 @@ AE_STUCK_REMINDER = (
 AE_STUCK_DONE = "AE stuck reminder sent: {sent} delivered, {failed} failed ({total} total)."
 
 AE_REMIND_CLOSING = (
-    "⏰ <b>Advanced English applications are closing in {days} day{s}!</b>\n\n"
-    "If you haven’t applied yet, this is your last chance — tap the button below to apply now \U0001f447"
+    "⏰ <b>Tonight is your last chance to apply for Advanced English!</b>\n\n"
+    "Applications close at midnight — now is the time.\n"
+    "Don’t miss your spot! Takes just a few minutes \U0001f447"
 )
 AE_REMIND_DONE = "AE reminder sent: {sent} delivered, {failed} failed ({total} total)."
 AE_REMIND_USAGE = "Usage: /ae_remind 3 (or 2 or 1)"
@@ -653,7 +654,15 @@ AE_SUBMITTED = (
     "Thank you! Your application has been submitted. We\u2019ll notify you of the decision."
 )
 
-AE_ACCEPTED = "Congratulations! You\u2019ve been accepted to Advanced English. \U0001f389"
+AE_ACCEPTED = (
+    "\U0001f389Congratulations on your acceptance! \n\n"
+    "Our first lesson will take place on May 26, and we look forward to seeing you in the office. "
+    "To secure your place, please complete your payment. Immediately afterward, you will receive a link "
+    "to join our group and access all important updates, such as homework instructions and information.\n\n"
+    "Best regards,\n"
+    "Gulrukh Sodikova\n"
+    "Advanced English Leader"
+)
 
 AE_TERMS_CAPTION = (
     "\U0001f4dc Please read and sign the terms and conditions below to complete your enrollment."
