@@ -572,7 +572,7 @@ AE_INTRO = (
     "✅ Freshman Alumni Network Membership\n"
     "✅ Access to the Nest One Co-working Space\n\n"
     "\U0001f4cd <b>Where:</b> <a href=\"https://yandex.uz/maps/-/CPftJ6OW\">Freshman Office</a>\n"
-    "\U0001f4c5 <b>When:</b> Tuesdays and Saturdays from 1:00 PM to 2:30 PM\n\n"
+    "\U0001f4c5 <b>When:</b> Sundays and Wednesdays from 1:00 PM to 2:30 PM\n\n"
     "\U0001f4b8 <b>Price:</b> <s>$199</s> $149"
 )
 
@@ -656,7 +656,7 @@ AE_SUBMITTED = (
 
 AE_ACCEPTED = (
     "\U0001f389Congratulations on your acceptance! \n\n"
-    "Our first lesson will take place on May 26, and we look forward to seeing you in the office. "
+    "Our first lesson will take place on May 27, and we look forward to seeing you in the office. "
     "To secure your place, please complete your payment. Immediately afterward, you will receive a link "
     "to join our group and access all important updates, such as homework instructions and information.\n\n"
     "Best regards,\n"
