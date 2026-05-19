@@ -2321,15 +2321,13 @@ async def _handle_hku(
 
     existing = await db.hku_get_registration(chat_id)
     if existing:
-        await update.message.reply_text(
-            msg.HKU_ALREADY_REGISTERED.format(link=existing["invite_link"] or "—"),
-            reply_markup=_main_keyboard(),
-        )
-        return
-
-    count = await db.hku_count_registrations()
-    if count >= HKU_SLOT_LIMIT:
-        await update.message.reply_text(msg.HKU_SLOTS_FULL, reply_markup=_main_keyboard())
+        if existing["invite_link"]:
+            await update.message.reply_text(
+                msg.HKU_ALREADY_REGISTERED.format(link=existing["invite_link"]),
+                reply_markup=_main_keyboard(),
+            )
+        else:
+            await update.message.reply_text(msg.HKU_ALREADY_WAITLISTED, reply_markup=_main_keyboard())
         return
 
     if not await _hku_check_gate(chat_id, context):
@@ -2361,16 +2359,17 @@ async def _handle_hku_phone(
         await update.message.reply_text(msg.HKU_ASK_EMAIL, reply_markup=_back_keyboard())
         return
 
-    count = await db.hku_count_registrations()
-    if count >= HKU_SLOT_LIMIT:
-        await db.set_flow(chat_id, None)
-        await db.set_status(chat_id, None)
-        await update.message.reply_text(msg.HKU_SLOTS_FULL, reply_markup=_main_keyboard())
-        return
-
     user = await db.get_user(chat_id)
     first_name = user["first_name"] if user else ""
     username = user["username"] if user else None
+
+    count = await db.hku_count_registrations()
+    if count >= HKU_SLOT_LIMIT:
+        await db.hku_save_registration(chat_id, username, first_name, email, phone, None)
+        await db.set_flow(chat_id, None)
+        await db.set_status(chat_id, None)
+        await update.message.reply_text(msg.HKU_WAITLISTED, reply_markup=_main_keyboard())
+        return
 
     link = None
     try:
@@ -2406,14 +2405,12 @@ async def _hku_check_callback(
 
     existing = await db.hku_get_registration(chat_id)
     if existing:
-        await query.edit_message_text(
-            msg.HKU_ALREADY_REGISTERED.format(link=existing["invite_link"] or "—")
-        )
-        return
-
-    count = await db.hku_count_registrations()
-    if count >= HKU_SLOT_LIMIT:
-        await query.edit_message_text(msg.HKU_SLOTS_FULL)
+        if existing["invite_link"]:
+            await query.edit_message_text(
+                msg.HKU_ALREADY_REGISTERED.format(link=existing["invite_link"])
+            )
+        else:
+            await query.edit_message_text(msg.HKU_ALREADY_WAITLISTED)
         return
 
     if not await _hku_check_gate(chat_id, context):

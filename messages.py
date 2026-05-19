@@ -555,13 +555,22 @@ HKU_MUST_SUBSCRIBE = (
 BTN_HKU_CHECK = "\u2705 I\u2019ve subscribed \u2014 check again"
 
 HKU_SLOTS_FULL = (
-    "Unfortunately, all 20 seats for this event have been filled. "
+    "Unfortunately, all 20 spots for this event have been filled. "
     "Stay tuned for future events!"
+)
+
+HKU_WAITLISTED = (
+    "Unfortunately, all 20 spots have just been filled. "
+    "We\u2019ve saved your details and will reach out if a spot opens up."
 )
 
 HKU_ALREADY_REGISTERED = (
     "You\u2019re already registered! Here is your invite link:\n{link}\n\n"
     "Do not share it \u2014 it will only work once."
+)
+
+HKU_ALREADY_WAITLISTED = (
+    "You\u2019re on the waitlist \u2014 we\u2019ll reach out if a spot opens up."
 )
 
 HKU_ASK_EMAIL = "Please enter your email address:"
