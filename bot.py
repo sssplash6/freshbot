@@ -1666,8 +1666,10 @@ async def _broadcast_keyboard_command(
             await context.bot.send_message(
                 chat_id=cid,
                 text=msg.BROADCAST_KEYBOARD_MESSAGE,
-                reply_markup=_main_keyboard(),
                 parse_mode="HTML",
+                reply_markup=InlineKeyboardMarkup(
+                    [[InlineKeyboardButton(msg.BTN_HKU, callback_data="hku_check")]]
+                ),
             )
             sent += 1
         except Exception as e:

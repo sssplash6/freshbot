@@ -908,8 +908,7 @@ EG_ADMIN_HELP = (
 )
 
 BROADCAST_KEYBOARD_MESSAGE = (
-    "⏰ <b>Less than 24 hours left until the deadline to register for Freshman SAT.</b>\n\n"
-    "Press “Enroll at SAT Program” below to secure your spot \U0001f447"
+    "\U0001f393 <b>The University of Hong Kong is visiting Freshman!</b>"
 )
 BROADCAST_KEYBOARD_DONE = "Keyboard broadcast: {sent} sent, {failed} failed ({total} total users)."
 
