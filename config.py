@@ -74,3 +74,6 @@ SPECIAL_EVENT_CHANNEL_HANDLES: list[str] = _optional_str_list("SPECIAL_EVENT_CHA
 PODCAST_CHANNEL_IDS: list[int] = _optional_int_list("PODCAST_CHANNEL_IDS")
 PODCAST_CHANNEL_HANDLES: list[str] = _optional_str_list("PODCAST_CHANNEL_HANDLES")
 PODCAST_YOUTUBE_URL: str = os.getenv("PODCAST_YOUTUBE_URL", "")
+
+HKU_GROUP_CHAT_ID: int | None = int(v) if (v := os.getenv("HKU_GROUP_CHAT_ID", "").strip()) else None
+FRESHMANBLOG_CHANNEL_ID: int | None = int(v) if (v := os.getenv("FRESHMANBLOG_CHANNEL_ID", "").strip()) else None

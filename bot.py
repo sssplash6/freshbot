@@ -47,6 +47,8 @@ from config import (
     SPECIAL_EVENT_CHANNEL_IDS,
     SPECIAL_EVENT_CHANNEL_HANDLES,
     VALERA_CHAT_ID,
+    HKU_GROUP_CHAT_ID,
+    FRESHMANBLOG_CHANNEL_ID,
     TELEGRAM_BOT_TOKEN,
     WEBSITE_URL_ADMISSIONS,
     WEBSITE_URL_FULL_SUPPORT,
@@ -118,7 +120,7 @@ _NAV_BUTTONS: frozenset[str] = frozenset({
     # Main menu
     msg.BTN_PROGRAMS, msg.BTN_GENERAL_INQUIRY, msg.BTN_PODCAST,
     msg.BTN_SPECIAL_EVENTS, msg.BTN_GET_LINK, msg.BTN_HOME, msg.BTN_START,
-    msg.BTN_ADV_ENGLISH, msg.BTN_SAT_GIVEAWAY, msg.BTN_RS, msg.BTN_SAT_ENROLL,
+    msg.BTN_ADV_ENGLISH, msg.BTN_SAT_GIVEAWAY, msg.BTN_HKU, msg.BTN_SAT_ENROLL,
     # Program sub-menu
     msg.BTN_SAT, msg.BTN_ADMISSIONS, msg.BTN_FULL_SUPPORT, msg.BTN_MASTERS,
     msg.BTN_ADV_PLACEMENT, msg.BTN_IMKON, msg.BTN_RESEARCH_INSTITUTE,
@@ -138,7 +140,7 @@ def _main_keyboard() -> ReplyKeyboardMarkup:
         [
             [msg.BTN_PROGRAMS, msg.BTN_GENERAL_INQUIRY],
             [msg.BTN_SPECIAL_EVENTS, msg.BTN_GET_LINK],
-            [msg.BTN_ADV_ENGLISH, msg.BTN_RS],
+            [msg.BTN_ADV_ENGLISH, msg.BTN_HKU],
             [msg.BTN_SAT_ENROLL],
         ],
         resize_keyboard=True,
@@ -407,8 +409,8 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         await _handle_adv_english(update, chat_id)
     elif text == msg.BTN_SAT_GIVEAWAY:
         await _handle_sat_giveaway(update, chat_id, context)
-    elif text == msg.BTN_RS:
-        await _handle_rs(update, chat_id, context)
+    elif text == msg.BTN_HKU:
+        await _handle_hku(update, chat_id, context)
     elif text == msg.BTN_SAT_ENROLL:
         await _handle_sat_enroll(update, chat_id, context)
     elif text == msg.BTN_GENERAL_INQUIRY:
@@ -2240,6 +2242,111 @@ async def _rs_export_command(
 
 
 # ---------------------------------------------------------------------------
+# HKU Admissions Rep Event — student flow
+# ---------------------------------------------------------------------------
+
+async def _handle_hku(
+    update: Update, chat_id: int, context: ContextTypes.DEFAULT_TYPE
+) -> None:
+    if not HKU_GROUP_CHAT_ID or not FRESHMANBLOG_CHANNEL_ID:
+        await update.message.reply_text(msg.HKU_NOT_ACTIVE, reply_markup=_main_keyboard())
+        return
+
+    existing_link = await db.get_setting(f"hku_invite:{chat_id}")
+    if existing_link:
+        await update.message.reply_text(
+            msg.HKU_ALREADY_ISSUED.format(link=existing_link),
+            reply_markup=_main_keyboard(),
+        )
+        return
+
+    try:
+        member = await context.bot.get_chat_member(FRESHMANBLOG_CHANNEL_ID, chat_id)
+        is_member = member.status in _EG_MEMBER_STATUSES
+    except Exception:
+        is_member = False
+
+    if not is_member:
+        keyboard = InlineKeyboardMarkup(
+            [[InlineKeyboardButton(msg.BTN_HKU_CHECK, callback_data="hku_check")]]
+        )
+        await update.message.reply_text(msg.HKU_MUST_SUBSCRIBE, reply_markup=keyboard)
+        return
+
+    await _hku_issue_link(update.message, chat_id, context)
+
+
+async def _hku_issue_link(message, chat_id: int, context) -> None:
+    try:
+        invite = await context.bot.create_chat_invite_link(
+            chat_id=HKU_GROUP_CHAT_ID,
+            member_limit=1,
+        )
+        link = invite.invite_link
+        await db.set_setting(f"hku_invite:{chat_id}", link)
+        await message.reply_text(
+            msg.HKU_INVITE_SENT.format(link=link),
+            parse_mode="HTML",
+            reply_markup=_main_keyboard(),
+        )
+    except Exception:
+        logger.exception("Failed to create HKU invite for chat_id=%d", chat_id)
+        await message.reply_text(
+            msg.HKU_INVITE_SENT.format(link="(error generating link — please contact support)"),
+            parse_mode="HTML",
+            reply_markup=_main_keyboard(),
+        )
+
+
+async def _hku_check_callback(
+    update: Update, context: ContextTypes.DEFAULT_TYPE
+) -> None:
+    query = update.callback_query
+    await query.answer()
+    chat_id = update.effective_user.id
+
+    if not HKU_GROUP_CHAT_ID or not FRESHMANBLOG_CHANNEL_ID:
+        await query.edit_message_text(msg.HKU_NOT_ACTIVE)
+        return
+
+    existing_link = await db.get_setting(f"hku_invite:{chat_id}")
+    if existing_link:
+        await query.edit_message_text(msg.HKU_ALREADY_ISSUED.format(link=existing_link))
+        return
+
+    try:
+        member = await context.bot.get_chat_member(FRESHMANBLOG_CHANNEL_ID, chat_id)
+        is_member = member.status in _EG_MEMBER_STATUSES
+    except Exception:
+        is_member = False
+
+    if not is_member:
+        keyboard = InlineKeyboardMarkup(
+            [[InlineKeyboardButton(msg.BTN_HKU_CHECK, callback_data="hku_check")]]
+        )
+        await query.edit_message_text(msg.HKU_MUST_SUBSCRIBE, reply_markup=keyboard)
+        return
+
+    try:
+        invite = await context.bot.create_chat_invite_link(
+            chat_id=HKU_GROUP_CHAT_ID,
+            member_limit=1,
+        )
+        link = invite.invite_link
+        await db.set_setting(f"hku_invite:{chat_id}", link)
+        await query.edit_message_text(
+            msg.HKU_INVITE_SENT.format(link=link),
+            parse_mode="HTML",
+        )
+    except Exception:
+        logger.exception("Failed to create HKU invite for chat_id=%d (callback)", chat_id)
+        await query.edit_message_text(
+            msg.HKU_INVITE_SENT.format(link="(error generating link — please contact support)"),
+            parse_mode="HTML",
+        )
+
+
+# ---------------------------------------------------------------------------
 # SAT Program Enrollment — student flow
 # ---------------------------------------------------------------------------
 
@@ -2896,6 +3003,7 @@ def build_app() -> Application:
     app.add_handler(CallbackQueryHandler(_q_program_callback, pattern="^qp:"))
     app.add_handler(CallbackQueryHandler(_q_date_callback, pattern="^qd:"))
     app.add_handler(CallbackQueryHandler(_podcast_check_callback, pattern="^podcast_check$"))
+    app.add_handler(CallbackQueryHandler(_hku_check_callback, pattern="^hku_check$"))
     app.add_handler(CallbackQueryHandler(_ae_apply_now_callback, pattern="^ae_apply_now$"))
     app.add_handler(CallbackQueryHandler(_ae_list_callback, pattern="^ae_list$"))
     app.add_handler(CallbackQueryHandler(_ae_view_callback, pattern="^ae_view:"))

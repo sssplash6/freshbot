@@ -539,6 +539,30 @@ BTN_ADV_ENGLISH = "Special Offer \u2013 Advanced English"
 
 BTN_RS = "Register for Upcoming Research Seminar"
 
+BTN_HKU = "HKU Admissions Rep Event \U0001f1ed\U0001f1f0"
+
+HKU_NOT_ACTIVE = "\U0001f512 This event is not active at the moment. Check back soon!"
+
+HKU_MUST_SUBSCRIBE = (
+    "To get your invite link to the HKU Admissions Representative event, "
+    "please subscribe to @freshmanblog first.\n\n"
+    "Once you\u2019ve subscribed, tap the button below."
+)
+
+BTN_HKU_CHECK = "\u2705 I\u2019ve subscribed \u2014 check again"
+
+HKU_INVITE_SENT = (
+    "\U0001f1ed\U0001f1f0 <b>HKU Admissions Representative Event</b>\n\n"
+    "Here is your personal link to join the event group "
+    "(one-time use only):\n{link}\n\n"
+    "Do not share this link \u2014 it will only work once."
+)
+
+HKU_ALREADY_ISSUED = (
+    "You already have a link for the HKU event:\n{link}\n\n"
+    "Do not share it \u2014 it will only work once."
+)
+
 RS_NO_POST = "\U0001f512 Registration is not open yet. Stay tuned!"
 RS_SLOTS_FULL = (
     "Unfortunately, all 30 spots for this event have been filled. "
