@@ -322,6 +322,12 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
                     return
                 await _handle_rs_phone(update, chat_id, contact.phone_number, context)
                 return
+            if user_v and user_v.get("flow") == "hku" and user_v.get("status") == "hku_step_phone":
+                if contact.user_id != update.effective_user.id:
+                    await update.message.reply_text(msg.HKU_PHONE_REQUIRED, reply_markup=_hku_phone_keyboard())
+                    return
+                await _handle_hku_phone(update, chat_id, contact.phone_number, context)
+                return
         return
 
     # Back always takes priority over free-text capture states
@@ -356,6 +362,18 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             return
         else:
             await update.message.reply_text(msg.RS_PHONE_REQUIRED, reply_markup=_rs_phone_keyboard())
+            return
+
+    if user and user.get("flow") == "hku":
+        if text in _NAV_BUTTONS:
+            _hku_state.pop(chat_id, None)
+            await db.set_flow(chat_id, None)
+            await db.set_status(chat_id, None)
+        elif user.get("status") == "hku_step_email":
+            await _handle_hku_email(update, chat_id, text, context)
+            return
+        else:
+            await update.message.reply_text(msg.HKU_PHONE_REQUIRED, reply_markup=_hku_phone_keyboard())
             return
 
     if user and user.get("flow") == "ae_payment" and user.get("status") == "ae_payment_step_screenshot":
@@ -2245,57 +2263,116 @@ async def _rs_export_command(
 # HKU Admissions Rep Event — student flow
 # ---------------------------------------------------------------------------
 
+HKU_SLOT_LIMIT = 21
+
+_hku_state: dict[int, dict] = {}
+
+
+def _hku_phone_keyboard() -> ReplyKeyboardMarkup:
+    from telegram import KeyboardButton
+    return ReplyKeyboardMarkup(
+        [
+            [KeyboardButton(msg.BTN_HKU_SHARE_PHONE, request_contact=True)],
+            [msg.BTN_BACK],
+        ],
+        resize_keyboard=True,
+        one_time_keyboard=True,
+    )
+
+
+async def _hku_check_gate(chat_id: int, context) -> bool:
+    """Returns True if the user is subscribed to freshmanblog."""
+    if not FRESHMANBLOG_CHANNEL_ID:
+        return True
+    try:
+        member = await context.bot.get_chat_member(FRESHMANBLOG_CHANNEL_ID, chat_id)
+        return member.status in _EG_MEMBER_STATUSES
+    except Exception:
+        return False
+
+
 async def _handle_hku(
     update: Update, chat_id: int, context: ContextTypes.DEFAULT_TYPE
 ) -> None:
-    if not HKU_GROUP_CHAT_ID or not FRESHMANBLOG_CHANNEL_ID:
+    if not HKU_GROUP_CHAT_ID:
         await update.message.reply_text(msg.HKU_NOT_ACTIVE, reply_markup=_main_keyboard())
         return
 
-    existing_link = await db.get_setting(f"hku_invite:{chat_id}")
-    if existing_link:
+    existing = await db.hku_get_registration(chat_id)
+    if existing:
         await update.message.reply_text(
-            msg.HKU_ALREADY_ISSUED.format(link=existing_link),
+            msg.HKU_ALREADY_REGISTERED.format(link=existing["invite_link"] or "—"),
             reply_markup=_main_keyboard(),
         )
         return
 
-    try:
-        member = await context.bot.get_chat_member(FRESHMANBLOG_CHANNEL_ID, chat_id)
-        is_member = member.status in _EG_MEMBER_STATUSES
-    except Exception:
-        is_member = False
+    count = await db.hku_count_registrations()
+    if count >= HKU_SLOT_LIMIT:
+        await update.message.reply_text(msg.HKU_SLOTS_FULL, reply_markup=_main_keyboard())
+        return
 
-    if not is_member:
+    if not await _hku_check_gate(chat_id, context):
         keyboard = InlineKeyboardMarkup(
             [[InlineKeyboardButton(msg.BTN_HKU_CHECK, callback_data="hku_check")]]
         )
         await update.message.reply_text(msg.HKU_MUST_SUBSCRIBE, reply_markup=keyboard)
         return
 
-    await _hku_issue_link(update.message, chat_id, context)
+    _hku_state[chat_id] = {}
+    await db.set_flow(chat_id, "hku")
+    await db.set_status(chat_id, "hku_step_email")
+    await update.message.reply_text(msg.HKU_ASK_EMAIL, reply_markup=_back_keyboard())
 
 
-async def _hku_issue_link(message, chat_id: int, context) -> None:
+async def _handle_hku_email(
+    update: Update, chat_id: int, email: str, context: ContextTypes.DEFAULT_TYPE
+) -> None:
+    _hku_state.setdefault(chat_id, {})["email"] = email
+    await db.set_status(chat_id, "hku_step_phone")
+    await update.message.reply_text(msg.HKU_ASK_PHONE, reply_markup=_hku_phone_keyboard())
+
+
+async def _handle_hku_phone(
+    update: Update, chat_id: int, phone: str, context: ContextTypes.DEFAULT_TYPE
+) -> None:
+    state = _hku_state.pop(chat_id, {})
+    email = state.get("email", "").strip()
+
+    if not email:
+        await db.set_status(chat_id, "hku_step_email")
+        await update.message.reply_text(msg.HKU_ASK_EMAIL, reply_markup=_back_keyboard())
+        return
+
+    count = await db.hku_count_registrations()
+    if count >= HKU_SLOT_LIMIT:
+        await db.set_flow(chat_id, None)
+        await db.set_status(chat_id, None)
+        await update.message.reply_text(msg.HKU_SLOTS_FULL, reply_markup=_main_keyboard())
+        return
+
+    user = await db.get_user(chat_id)
+    first_name = user["first_name"] if user else ""
+    username = user["username"] if user else None
+
+    link = None
     try:
         invite = await context.bot.create_chat_invite_link(
             chat_id=HKU_GROUP_CHAT_ID,
             member_limit=1,
         )
         link = invite.invite_link
-        await db.set_setting(f"hku_invite:{chat_id}", link)
-        await message.reply_text(
-            msg.HKU_INVITE_SENT.format(link=link),
-            parse_mode="HTML",
-            reply_markup=_main_keyboard(),
-        )
     except Exception:
         logger.exception("Failed to create HKU invite for chat_id=%d", chat_id)
-        await message.reply_text(
-            msg.HKU_INVITE_SENT.format(link="(error generating link — please contact support)"),
-            parse_mode="HTML",
-            reply_markup=_main_keyboard(),
-        )
+
+    await db.hku_save_registration(chat_id, username, first_name, email, phone, link)
+    await db.set_flow(chat_id, None)
+    await db.set_status(chat_id, None)
+
+    await update.message.reply_text(
+        msg.HKU_REGISTERED.format(link=link or "(error generating link — please contact support)"),
+        parse_mode="HTML",
+        reply_markup=_main_keyboard(),
+    )
 
 
 async def _hku_check_callback(
@@ -2305,45 +2382,34 @@ async def _hku_check_callback(
     await query.answer()
     chat_id = update.effective_user.id
 
-    if not HKU_GROUP_CHAT_ID or not FRESHMANBLOG_CHANNEL_ID:
+    if not HKU_GROUP_CHAT_ID:
         await query.edit_message_text(msg.HKU_NOT_ACTIVE)
         return
 
-    existing_link = await db.get_setting(f"hku_invite:{chat_id}")
-    if existing_link:
-        await query.edit_message_text(msg.HKU_ALREADY_ISSUED.format(link=existing_link))
+    existing = await db.hku_get_registration(chat_id)
+    if existing:
+        await query.edit_message_text(
+            msg.HKU_ALREADY_REGISTERED.format(link=existing["invite_link"] or "—")
+        )
         return
 
-    try:
-        member = await context.bot.get_chat_member(FRESHMANBLOG_CHANNEL_ID, chat_id)
-        is_member = member.status in _EG_MEMBER_STATUSES
-    except Exception:
-        is_member = False
+    count = await db.hku_count_registrations()
+    if count >= HKU_SLOT_LIMIT:
+        await query.edit_message_text(msg.HKU_SLOTS_FULL)
+        return
 
-    if not is_member:
+    if not await _hku_check_gate(chat_id, context):
         keyboard = InlineKeyboardMarkup(
             [[InlineKeyboardButton(msg.BTN_HKU_CHECK, callback_data="hku_check")]]
         )
         await query.edit_message_text(msg.HKU_MUST_SUBSCRIBE, reply_markup=keyboard)
         return
 
-    try:
-        invite = await context.bot.create_chat_invite_link(
-            chat_id=HKU_GROUP_CHAT_ID,
-            member_limit=1,
-        )
-        link = invite.invite_link
-        await db.set_setting(f"hku_invite:{chat_id}", link)
-        await query.edit_message_text(
-            msg.HKU_INVITE_SENT.format(link=link),
-            parse_mode="HTML",
-        )
-    except Exception:
-        logger.exception("Failed to create HKU invite for chat_id=%d (callback)", chat_id)
-        await query.edit_message_text(
-            msg.HKU_INVITE_SENT.format(link="(error generating link — please contact support)"),
-            parse_mode="HTML",
-        )
+    await query.edit_message_text("✅ Subscribed! Now let's get you registered.")
+    _hku_state[chat_id] = {}
+    await db.set_flow(chat_id, "hku")
+    await db.set_status(chat_id, "hku_step_email")
+    await query.message.reply_text(msg.HKU_ASK_EMAIL, reply_markup=_back_keyboard())
 
 
 # ---------------------------------------------------------------------------

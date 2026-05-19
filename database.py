@@ -194,6 +194,18 @@ async def init_db() -> None:
                 enrolled_at  TEXT NOT NULL
             )
         """)
+        await db.execute("""
+            CREATE TABLE IF NOT EXISTS hku_registrations (
+                id            INTEGER PRIMARY KEY AUTOINCREMENT,
+                chat_id       INTEGER NOT NULL UNIQUE,
+                username      TEXT,
+                first_name    TEXT NOT NULL,
+                email         TEXT NOT NULL,
+                phone         TEXT NOT NULL,
+                invite_link   TEXT,
+                registered_at TEXT NOT NULL
+            )
+        """)
         for _col in [
             "ALTER TABLE adv_english_applications ADD COLUMN video_file_id TEXT",
             "ALTER TABLE adv_english_applications ADD COLUMN video_type TEXT",
@@ -1118,6 +1130,54 @@ async def sat_enroll_get_all() -> list[dict]:
         db.row_factory = aiosqlite.Row
         async with db.execute(
             "SELECT * FROM sat_enrollments ORDER BY enrolled_at"
+        ) as cursor:
+            rows = await cursor.fetchall()
+            return [dict(r) for r in rows]
+
+
+async def hku_count_registrations() -> int:
+    async with aiosqlite.connect(DB_PATH) as db:
+        async with db.execute("SELECT COUNT(*) FROM hku_registrations") as cursor:
+            row = await cursor.fetchone()
+            return row[0] if row else 0
+
+
+async def hku_get_registration(chat_id: int) -> dict | None:
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute(
+            "SELECT * FROM hku_registrations WHERE chat_id = ?", (chat_id,)
+        ) as cursor:
+            row = await cursor.fetchone()
+            return dict(row) if row else None
+
+
+async def hku_save_registration(
+    chat_id: int,
+    username: str | None,
+    first_name: str,
+    email: str,
+    phone: str,
+    invite_link: str | None = None,
+) -> None:
+    now = datetime.now(timezone.utc).isoformat()
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute(
+            """INSERT INTO hku_registrations
+               (chat_id, username, first_name, email, phone, invite_link, registered_at)
+               VALUES (?, ?, ?, ?, ?, ?, ?)
+               ON CONFLICT(chat_id) DO UPDATE SET
+               invite_link = excluded.invite_link""",
+            (chat_id, username, first_name, email, phone, invite_link, now),
+        )
+        await db.commit()
+
+
+async def hku_get_all_registrations() -> list[dict]:
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute(
+            "SELECT * FROM hku_registrations ORDER BY registered_at"
         ) as cursor:
             rows = await cursor.fetchall()
             return [dict(r) for r in rows]

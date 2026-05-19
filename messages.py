@@ -551,16 +551,29 @@ HKU_MUST_SUBSCRIBE = (
 
 BTN_HKU_CHECK = "\u2705 I\u2019ve subscribed \u2014 check again"
 
-HKU_INVITE_SENT = (
-    "\U0001f1ed\U0001f1f0 <b>HKU Admissions Representative Event</b>\n\n"
+HKU_SLOTS_FULL = (
+    "Unfortunately, all 20 seats for this event have been filled. "
+    "Stay tuned for future events!"
+)
+
+HKU_ALREADY_REGISTERED = (
+    "You\u2019re already registered! Here is your invite link:\n{link}\n\n"
+    "Do not share it \u2014 it will only work once."
+)
+
+HKU_ASK_EMAIL = "Please enter your email address:"
+
+HKU_ASK_PHONE = "Please share your phone number using the button below."
+
+BTN_HKU_SHARE_PHONE = "\U0001f4f1 Share my phone number"
+
+HKU_PHONE_REQUIRED = "Please use the button below to share your phone number."
+
+HKU_REGISTERED = (
+    "\U0001f1ed\U0001f1f0 <b>You\u2019re registered for the HKU Admissions Representative event!</b>\n\n"
     "Here is your personal link to join the event group "
     "(one-time use only):\n{link}\n\n"
     "Do not share this link \u2014 it will only work once."
-)
-
-HKU_ALREADY_ISSUED = (
-    "You already have a link for the HKU event:\n{link}\n\n"
-    "Do not share it \u2014 it will only work once."
 )
 
 RS_NO_POST = "\U0001f512 Registration is not open yet. Stay tuned!"
