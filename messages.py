@@ -543,6 +543,9 @@ BTN_HKU = "HKU Admissions Rep Event \U0001f1ed\U0001f1f0"
 
 HKU_NOT_ACTIVE = "\U0001f512 This event is not active at the moment. Check back soon!"
 
+HKU_POST_SET = "✅ HKU event post saved."
+HKU_POST_USAGE = "Reply to a message with /hku_set to save it as the HKU event post."
+
 HKU_MUST_SUBSCRIBE = (
     "To get your invite link to the HKU Admissions Representative event, "
     "please subscribe to @freshmanblog first.\n\n"

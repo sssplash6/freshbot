@@ -2291,6 +2291,25 @@ async def _hku_check_gate(chat_id: int, context) -> bool:
         return False
 
 
+async def _hku_start_flow(reply_target, chat_id: int, context) -> None:
+    """Copy the HKU post (if set) then prompt for email."""
+    post_chat_id = await db.get_setting("hku_post_chat_id")
+    post_message_id = await db.get_setting("hku_post_message_id")
+    if post_chat_id and post_message_id:
+        try:
+            await context.bot.copy_message(
+                chat_id=chat_id,
+                from_chat_id=int(post_chat_id),
+                message_id=int(post_message_id),
+            )
+        except Exception:
+            logger.exception("Failed to copy HKU post to chat_id=%d", chat_id)
+    _hku_state[chat_id] = {}
+    await db.set_flow(chat_id, "hku")
+    await db.set_status(chat_id, "hku_step_email")
+    await reply_target.reply_text(msg.HKU_ASK_EMAIL, reply_markup=_back_keyboard())
+
+
 async def _handle_hku(
     update: Update, chat_id: int, context: ContextTypes.DEFAULT_TYPE
 ) -> None:
@@ -2318,10 +2337,7 @@ async def _handle_hku(
         await update.message.reply_text(msg.HKU_MUST_SUBSCRIBE, reply_markup=keyboard)
         return
 
-    _hku_state[chat_id] = {}
-    await db.set_flow(chat_id, "hku")
-    await db.set_status(chat_id, "hku_step_email")
-    await update.message.reply_text(msg.HKU_ASK_EMAIL, reply_markup=_back_keyboard())
+    await _hku_start_flow(update.message, chat_id, context)
 
 
 async def _handle_hku_email(
@@ -2406,10 +2422,21 @@ async def _hku_check_callback(
         return
 
     await query.edit_message_text("✅ Subscribed! Now let's get you registered.")
-    _hku_state[chat_id] = {}
-    await db.set_flow(chat_id, "hku")
-    await db.set_status(chat_id, "hku_step_email")
-    await query.message.reply_text(msg.HKU_ASK_EMAIL, reply_markup=_back_keyboard())
+    await _hku_start_flow(query.message, chat_id, context)
+
+
+async def _hku_set_command(
+    update: Update, context: ContextTypes.DEFAULT_TYPE
+) -> None:
+    if update.effective_user.id != PERSON_X_CHAT_ID:
+        return
+    reply = update.message.reply_to_message
+    if not reply:
+        await update.message.reply_text(msg.HKU_POST_USAGE)
+        return
+    await db.set_setting("hku_post_chat_id", str(reply.chat.id))
+    await db.set_setting("hku_post_message_id", str(reply.message_id))
+    await update.message.reply_text(msg.HKU_POST_SET)
 
 
 # ---------------------------------------------------------------------------
@@ -3057,6 +3084,7 @@ def build_app() -> Application:
     app.add_handler(CommandHandler("sat_remind", _sat_remind_command, filters=_private))
     app.add_handler(CommandHandler("sat_reroll", _sat_reroll_command, filters=_private))
     app.add_handler(CommandHandler("rs_post", _rs_post_command, filters=_private))
+    app.add_handler(CommandHandler("hku_set", _hku_set_command, filters=_private))
     app.add_handler(CommandHandler("rs_export", _rs_export_command, filters=_private))
     app.add_handler(CallbackQueryHandler(_sat_approve_callback, pattern="^sat_approve:"))
     app.add_handler(CallbackQueryHandler(_sat_reject_callback, pattern="^sat_reject:"))
