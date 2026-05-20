@@ -806,18 +806,24 @@ async def _ae_decision_callback(
     try:
         await context.bot.send_message(chat_id=applicant_chat_id, text=applicant_msg)
         if decision == "accepted":
-            terms_file_id = await db.get_setting("ae_terms_file_id")
-            if terms_file_id:
-                await context.bot.send_document(
+            await db.ae_set_status_by_chat_id(applicant_chat_id, "terms_accepted")
+            payment_keyboard = InlineKeyboardMarkup([[
+                InlineKeyboardButton(msg.BTN_AE_PAYMENT_MADE, callback_data=f"ae_payment_made:{applicant_chat_id}"),
+            ]])
+            post_chat_id = await db.get_setting("ae_payment_post_chat_id")
+            post_message_id = await db.get_setting("ae_payment_post_message_id")
+            if post_chat_id and post_message_id:
+                await context.bot.copy_message(
                     chat_id=applicant_chat_id,
-                    document=terms_file_id,
-                    caption=msg.AE_TERMS_CAPTION,
-                    reply_markup=InlineKeyboardMarkup([[
-                        InlineKeyboardButton(
-                            msg.BTN_AE_ACCEPT_TERMS,
-                            callback_data=f"ae_terms_accept:{applicant_chat_id}",
-                        )
-                    ]]),
+                    from_chat_id=int(post_chat_id),
+                    message_id=int(post_message_id),
+                    reply_markup=payment_keyboard,
+                )
+            else:
+                await context.bot.send_message(
+                    chat_id=applicant_chat_id,
+                    text=msg.AE_PAYMENT_NOT_SET,
+                    reply_markup=payment_keyboard,
                 )
     except Exception:
         logger.exception("Failed to notify applicant chat_id=%d", applicant_chat_id)
