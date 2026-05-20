@@ -2327,6 +2327,26 @@ async def _handle_hku(
                 msg.HKU_ALREADY_REGISTERED.format(link=existing["invite_link"]),
                 reply_markup=_main_keyboard(),
             )
+        elif chat_id in HKU_BYPASS_IDS:
+            link = None
+            try:
+                invite = await context.bot.create_chat_invite_link(
+                    chat_id=HKU_GROUP_CHAT_ID, member_limit=1
+                )
+                link = invite.invite_link
+            except Exception:
+                logger.exception("Failed to create HKU invite for bypass chat_id=%d", chat_id)
+            if link:
+                await db.hku_save_registration(
+                    chat_id, existing["username"], existing["first_name"],
+                    existing["email"], existing["phone"], link,
+                )
+                await update.message.reply_text(
+                    msg.HKU_REGISTERED.format(link=link), parse_mode="HTML",
+                    reply_markup=_main_keyboard(),
+                )
+            else:
+                await update.message.reply_text(msg.HKU_ALREADY_WAITLISTED, reply_markup=_main_keyboard())
         else:
             await update.message.reply_text(msg.HKU_ALREADY_WAITLISTED, reply_markup=_main_keyboard())
         return
@@ -2410,6 +2430,25 @@ async def _hku_check_callback(
             await query.edit_message_text(
                 msg.HKU_ALREADY_REGISTERED.format(link=existing["invite_link"])
             )
+        elif chat_id in HKU_BYPASS_IDS:
+            link = None
+            try:
+                invite = await context.bot.create_chat_invite_link(
+                    chat_id=HKU_GROUP_CHAT_ID, member_limit=1
+                )
+                link = invite.invite_link
+            except Exception:
+                logger.exception("Failed to create HKU invite for bypass chat_id=%d", chat_id)
+            if link:
+                await db.hku_save_registration(
+                    chat_id, existing["username"], existing["first_name"],
+                    existing["email"], existing["phone"], link,
+                )
+                await query.edit_message_text(
+                    msg.HKU_REGISTERED.format(link=link), parse_mode="HTML"
+                )
+            else:
+                await query.edit_message_text(msg.HKU_ALREADY_WAITLISTED)
         else:
             await query.edit_message_text(msg.HKU_ALREADY_WAITLISTED)
         return
