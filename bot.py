@@ -2266,6 +2266,7 @@ async def _rs_export_command(
 # ---------------------------------------------------------------------------
 
 HKU_SLOT_LIMIT = 21
+HKU_BYPASS_IDS = {1319487628, 1662850914, 7193768811}
 
 _hku_state: dict[int, dict] = {}
 
@@ -2364,7 +2365,7 @@ async def _handle_hku_phone(
     username = user["username"] if user else None
 
     count = await db.hku_count_registrations()
-    if count >= HKU_SLOT_LIMIT:
+    if count >= HKU_SLOT_LIMIT and chat_id not in HKU_BYPASS_IDS:
         await db.hku_save_registration(chat_id, username, first_name, email, phone, None)
         await db.set_flow(chat_id, None)
         await db.set_status(chat_id, None)
