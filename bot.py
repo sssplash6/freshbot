@@ -2484,6 +2484,33 @@ async def _hku_set_command(
     await update.message.reply_text(msg.HKU_POST_SET)
 
 
+async def _hku_waitlist_msg_command(
+    update: Update, context: ContextTypes.DEFAULT_TYPE
+) -> None:
+    if update.effective_user.id != PERSON_X_CHAT_ID:
+        return
+    reply = update.message.reply_to_message
+    if not reply:
+        await update.message.reply_text(msg.HKU_WAITLIST_MSG_USAGE)
+        return
+    registrations = await db.hku_get_all_registrations()
+    waitlisted = [r for r in registrations if not r["invite_link"]]
+    sent = failed = 0
+    for r in waitlisted:
+        try:
+            await context.bot.copy_message(
+                chat_id=r["chat_id"],
+                from_chat_id=reply.chat.id,
+                message_id=reply.message_id,
+            )
+            sent += 1
+        except Exception:
+            logger.warning("HKU waitlist msg failed for chat_id=%d", r["chat_id"])
+            failed += 1
+        await asyncio.sleep(0.05)
+    await update.message.reply_text(msg.HKU_WAITLIST_MSG_DONE.format(sent=sent, failed=failed))
+
+
 # ---------------------------------------------------------------------------
 # SAT Program Enrollment — student flow
 # ---------------------------------------------------------------------------
@@ -3130,6 +3157,7 @@ def build_app() -> Application:
     app.add_handler(CommandHandler("sat_reroll", _sat_reroll_command, filters=_private))
     app.add_handler(CommandHandler("rs_post", _rs_post_command, filters=_private))
     app.add_handler(CommandHandler("hku_set", _hku_set_command, filters=_private))
+    app.add_handler(CommandHandler("hku_waitlist_msg", _hku_waitlist_msg_command, filters=_private))
     app.add_handler(CommandHandler("rs_export", _rs_export_command, filters=_private))
     app.add_handler(CallbackQueryHandler(_sat_approve_callback, pattern="^sat_approve:"))
     app.add_handler(CallbackQueryHandler(_sat_reject_callback, pattern="^sat_reject:"))

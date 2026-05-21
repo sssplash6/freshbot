@@ -545,6 +545,8 @@ HKU_NOT_ACTIVE = "\U0001f512 This event is not active at the moment. Check back 
 
 HKU_POST_SET = "✅ HKU event post saved."
 HKU_POST_USAGE = "Reply to a message with /hku_set to save it as the HKU event post."
+HKU_WAITLIST_MSG_USAGE = "Reply to a message with /hku_waitlist_msg to send it to all waitlisted users."
+HKU_WAITLIST_MSG_DONE = "✅ Sent to {sent} waitlisted users ({failed} failed)."
 
 HKU_MUST_SUBSCRIBE = (
     "To get your invite link to the HKU Admissions Representative event, "
