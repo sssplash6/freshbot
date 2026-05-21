@@ -707,12 +707,15 @@ AE_SUBMITTED = (
 
 AE_ACCEPTED = (
     "\U0001f389Congratulations on your acceptance! \n\n"
-    "Our first lesson will take place on May 27, and we look forward to seeing you in the office. "
     "To secure your place, please complete your payment. Immediately afterward, you will receive a link "
     "to join our group and access all important updates, such as homework instructions and information.\n\n"
     "Best regards,\n"
     "Gulrukh Sodikova\n"
     "Advanced English Leader"
+)
+
+AE_PAYMENT_HELP = (
+    "If you encounter any problems, dm @gulyashskartoshkoy"
 )
 
 AE_TERMS_CAPTION = (

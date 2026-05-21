@@ -825,6 +825,10 @@ async def _ae_decision_callback(
                     text=msg.AE_PAYMENT_NOT_SET,
                     reply_markup=payment_keyboard,
                 )
+            await context.bot.send_message(
+                chat_id=applicant_chat_id,
+                text=msg.AE_PAYMENT_HELP,
+            )
     except Exception:
         logger.exception("Failed to notify applicant chat_id=%d", applicant_chat_id)
 
