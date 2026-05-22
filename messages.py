@@ -638,6 +638,10 @@ BTN_AE_APPLY_NOW = "Apply Now"
 
 AE_ALREADY_APPLIED = "You've already applied. We'll be in touch!"
 
+AE_STATUS_PENDING = "⏳ Your application is under review. We’ll notify you of the decision soon."
+AE_STATUS_PAYMENT_PENDING = "⏳ Your payment screenshot is under review. We’ll notify you shortly."
+AE_STATUS_PAYMENT_CONFIRMED = "✅ Your payment was confirmed. You should have received your group invite link in a previous message."
+
 AE_STUCK_REMINDER = (
     "Hello, this is Gulrukh, an Advanced English Leader at Freshman! "
     "I’m also a rising junior at University of Pennsylvania, majoring in Political Science and History.\n\n"

@@ -540,7 +540,31 @@ async def _ae_apply_now_callback(update: Update, context: ContextTypes.DEFAULT_T
 
     existing = await db.ae_get_application(chat_id)
     if existing:
-        await query.message.reply_text(msg.AE_ALREADY_APPLIED, reply_markup=_main_keyboard())
+        status = existing["status"]
+        if status == "rejected":
+            await query.message.reply_text(msg.AE_REJECTED, reply_markup=_main_keyboard())
+        elif status == "payment_confirmed":
+            await query.message.reply_text(msg.AE_STATUS_PAYMENT_CONFIRMED, reply_markup=_main_keyboard())
+        elif status == "payment_pending":
+            await query.message.reply_text(msg.AE_STATUS_PAYMENT_PENDING, reply_markup=_main_keyboard())
+        elif status in ("terms_accepted", "payment_rejected"):
+            payment_keyboard = InlineKeyboardMarkup([[
+                InlineKeyboardButton(msg.BTN_AE_PAYMENT_MADE, callback_data=f"ae_payment_made:{chat_id}"),
+            ]])
+            post_chat_id = await db.get_setting("ae_payment_post_chat_id")
+            post_message_id = await db.get_setting("ae_payment_post_message_id")
+            if post_chat_id and post_message_id:
+                await context.bot.copy_message(
+                    chat_id=chat_id,
+                    from_chat_id=int(post_chat_id),
+                    message_id=int(post_message_id),
+                    reply_markup=payment_keyboard,
+                )
+            else:
+                await query.message.reply_text(msg.AE_PAYMENT_NOT_SET, reply_markup=payment_keyboard)
+            await context.bot.send_message(chat_id=chat_id, text=msg.AE_PAYMENT_HELP)
+        else:
+            await query.message.reply_text(msg.AE_STATUS_PENDING, reply_markup=_main_keyboard())
         return
 
     _ae_state[chat_id] = {}
@@ -2008,7 +2032,7 @@ async def _ae_payment_made_callback(
     applicant_chat_id = int(query.data.split(":")[1])
 
     application = await db.ae_get_application(applicant_chat_id)
-    if not application or application["status"] not in ("terms_accepted",):
+    if not application or application["status"] not in ("terms_accepted", "payment_rejected"):
         return
 
     await query.edit_message_reply_markup(reply_markup=None)
