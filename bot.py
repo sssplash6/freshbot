@@ -120,7 +120,7 @@ _NAV_BUTTONS: frozenset[str] = frozenset({
     # Main menu
     msg.BTN_PROGRAMS, msg.BTN_GENERAL_INQUIRY, msg.BTN_PODCAST,
     msg.BTN_SPECIAL_EVENTS, msg.BTN_GET_LINK, msg.BTN_HOME, msg.BTN_START,
-    msg.BTN_ADV_ENGLISH, msg.BTN_SAT_GIVEAWAY, msg.BTN_HKU, msg.BTN_SAT_ENROLL,
+    msg.BTN_ADV_ENGLISH, msg.BTN_SAT_GIVEAWAY, msg.BTN_RS, msg.BTN_SAT_ENROLL,
     # Program sub-menu
     msg.BTN_SAT, msg.BTN_ADMISSIONS, msg.BTN_FULL_SUPPORT, msg.BTN_MASTERS,
     msg.BTN_ADV_PLACEMENT, msg.BTN_IMKON, msg.BTN_RESEARCH_INSTITUTE,
@@ -140,7 +140,7 @@ def _main_keyboard() -> ReplyKeyboardMarkup:
         [
             [msg.BTN_PROGRAMS, msg.BTN_GENERAL_INQUIRY],
             [msg.BTN_SPECIAL_EVENTS, msg.BTN_GET_LINK],
-            [msg.BTN_ADV_ENGLISH, msg.BTN_HKU],
+            [msg.BTN_ADV_ENGLISH, msg.BTN_RS],
             [msg.BTN_SAT_ENROLL],
         ],
         resize_keyboard=True,
@@ -427,6 +427,8 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         await _handle_adv_english(update, chat_id)
     elif text == msg.BTN_SAT_GIVEAWAY:
         await _handle_sat_giveaway(update, chat_id, context)
+    elif text == msg.BTN_RS:
+        await _handle_rs(update, chat_id, context)
     elif text == msg.BTN_HKU:
         await _handle_hku(update, chat_id, context)
     elif text == msg.BTN_SAT_ENROLL:
