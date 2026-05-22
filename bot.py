@@ -2644,6 +2644,60 @@ async def _handle_sat_enroll_step(
 
 
 # ---------------------------------------------------------------------------
+# SAT enrollments — admin list view
+# ---------------------------------------------------------------------------
+
+_SAT_LIST_IDS: frozenset[int] = frozenset(
+    x for x in (PERSON_X_CHAT_ID, VALERA_CHAT_ID) if x is not None
+)
+
+
+async def _sat_list_command(
+    update: Update, context: ContextTypes.DEFAULT_TYPE
+) -> None:
+    if update.effective_chat.id not in _SAT_LIST_IDS:
+        return
+    enrollments = await db.sat_enroll_get_all()
+    if not enrollments:
+        await update.message.reply_text("No SAT enrollments yet.")
+        return
+    buttons = [
+        [InlineKeyboardButton(
+            f"{e['full_name']} — {e['test_date']}",
+            callback_data=f"sat_view:{e['chat_id']}",
+        )]
+        for e in enrollments
+    ]
+    await update.message.reply_text(
+        f"\U0001f4cb SAT Enrollments ({len(enrollments)}):",
+        reply_markup=InlineKeyboardMarkup(buttons),
+    )
+
+
+async def _sat_view_callback(
+    update: Update, context: ContextTypes.DEFAULT_TYPE
+) -> None:
+    query = update.callback_query
+    await query.answer()
+    if query.from_user.id not in _SAT_LIST_IDS:
+        return
+    chat_id = int(query.data.split(":")[1])
+    enrollments = await db.sat_enroll_get_all()
+    e = next((x for x in enrollments if x["chat_id"] == chat_id), None)
+    if not e:
+        await query.edit_message_text("Not found.")
+        return
+    upart = f" (@{e['username']})" if e.get("username") else ""
+    text = (
+        f"<b>{e['full_name']}</b>{upart}\n"
+        f"SAT history: {e['sat_history']}\n"
+        f"Desired test date: {e['test_date']}\n"
+        f"Enrolled: {e['enrolled_at'][:10]}"
+    )
+    await query.edit_message_text(text, parse_mode="HTML")
+
+
+# ---------------------------------------------------------------------------
 # SAT Program Giveaway — student flow, admin commands, reviewer callbacks
 # ---------------------------------------------------------------------------
 
@@ -3013,7 +3067,9 @@ async def _santix_command(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
 # /answered and /unanswered — admin question viewer
 # ---------------------------------------------------------------------------
 
-_Q_ADMIN_IDS: frozenset[int] = frozenset({PERSON_X_CHAT_ID, PERSON_Z_CHAT_ID})
+_Q_ADMIN_IDS: frozenset[int] = frozenset(
+    x for x in (PERSON_X_CHAT_ID, PERSON_Z_CHAT_ID, VALERA_CHAT_ID) if x is not None
+)
 
 _Q_PAGE_SIZE = 5
 
@@ -3216,6 +3272,8 @@ def build_app() -> Application:
     app.add_handler(CommandHandler("sat_post", _sat_post_command, filters=_private))
     app.add_handler(CommandHandler("sat_remind", _sat_remind_command, filters=_private))
     app.add_handler(CommandHandler("sat_reroll", _sat_reroll_command, filters=_private))
+    app.add_handler(CommandHandler("sat_list", _sat_list_command, filters=_private))
+    app.add_handler(CallbackQueryHandler(_sat_view_callback, pattern="^sat_view:"))
     app.add_handler(CommandHandler("rs_post", _rs_post_command, filters=_private))
     app.add_handler(CommandHandler("hku_set", _hku_set_command, filters=_private))
     app.add_handler(CommandHandler("hku_waitlist_msg", _hku_waitlist_msg_command, filters=_private))
