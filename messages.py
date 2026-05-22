@@ -610,6 +610,13 @@ RS_REGISTERED = (
 )
 RS_POST_SET = "\u2705 Research Seminar intro post saved."
 RS_POST_USAGE = "Reply to a message with /rs_post to set the intro post."
+BTN_RS_OPEN = "Register for Research Seminar"
+RS_REMIND_TEXT = (
+    "\U0001f4e2 Good news: we\u2019ve added more spots to the Research Seminar for those who missed out. "
+    "Spots are limited \u2014 register now before they fill up again!"
+)
+RS_REMIND_USAGE = "Reply to a message with /rs_remind to broadcast it (or use /rs_remind default for the default text)."
+RS_REMIND_DONE = "\u2705 Sent to {sent} users ({failed} failed, {skipped} already registered)."
 RS_EXPORT_EMPTY = "No registrations yet."
 
 AE_INTRO = (

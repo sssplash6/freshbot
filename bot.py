@@ -2144,8 +2144,6 @@ async def _ae_set_payment_command(
 # Research Seminar — student flow, admin commands
 # ---------------------------------------------------------------------------
 
-RS_SLOT_LIMIT = 31
-
 def _rs_phone_keyboard() -> ReplyKeyboardMarkup:
     from telegram import KeyboardButton
     return ReplyKeyboardMarkup(
@@ -2169,11 +2167,6 @@ async def _handle_rs(
     existing = await db.rs_get_registration(chat_id)
     if existing:
         await update.message.reply_text(msg.RS_ALREADY_REGISTERED)
-        return
-
-    count = await db.rs_count_registrations()
-    if count >= RS_SLOT_LIMIT:
-        await update.message.reply_text(msg.RS_SLOTS_FULL)
         return
 
     await context.bot.copy_message(
@@ -2203,13 +2196,6 @@ async def _handle_rs_phone(
     if not full_name:
         await db.set_status(chat_id, "rs_step_name")
         await update.message.reply_text(msg.RS_ASK_FULL_NAME, reply_markup=_back_keyboard())
-        return
-
-    count = await db.rs_count_registrations()
-    if count >= RS_SLOT_LIMIT:
-        await db.set_flow(chat_id, None)
-        await db.set_status(chat_id, None)
-        await update.message.reply_text(msg.RS_SLOTS_FULL, reply_markup=_main_keyboard())
         return
 
     user = await db.get_user(chat_id)
@@ -2268,6 +2254,77 @@ async def _rs_export_command(
     await update.message.reply_document(
         document=io.BytesIO(content),
         filename="rs_registrations.txt",
+    )
+
+
+async def _rs_open_callback(
+    update: Update, context: ContextTypes.DEFAULT_TYPE
+) -> None:
+    query = update.callback_query
+    await query.answer()
+    chat_id = update.effective_user.id
+
+    post = await db.rs_get_active_post()
+    if not post:
+        await query.edit_message_text(msg.RS_NO_POST)
+        return
+
+    existing = await db.rs_get_registration(chat_id)
+    if existing:
+        await query.edit_message_text(msg.RS_ALREADY_REGISTERED)
+        return
+
+    await context.bot.copy_message(
+        chat_id=chat_id,
+        from_chat_id=post["post_chat_id"],
+        message_id=post["post_message_id"],
+    )
+    await context.bot.send_message(
+        chat_id=chat_id,
+        text=msg.RS_ASK_FULL_NAME,
+        reply_markup=_back_keyboard(),
+    )
+    await db.set_flow(chat_id, "rs")
+    await db.set_status(chat_id, "rs_step_name")
+
+
+async def _rs_remind_command(
+    update: Update, context: ContextTypes.DEFAULT_TYPE
+) -> None:
+    if update.effective_user.id != PERSON_X_CHAT_ID:
+        return
+    reply = update.message.reply_to_message
+    registered = {r["chat_id"] for r in await db.rs_get_all_registrations()}
+    all_chat_ids = await db.get_all_chat_ids()
+    inline_kb = InlineKeyboardMarkup(
+        [[InlineKeyboardButton(msg.BTN_RS_OPEN, callback_data="rs_open")]]
+    )
+    sent = failed = skipped = 0
+    for cid in all_chat_ids:
+        if cid in registered:
+            skipped += 1
+            continue
+        try:
+            if reply:
+                await context.bot.copy_message(
+                    chat_id=cid,
+                    from_chat_id=reply.chat.id,
+                    message_id=reply.message_id,
+                    reply_markup=inline_kb,
+                )
+            else:
+                await context.bot.send_message(
+                    chat_id=cid,
+                    text=msg.RS_REMIND_TEXT,
+                    reply_markup=inline_kb,
+                )
+            sent += 1
+        except Exception:
+            logger.warning("RS remind failed for chat_id=%d", cid)
+            failed += 1
+        await asyncio.sleep(0.05)
+    await update.message.reply_text(
+        msg.RS_REMIND_DONE.format(sent=sent, failed=failed, skipped=skipped)
     )
 
 
@@ -3163,6 +3220,8 @@ def build_app() -> Application:
     app.add_handler(CommandHandler("hku_set", _hku_set_command, filters=_private))
     app.add_handler(CommandHandler("hku_waitlist_msg", _hku_waitlist_msg_command, filters=_private))
     app.add_handler(CommandHandler("rs_export", _rs_export_command, filters=_private))
+    app.add_handler(CommandHandler("rs_remind", _rs_remind_command, filters=_private))
+    app.add_handler(CallbackQueryHandler(_rs_open_callback, pattern="^rs_open$"))
     app.add_handler(CallbackQueryHandler(_sat_approve_callback, pattern="^sat_approve:"))
     app.add_handler(CallbackQueryHandler(_sat_reject_callback, pattern="^sat_reject:"))
     app.add_handler(CallbackQueryHandler(_eg_check_membership_callback, pattern="^check_membership$"))
