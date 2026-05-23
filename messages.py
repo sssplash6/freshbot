@@ -655,6 +655,12 @@ AE_STUCK_REMINDER = (
 )
 AE_STUCK_DONE = "AE stuck reminder sent: {sent} delivered, {failed} failed ({total} total)."
 
+AE_PAYMENT_DEADLINE = (
+    "⏰ <b>Reminder: the deadline to complete your Advanced English payment is May 25.</b>\n\n"
+    "If you encounter any problems with the payment, please message @gulyashskartoshkoy."
+)
+AE_PAYMENT_DEADLINE_DONE = "Payment deadline reminder sent: {sent} delivered, {failed} failed ({total} total)."
+
 AE_REMIND_CLOSING = (
     "⏰ <b>Tonight is your last chance to apply for Advanced English!</b>\n\n"
     "Applications close at midnight — now is the time.\n"

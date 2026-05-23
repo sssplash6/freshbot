@@ -895,6 +895,17 @@ async def ae_set_payment_screenshot(
         await db.commit()
 
 
+async def ae_get_applications_by_status(statuses: list[str]) -> list[dict]:
+    placeholders = ",".join("?" * len(statuses))
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute(
+            f"SELECT * FROM adv_english_applications WHERE status IN ({placeholders})",
+            statuses,
+        ) as cursor:
+            return [dict(row) for row in await cursor.fetchall()]
+
+
 async def ae_clear_all_applications() -> int:
     async with aiosqlite.connect(DB_PATH) as db:
         cursor = await db.execute("DELETE FROM adv_english_applications")

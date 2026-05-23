@@ -2896,6 +2896,28 @@ async def _ae_remind_command(update: Update, context: ContextTypes.DEFAULT_TYPE)
     )
 
 
+async def _ae_payment_remind_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    if update.effective_user.id != PERSON_X_CHAT_ID:
+        return
+    users = await db.ae_get_applications_by_status(["terms_accepted", "payment_rejected"])
+    sent = failed = 0
+    for u in users:
+        try:
+            await context.bot.send_message(
+                chat_id=u["chat_id"],
+                text=msg.AE_PAYMENT_DEADLINE,
+                parse_mode="HTML",
+            )
+            sent += 1
+        except Exception:
+            logger.warning("AE payment remind failed for chat_id=%d", u["chat_id"])
+            failed += 1
+        await asyncio.sleep(0.05)
+    await update.message.reply_text(
+        msg.AE_PAYMENT_DEADLINE_DONE.format(sent=sent, failed=failed, total=len(users))
+    )
+
+
 async def _ae_stuck_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if update.effective_user.id != PERSON_X_CHAT_ID:
         return
@@ -3290,6 +3312,7 @@ def build_app() -> Application:
     app.add_handler(CommandHandler("ae_set_payment", _ae_set_payment_command, filters=_private))
     app.add_handler(CommandHandler("ae_remind", _ae_remind_command, filters=_private))
     app.add_handler(CommandHandler("ae_stuck", _ae_stuck_command, filters=_private))
+    app.add_handler(CommandHandler("ae_payment_remind", _ae_payment_remind_command, filters=_private))
     app.add_handler(CallbackQueryHandler(_ae_terms_accept_callback, pattern="^ae_terms_accept:"))
     app.add_handler(CallbackQueryHandler(_ae_payment_made_callback, pattern="^ae_payment_made:"))
     app.add_handler(CallbackQueryHandler(_ae_payment_confirm_callback, pattern="^ae_payment_confirm:"))
