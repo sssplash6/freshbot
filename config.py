@@ -15,6 +15,20 @@ def _require_int_list(name: str) -> list[int]:
     return [int(x.strip()) for x in _require(name).split(",") if x.strip()]
 
 
+def _require_str_list(name: str) -> list[str]:
+    return [x.strip() for x in _require(name).split(",") if x.strip()]
+
+
+def _optional_int_list(name: str) -> list[int]:
+    value = os.getenv(name, "").strip()
+    return [int(x.strip()) for x in value.split(",") if x.strip()]
+
+
+def _optional_str_list(name: str) -> list[str]:
+    value = os.getenv(name, "").strip()
+    return [x.strip() for x in value.split(",") if x.strip()]
+
+
 TELEGRAM_BOT_TOKEN: str = _require("TELEGRAM_BOT_TOKEN")
 
 PERSON_X_CHAT_ID: int = int(_require("PERSON_X_CHAT_ID"))
@@ -22,6 +36,7 @@ PERSON_Z_CHAT_ID: int = int(_require("PERSON_Z_CHAT_ID"))
 VALERA_CHAT_ID: int | None = int(v) if (v := os.getenv("VALERA_CHAT_ID", "").strip()) else None
 ADV_ENGLISH_REVIEWER_CHAT_ID: int = int(_require("ADV_ENGLISH_REVIEWER_CHAT_ID"))
 AE_GROUP_CHAT_ID: int = int(_require("AE_GROUP_CHAT_ID"))
+
 # Expert chat IDs for each program's question routing (comma-separated for multiple)
 SAT_MAN_CHAT_ID: list[int] = _require_int_list("SAT_MAN_CHAT_ID")
 AP_MAN_CHAT_ID: list[int] = _optional_int_list("AP_MAN_CHAT_ID")
@@ -43,21 +58,6 @@ WEBSITE_URL_RESEARCH_INSTITUTE: str = _require("WEBSITE_URL_RESEARCH_INSTITUTE")
 
 WEBHOOK_HOST: str = _require("WEBHOOK_HOST")
 WEBHOOK_PORT: int = int(os.getenv("WEBHOOK_PORT", "8000"))
-
-
-def _require_str_list(name: str) -> list[str]:
-    return [x.strip() for x in _require(name).split(",") if x.strip()]
-
-
-def _optional_int_list(name: str) -> list[int]:
-    value = os.getenv(name, "").strip()
-    return [int(x.strip()) for x in value.split(",") if x.strip()]
-
-
-def _optional_str_list(name: str) -> list[str]:
-    value = os.getenv(name, "").strip()
-    return [x.strip() for x in value.split(",") if x.strip()]
-
 
 # Event gate
 REQUIRED_GROUP_IDS: list[int] = _require_int_list("REQUIRED_GROUP_IDS")
