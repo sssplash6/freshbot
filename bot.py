@@ -1522,29 +1522,34 @@ async def _broadcast_keyboard_command(
     if update.effective_user.id != PERSON_X_CHAT_ID:
         return
     chat_ids = await db.get_all_chat_ids()
-    sent = failed = 0
-    first_error: str | None = None
-    for cid in chat_ids:
-        try:
-            await context.bot.send_message(
-                chat_id=cid,
-                text=msg.BROADCAST_KEYBOARD_MESSAGE,
-                parse_mode="HTML",
-                reply_markup=InlineKeyboardMarkup(
-                    [[InlineKeyboardButton(msg.BTN_APW_JOIN, callback_data="apw_join")]]
-                ),
-            )
-            sent += 1
-        except Exception as e:
-            if first_error is None:
-                first_error = f"{type(e).__name__}: {e}"
-            logger.warning("Broadcast failed for chat_id=%d: %s: %s", cid, type(e).__name__, e)
-            failed += 1
-        await asyncio.sleep(0.05)
-    result = msg.BROADCAST_KEYBOARD_DONE.format(sent=sent, failed=failed, total=len(chat_ids))
-    if first_error:
-        result += f"\n\nFirst error: {first_error}"
-    await update.message.reply_text(result)
+    await update.message.reply_text(f"📢 Broadcasting to {len(chat_ids)} users — I'll report back when done.")
+
+    async def _run() -> None:
+        sent = failed = 0
+        first_error: str | None = None
+        for cid in chat_ids:
+            try:
+                await context.bot.send_message(
+                    chat_id=cid,
+                    text=msg.BROADCAST_KEYBOARD_MESSAGE,
+                    parse_mode="HTML",
+                    reply_markup=InlineKeyboardMarkup(
+                        [[InlineKeyboardButton(msg.BTN_APW_JOIN, callback_data="apw_join")]]
+                    ),
+                )
+                sent += 1
+            except Exception as e:
+                if first_error is None:
+                    first_error = f"{type(e).__name__}: {e}"
+                logger.warning("Broadcast failed for chat_id=%d: %s: %s", cid, type(e).__name__, e)
+                failed += 1
+            await asyncio.sleep(0.05)
+        result = msg.BROADCAST_KEYBOARD_DONE.format(sent=sent, failed=failed, total=len(chat_ids))
+        if first_error:
+            result += f"\n\nFirst error: {first_error}"
+        await update.message.reply_text(result)
+
+    asyncio.create_task(_run())
 
 
 # ---------------------------------------------------------------------------
