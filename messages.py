@@ -537,7 +537,7 @@ BTN_PODCAST_CHECK = "\u2705 I've subscribed \u2014 check again"
 
 BTN_ADV_ENGLISH = "Special Offer \u2013 Advanced English"
 
-BTN_AP_WEBINAR = "🎓 AP Webinar"
+BTN_AP_WEBINAR = "🎓 AP Webinar Access"
 
 BTN_HKU = "HKU Admissions Rep Event \U0001f1ed\U0001f1f0"
 
