@@ -54,6 +54,8 @@ from config import (
 
 logger = logging.getLogger(__name__)
 
+_MEMBER_STATUSES = {"member", "administrator", "creator"}
+
 # Map each program to its experts and booking URL
 _PROGRAM_EXPERT: dict[str, list[int]] = {
     msg.BTN_SAT: SAT_MAN_CHAT_ID,
@@ -1681,7 +1683,7 @@ async def _se_get_missing_handles(bot, student_chat_id: int) -> list[str]:
     for channel_id, handle in zip(SPECIAL_EVENT_CHANNEL_IDS, SPECIAL_EVENT_CHANNEL_HANDLES):
         try:
             member = await bot.get_chat_member(channel_id, student_chat_id)
-            if member.status not in _EG_MEMBER_STATUSES:
+            if member.status not in _MEMBER_STATUSES:
                 missing.append(handle)
         except TelegramError:
             logger.warning("Cannot check SE membership in %s. Failing open.", channel_id)
@@ -1695,7 +1697,7 @@ async def _podcast_get_missing(bot, chat_id: int) -> list[str]:
     for channel_id, handle in zip(PODCAST_CHANNEL_IDS, PODCAST_CHANNEL_HANDLES):
         try:
             member = await bot.get_chat_member(channel_id, chat_id)
-            if member.status not in _EG_MEMBER_STATUSES:
+            if member.status not in _MEMBER_STATUSES:
                 missing.append(handle)
         except TelegramError:
             logger.warning("Cannot check podcast membership in %s. Failing open.", channel_id)
@@ -1995,16 +1997,13 @@ async def _ae_set_payment_command(
 # AP Webinar — student flow, admin commands
 # ---------------------------------------------------------------------------
 
-_APW_MEMBER_STATUSES = {"member", "administrator", "creator"}
-
-
 async def _apw_check_channels(bot, user_id: int) -> list[str]:
     """Returns list of @handles for channels the user is NOT subscribed to."""
     missing: list[str] = []
     for handle in AP_WEBINAR_CHANNELS:
         try:
             member = await bot.get_chat_member(handle, user_id)
-            if member.status not in _APW_MEMBER_STATUSES:
+            if member.status not in _MEMBER_STATUSES:
                 missing.append(handle)
         except TelegramError:
             missing.append(handle)
@@ -2165,7 +2164,7 @@ async def _hku_check_gate(chat_id: int, context) -> bool:
         return True
     try:
         member = await context.bot.get_chat_member(FRESHMANBLOG_CHANNEL_ID, chat_id)
-        return member.status in _EG_MEMBER_STATUSES
+        return member.status in _MEMBER_STATUSES
     except Exception:
         return False
 
