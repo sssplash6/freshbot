@@ -2014,7 +2014,7 @@ _apw_poll_state: dict[int, set[str]] = {}
 def _apw_poll_keyboard(selected: set[str]) -> InlineKeyboardMarkup:
     buttons = [
         [InlineKeyboardButton(
-            f"{'✅' if key in selected else '✔'} {label}",
+            f"{'✅' if key in selected else '☑️'} {label}",
             callback_data=f"apw_ap:{key}",
         )]
         for key, label in _APW_OPTIONS
