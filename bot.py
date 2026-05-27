@@ -1531,7 +1531,7 @@ async def _broadcast_keyboard_command(
                 text=msg.BROADCAST_KEYBOARD_MESSAGE,
                 parse_mode="HTML",
                 reply_markup=InlineKeyboardMarkup(
-                    [[InlineKeyboardButton(msg.BTN_HKU, callback_data="hku_check")]]
+                    [[InlineKeyboardButton(msg.BTN_APW_JOIN, callback_data="apw_join")]]
                 ),
             )
             sent += 1

@@ -929,7 +929,8 @@ EG_ADMIN_HELP = (
 )
 
 BROADCAST_KEYBOARD_MESSAGE = (
-    "\U0001f393 <b>The University of Hong Kong is visiting Freshman!</b>"
+    "\U0001f393 <b>AP Webinar Access is now live!</b>\n\n"
+    "Tap the button below to get your invite link to the AP Webinar group."
 )
 BROADCAST_KEYBOARD_DONE = "Keyboard broadcast: {sent} sent, {failed} failed ({total} total users)."
 
