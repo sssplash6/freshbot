@@ -2125,7 +2125,7 @@ async def _apw_check_callback(
         return
 
     await query.answer()
-    await query.edit_message_reply_markup(reply_markup=None)
+    await query.edit_message_text("✅ Subscribed!")
     await _apw_show_poll(query.message, chat_id)
 
 
