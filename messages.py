@@ -929,7 +929,7 @@ EG_ADMIN_HELP = (
 )
 
 BROADCAST_KEYBOARD_MESSAGE = (
-    "\U0001f393 <b>Freshman Academy is launching AP Course Prep!</b>\n\n"
+    "\U0001f393 <b>Freshman Academy is launching AP Courses!</b>\n\n"
     "Before we kick off, we’re hosting a free intro webinar — a chance to learn what the program is about, "
     "ask questions, and meet your future mentors.\n\n"
     "Tap the button below to access the webinar."
