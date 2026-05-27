@@ -2102,25 +2102,30 @@ async def _apw_check_callback(
     update: Update, context: ContextTypes.DEFAULT_TYPE
 ) -> None:
     query = update.callback_query
-    await query.answer()
     chat_id = update.effective_user.id
 
     event = await db.apw_get_active_event()
     if not event:
+        await query.answer()
         await query.edit_message_text(msg.APW_NO_POST)
         return
 
     missing = await _apw_check_channels(context.bot, chat_id)
     if missing:
+        await query.answer("You're still not subscribed to all channels.", show_alert=True)
         links_text = "\n".join(f"• {link}" for link in missing)
-        await query.edit_message_text(
-            msg.APW_NOT_MEMBER.format(links=links_text),
-            reply_markup=InlineKeyboardMarkup(
-                [[InlineKeyboardButton(msg.BTN_APW_CHECK, callback_data="apw_check")]]
-            ),
-        )
+        try:
+            await query.edit_message_text(
+                msg.APW_NOT_MEMBER.format(links=links_text),
+                reply_markup=InlineKeyboardMarkup(
+                    [[InlineKeyboardButton(msg.BTN_APW_CHECK, callback_data="apw_check")]]
+                ),
+            )
+        except Exception:
+            pass
         return
 
+    await query.answer()
     await query.edit_message_reply_markup(reply_markup=None)
     await _apw_show_poll(query.message, chat_id)
 
