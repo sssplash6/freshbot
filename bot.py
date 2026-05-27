@@ -43,7 +43,8 @@ from config import (
     HKU_GROUP_CHAT_ID,
     FRESHMANBLOG_CHANNEL_ID,
     AP_WEBINAR_GROUP_CHAT_ID,
-    AP_WEBINAR_CHANNELS,
+    AP_WEBINAR_CHANNEL_IDS,
+    AP_WEBINAR_CHANNEL_INVITES,
     TELEGRAM_BOT_TOKEN,
     WEBSITE_URL_ADMISSIONS,
     WEBSITE_URL_FULL_SUPPORT,
@@ -1997,16 +1998,17 @@ async def _ae_set_payment_command(
 # ---------------------------------------------------------------------------
 
 async def _apw_check_channels(bot, user_id: int) -> list[str]:
-    """Returns list of @handles for channels the user is NOT subscribed to."""
+    """Returns list of invite handles for channels the user is NOT subscribed to."""
     missing: list[str] = []
-    for handle in AP_WEBINAR_CHANNELS:
+    for i, cid in enumerate(AP_WEBINAR_CHANNEL_IDS):
+        invite = AP_WEBINAR_CHANNEL_INVITES[i] if i < len(AP_WEBINAR_CHANNEL_INVITES) else str(cid)
         try:
-            member = await bot.get_chat_member(handle, user_id)
+            member = await bot.get_chat_member(cid, user_id)
             if member.status not in _MEMBER_STATUSES:
-                missing.append(handle)
+                missing.append(invite)
         except Exception:
-            logger.warning("APW: could not check membership for %s", handle)
-            missing.append(handle)
+            logger.warning("APW: could not check membership for channel %s", cid)
+            missing.append(invite)
     return missing
 
 

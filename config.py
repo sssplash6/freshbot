@@ -78,4 +78,5 @@ FRESHMANBLOG_CHANNEL_ID: int | None = int(v) if (v := os.getenv("FRESHMANBLOG_CH
 
 # AP Webinar
 AP_WEBINAR_GROUP_CHAT_ID: int | None = int(v) if (v := os.getenv("AP_WEBINAR_GROUP_CHAT_ID", "").strip()) else None
-AP_WEBINAR_CHANNELS: list[str] = _optional_str_list("AP_WEBINAR_CHANNELS")
+AP_WEBINAR_CHANNEL_IDS: list[int] = _optional_int_list("AP_WEBINAR_CHANNEL_IDS")
+AP_WEBINAR_CHANNEL_INVITES: list[str] = _optional_str_list("AP_WEBINAR_CHANNEL_INVITES")
