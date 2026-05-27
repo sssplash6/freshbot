@@ -537,7 +537,7 @@ BTN_PODCAST_CHECK = "\u2705 I've subscribed \u2014 check again"
 
 BTN_ADV_ENGLISH = "Special Offer \u2013 Advanced English"
 
-BTN_AP_WEBINAR = "🎓 AP Webinar Access"
+BTN_AP_WEBINAR = "🎓 Access AP Webinar"
 
 BTN_HKU = "HKU Admissions Rep Event \U0001f1ed\U0001f1f0"
 
@@ -590,7 +590,7 @@ HKU_REGISTERED = (
     "Do not share this link \u2014 it will only work once."
 )
 
-APW_NO_POST = "\U0001f512 Webinar registration is not open yet. Stay tuned!"
+APW_NO_POST = "\U0001f512 Access AP Webinar is not open yet. Stay tuned!"
 APW_NOT_MEMBER = (
     "To join the webinar, please subscribe to the following channel(s) first:\n\n"
     "{links}\n\n"
@@ -599,16 +599,16 @@ APW_NOT_MEMBER = (
 BTN_APW_JOIN = "Join Now"
 BTN_APW_CHECK = "\u2705 I\u2019ve subscribed \u2014 check again"
 APW_ALREADY_ISSUED = (
-    "\u2705 You already have a link to the webinar group:\n{link}\n\n"
+    "\u2705 You already have a link to the Access AP Webinar group:\n{link}\n\n"
     "Do not share it \u2014 it will only work once."
 )
 APW_INVITE_SENT = (
-    "\U0001f389 You\u2019re in! Here is your one-time link to the webinar group:\n{link}\n\n"
+    "\U0001f389 You\u2019re in! Here is your one-time link to the Access AP Webinar group:\n{link}\n\n"
     "Do not share this link \u2014 it will only work once."
 )
-APW_POST_SET = "\u2705 AP Webinar intro post saved."
-APW_POST_USAGE = "Reply to a message with /apw_set to set the AP Webinar intro post."
-APW_CLEARED = "\u2705 AP Webinar deactivated."
+APW_POST_SET = "\u2705 Access AP Webinar intro post saved."
+APW_POST_USAGE = "Reply to a message with /apw_set to set the Access AP Webinar intro post."
+APW_CLEARED = "\u2705 Access AP Webinar deactivated."
 
 AE_INTRO = (
     "\U0001f4a5<b>Special Offer: Advanced English</b>\n\n"
@@ -929,8 +929,9 @@ EG_ADMIN_HELP = (
 )
 
 BROADCAST_KEYBOARD_MESSAGE = (
-    "\U0001f393 <b>AP Webinar Access is now live!</b>\n\n"
-    "Tap the button below to get your invite link to the AP Webinar group."
+    "\U0001f393 <b>Access AP Webinar — coming soon!</b>\n\n"
+    "We’re launching a webinar series on college admissions and the AP program. "
+    "Tap the button below to secure your spot."
 )
 BROADCAST_KEYBOARD_DONE = "Keyboard broadcast: {sent} sent, {failed} failed ({total} total users)."
 
