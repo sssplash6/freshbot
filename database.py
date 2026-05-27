@@ -206,6 +206,25 @@ async def init_db() -> None:
                 registered_at TEXT NOT NULL
             )
         """)
+        await db.execute("""
+            CREATE TABLE IF NOT EXISTS apw_events (
+                id              INTEGER PRIMARY KEY AUTOINCREMENT,
+                post_chat_id    INTEGER NOT NULL,
+                post_message_id INTEGER NOT NULL,
+                status          TEXT NOT NULL DEFAULT 'active',
+                created_at      TEXT NOT NULL
+            )
+        """)
+        await db.execute("""
+            CREATE TABLE IF NOT EXISTS apw_issued_links (
+                id              INTEGER PRIMARY KEY AUTOINCREMENT,
+                event_id        INTEGER NOT NULL,
+                student_chat_id INTEGER NOT NULL,
+                invite_link     TEXT NOT NULL,
+                created_at      TEXT NOT NULL,
+                FOREIGN KEY (event_id) REFERENCES apw_events(id)
+            )
+        """)
         for _col in [
             "ALTER TABLE adv_english_applications ADD COLUMN video_file_id TEXT",
             "ALTER TABLE adv_english_applications ADD COLUMN video_type TEXT",
@@ -1192,3 +1211,55 @@ async def hku_get_all_registrations() -> list[dict]:
         ) as cursor:
             rows = await cursor.fetchall()
             return [dict(r) for r in rows]
+
+
+# ---------------------------------------------------------------------------
+# AP Webinar
+# ---------------------------------------------------------------------------
+
+async def apw_save_event(post_chat_id: int, post_message_id: int) -> None:
+    now = datetime.now(timezone.utc).isoformat()
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute("UPDATE apw_events SET status = 'inactive' WHERE status = 'active'")
+        await db.execute(
+            "INSERT INTO apw_events (post_chat_id, post_message_id, status, created_at) VALUES (?, ?, 'active', ?)",
+            (post_chat_id, post_message_id, now),
+        )
+        await db.commit()
+
+
+async def apw_get_active_event() -> dict | None:
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute(
+            "SELECT * FROM apw_events WHERE status = 'active' ORDER BY id DESC LIMIT 1"
+        ) as cursor:
+            row = await cursor.fetchone()
+            return dict(row) if row else None
+
+
+async def apw_deactivate_event() -> None:
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute("UPDATE apw_events SET status = 'inactive' WHERE status = 'active'")
+        await db.commit()
+
+
+async def apw_store_issued_link(event_id: int, student_chat_id: int, invite_link: str) -> None:
+    now = datetime.now(timezone.utc).isoformat()
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute(
+            "INSERT INTO apw_issued_links (event_id, student_chat_id, invite_link, created_at) VALUES (?, ?, ?, ?)",
+            (event_id, student_chat_id, invite_link, now),
+        )
+        await db.commit()
+
+
+async def apw_get_issued_link(event_id: int, student_chat_id: int) -> dict | None:
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute(
+            "SELECT * FROM apw_issued_links WHERE event_id = ? AND student_chat_id = ?",
+            (event_id, student_chat_id),
+        ) as cursor:
+            row = await cursor.fetchone()
+            return dict(row) if row else None

@@ -22,11 +22,9 @@ PERSON_Z_CHAT_ID: int = int(_require("PERSON_Z_CHAT_ID"))
 VALERA_CHAT_ID: int | None = int(v) if (v := os.getenv("VALERA_CHAT_ID", "").strip()) else None
 ADV_ENGLISH_REVIEWER_CHAT_ID: int = int(_require("ADV_ENGLISH_REVIEWER_CHAT_ID"))
 AE_GROUP_CHAT_ID: int = int(_require("AE_GROUP_CHAT_ID"))
-RS_GROUP_CHAT_ID: int = int(_require("RS_GROUP_CHAT_ID"))
-
 # Expert chat IDs for each program's question routing (comma-separated for multiple)
 SAT_MAN_CHAT_ID: list[int] = _require_int_list("SAT_MAN_CHAT_ID")
-AP_MAN_CHAT_ID: list[int] = _require_int_list("AP_MAN_CHAT_ID")
+AP_MAN_CHAT_ID: list[int] = _optional_int_list("AP_MAN_CHAT_ID")
 FS_MAN_CHAT_ID: list[int] = _require_int_list("FS_MAN_CHAT_ID")
 ADV_PLACEMENT_MAN_CHAT_ID: list[int] = _require_int_list("ADV_PLACEMENT_MAN_CHAT_ID")
 MS_MAN_CHAT_ID: list[int] = _require_int_list("MS_MAN_CHAT_ID")
@@ -77,3 +75,7 @@ PODCAST_YOUTUBE_URL: str = os.getenv("PODCAST_YOUTUBE_URL", "")
 
 HKU_GROUP_CHAT_ID: int | None = int(v) if (v := os.getenv("HKU_GROUP_CHAT_ID", "").strip()) else None
 FRESHMANBLOG_CHANNEL_ID: int | None = int(v) if (v := os.getenv("FRESHMANBLOG_CHANNEL_ID", "").strip()) else None
+
+# AP Webinar
+AP_WEBINAR_GROUP_CHAT_ID: int | None = int(v) if (v := os.getenv("AP_WEBINAR_GROUP_CHAT_ID", "").strip()) else None
+AP_WEBINAR_CHANNELS: list[str] = _optional_str_list("AP_WEBINAR_CHANNELS")

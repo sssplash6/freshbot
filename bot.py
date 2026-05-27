@@ -11,7 +11,6 @@ from telegram.error import TelegramError
 from telegram.ext import (
     Application,
     CallbackQueryHandler,
-    ChatJoinRequestHandler,
     CommandHandler,
     ContextTypes,
     MessageHandler,
@@ -29,18 +28,12 @@ from config import (
     SAT_BOOKING_URL,
     WEBSITE_URL_ADV_PLACEMENT,
     IMKON_MAN_CHAT_ID,
-    LINK_EXPIRY_HOURS,
     MS_MAN_CHAT_ID,
     PERSON_X_CHAT_ID,
-    REQUIRED_CHANNEL_IDS,
-    REQUIRED_CHANNEL_INVITES,
-    REQUIRED_GROUP_IDS,
-    REQUIRED_GROUP_INVITES,
     RI_MAN_CHAT_ID,
     SAT_MAN_CHAT_ID,
     ADV_ENGLISH_REVIEWER_CHAT_ID,
     AE_GROUP_CHAT_ID,
-    RS_GROUP_CHAT_ID,
     PODCAST_CHANNEL_IDS,
     PODCAST_CHANNEL_HANDLES,
     PODCAST_YOUTUBE_URL,
@@ -49,6 +42,8 @@ from config import (
     VALERA_CHAT_ID,
     HKU_GROUP_CHAT_ID,
     FRESHMANBLOG_CHANNEL_ID,
+    AP_WEBINAR_GROUP_CHAT_ID,
+    AP_WEBINAR_CHANNELS,
     TELEGRAM_BOT_TOKEN,
     WEBSITE_URL_ADMISSIONS,
     WEBSITE_URL_FULL_SUPPORT,
@@ -107,7 +102,6 @@ _expert_clarification_state: dict[int, dict] = {}
 _ae_state: dict[int, dict] = {}
 
 # Accumulates Research Seminar registration answers per chat_id.
-_rs_state: dict[int, dict] = {}
 
 # Accumulates SAT enrollment answers per chat_id.
 _sat_enroll_state: dict[int, dict] = {}
@@ -119,8 +113,8 @@ _bypass_users: set[int] = set()
 _NAV_BUTTONS: frozenset[str] = frozenset({
     # Main menu
     msg.BTN_PROGRAMS, msg.BTN_GENERAL_INQUIRY, msg.BTN_PODCAST,
-    msg.BTN_SPECIAL_EVENTS, msg.BTN_GET_LINK, msg.BTN_HOME, msg.BTN_START,
-    msg.BTN_ADV_ENGLISH, msg.BTN_SAT_GIVEAWAY, msg.BTN_RS, msg.BTN_SAT_ENROLL,
+    msg.BTN_SPECIAL_EVENTS, msg.BTN_HOME, msg.BTN_START,
+    msg.BTN_ADV_ENGLISH, msg.BTN_SAT_GIVEAWAY, msg.BTN_SAT_ENROLL, msg.BTN_AP_WEBINAR,
     # Program sub-menu
     msg.BTN_SAT, msg.BTN_ADMISSIONS, msg.BTN_FULL_SUPPORT, msg.BTN_MASTERS,
     msg.BTN_ADV_PLACEMENT, msg.BTN_IMKON, msg.BTN_RESEARCH_INSTITUTE,
@@ -139,8 +133,8 @@ def _main_keyboard() -> ReplyKeyboardMarkup:
     return ReplyKeyboardMarkup(
         [
             [msg.BTN_PROGRAMS, msg.BTN_GENERAL_INQUIRY],
-            [msg.BTN_SPECIAL_EVENTS, msg.BTN_GET_LINK],
-            [msg.BTN_ADV_ENGLISH, msg.BTN_RS],
+            [msg.BTN_SPECIAL_EVENTS],
+            [msg.BTN_ADV_ENGLISH, msg.BTN_AP_WEBINAR],
             [msg.BTN_SAT_ENROLL],
         ],
         resize_keyboard=True,
@@ -316,12 +310,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         contact = update.message.contact
         if contact:
             user_v = await db.get_user(chat_id)
-            if user_v and user_v.get("flow") == "rs" and user_v.get("status") == "rs_step_phone":
-                if contact.user_id != update.effective_user.id:
-                    await update.message.reply_text(msg.RS_PHONE_REQUIRED, reply_markup=_rs_phone_keyboard())
-                    return
-                await _handle_rs_phone(update, chat_id, contact.phone_number, context)
-                return
             if user_v and user_v.get("flow") == "hku" and user_v.get("status") == "hku_step_phone":
                 if contact.user_id != update.effective_user.id:
                     await update.message.reply_text(msg.HKU_PHONE_REQUIRED, reply_markup=_hku_phone_keyboard())
@@ -351,17 +339,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             await db.set_status(chat_id, None)
         else:
             await _handle_followup_text(update, chat_id, text, context)
-            return
-
-    if user and user.get("flow") == "rs":
-        if text in _NAV_BUTTONS:
-            await db.set_flow(chat_id, None)
-            await db.set_status(chat_id, None)
-        elif user.get("status") == "rs_step_name":
-            await _handle_rs_name(update, chat_id, text, context)
-            return
-        else:
-            await update.message.reply_text(msg.RS_PHONE_REQUIRED, reply_markup=_rs_phone_keyboard())
             return
 
     if user and user.get("flow") == "hku":
@@ -425,10 +402,10 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         await _handle_special_events(update, chat_id, context)
     elif text == msg.BTN_ADV_ENGLISH:
         await _handle_adv_english(update, chat_id)
+    elif text == msg.BTN_AP_WEBINAR:
+        await _handle_apw(update, chat_id, context)
     elif text == msg.BTN_SAT_GIVEAWAY:
         await _handle_sat_giveaway(update, chat_id, context)
-    elif text == msg.BTN_RS:
-        await _handle_rs(update, chat_id, context)
     elif text == msg.BTN_HKU:
         await _handle_hku(update, chat_id, context)
     elif text == msg.BTN_SAT_ENROLL:
@@ -437,8 +414,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         await _handle_general_inquiry(update, chat_id)
     elif text == msg.BTN_PODCAST:
         await _handle_podcast(update, chat_id)
-    elif text == msg.BTN_GET_LINK:
-        await _eg_student_get_link(update, chat_id, context)
     elif text == msg.BTN_SAT:
         await _handle_program(update, chat_id, msg.BTN_SAT)
     elif text == msg.BTN_ADMISSIONS:
@@ -1238,15 +1213,6 @@ async def _handle_back(update: Update, chat_id: int) -> None:
     description = msg.PROGRAM_DESCRIPTIONS.get(program or "", "")
     first_name = user["first_name"] if user else "there"
 
-    if flow == "rs":
-        _rs_state.pop(chat_id, None)
-        await db.set_flow(chat_id, None)
-        await db.set_status(chat_id, None)
-        await update.message.reply_text(
-            msg.WELCOME.format(first_name=first_name),
-            reply_markup=_main_keyboard(),
-        )
-        return
     if flow == "sat_enroll":
         _sat_enroll_state.pop(chat_id, None)
         await db.set_flow(chat_id, None)
@@ -1366,57 +1332,6 @@ async def _handle_followup_text(
     await update.message.reply_text(msg.FOLLOWUP_FORWARDED, reply_markup=_start_keyboard())
 
 
-# ---------------------------------------------------------------------------
-# Event gate — student flow
-# ---------------------------------------------------------------------------
-
-_EG_MEMBER_STATUSES = {"member", "administrator", "creator"}
-
-
-async def _eg_check_membership(bot, user_id: int) -> tuple[list[bool], list[bool]]:
-    """Returns (group_results, channel_results). Fails open on API error."""
-    group_results: list[bool] = []
-    for gid in REQUIRED_GROUP_IDS:
-        try:
-            member = await bot.get_chat_member(gid, user_id)
-            group_results.append(member.status in _EG_MEMBER_STATUSES)
-        except TelegramError:
-            logger.warning("Cannot check membership in %s. Failing open.", gid)
-            group_results.append(True)
-
-    channel_results: list[bool] = []
-    for cid in REQUIRED_CHANNEL_IDS:
-        try:
-            member = await bot.get_chat_member(cid, user_id)
-            channel_results.append(member.status in _EG_MEMBER_STATUSES)
-        except TelegramError:
-            logger.warning("Cannot check membership in %s. Failing open.", cid)
-            channel_results.append(True)
-
-    return group_results, channel_results
-
-
-def _eg_build_missing_links(group_results: list[bool], channel_results: list[bool]) -> list[str]:
-    missing = []
-    for i, ok in enumerate(group_results):
-        if not ok:
-            invite = REQUIRED_GROUP_INVITES[i] if i < len(REQUIRED_GROUP_INVITES) else "?"
-            missing.append(msg.EG_MISSING_CHAT.format(name=f"Required Group {i + 1}", invite=invite))
-    for i, ok in enumerate(channel_results):
-        if not ok:
-            invite = REQUIRED_CHANNEL_INVITES[i] if i < len(REQUIRED_CHANNEL_INVITES) else "?"
-            missing.append(msg.EG_MISSING_CHAT.format(name=f"Required Channel {i + 1}", invite=invite))
-    return missing
-
-
-async def _eg_send_missing_message(update: Update, missing: list[str]) -> None:
-    keyboard = [[InlineKeyboardButton(msg.EG_CHECK_AGAIN_BUTTON, callback_data="check_membership")]]
-    await update.effective_message.reply_text(
-        msg.EG_NOT_MEMBER.format(links="\n".join(missing)),
-        reply_markup=InlineKeyboardMarkup(keyboard),
-    )
-
-
 async def _eg_deliver_event_post(chat_id: int, event: dict, bot) -> None:
     if event.get("post_message_id") and event.get("post_chat_id"):
         await bot.copy_message(
@@ -1426,96 +1341,6 @@ async def _eg_deliver_event_post(chat_id: int, event: dict, bot) -> None:
         )
     elif event.get("post_text"):
         await bot.send_message(chat_id=chat_id, text=event["post_text"])
-
-
-async def _eg_send_invite(
-    update: Update, context: ContextTypes.DEFAULT_TYPE, student_id: int, event: dict
-) -> None:
-    expire_date = datetime.utcnow() + timedelta(hours=LINK_EXPIRY_HOURS)
-    link_name = f"student_{student_id}_{int(time.time())}"
-
-    invite = await context.bot.create_chat_invite_link(
-        chat_id=event["event_group_id"],
-        member_limit=1,
-        expire_date=expire_date,
-        name=link_name,
-    )
-
-    await db.eg_store_issued_link(
-        event_id=event["id"],
-        student_chat_id=student_id,
-        invite_link=invite.invite_link,
-        expires_at=expire_date.isoformat(),
-    )
-
-    await update.effective_message.reply_text(
-        msg.EG_INVITE_SENT.format(expiry_hours=LINK_EXPIRY_HOURS, link=invite.invite_link),
-        reply_markup=_main_keyboard(),
-    )
-
-
-async def _eg_student_get_link(
-    update: Update, chat_id: int, context: ContextTypes.DEFAULT_TYPE
-) -> None:
-    event = await db.eg_get_active_event()
-    if not event:
-        await update.message.reply_text(msg.EG_NO_ACTIVE_EVENT, reply_markup=_main_keyboard())
-        return
-
-    # Deliver the event post immediately on button tap
-    await _eg_deliver_event_post(chat_id, event, context.bot)
-
-    group_results, channel_results = await _eg_check_membership(context.bot, chat_id)
-    missing = _eg_build_missing_links(group_results, channel_results)
-
-    if missing:
-        await _eg_send_missing_message(update, missing)
-        return
-
-    existing_link = await db.eg_get_issued_link(event["id"], chat_id)
-    if existing_link:
-        await update.effective_message.reply_text(
-            msg.EG_ALREADY_ISSUED.format(link=existing_link["invite_link"]),
-            reply_markup=_main_keyboard(),
-        )
-        return
-
-    await _eg_send_invite(update, context, chat_id, event)
-
-
-async def _eg_check_membership_callback(
-    update: Update, context: ContextTypes.DEFAULT_TYPE
-) -> None:
-    query = update.callback_query
-    await query.answer()
-    user = update.effective_user
-
-    group_results, channel_results = await _eg_check_membership(context.bot, user.id)
-    missing = _eg_build_missing_links(group_results, channel_results)
-
-    if missing:
-        await _eg_send_missing_message(update, missing)
-        return
-
-    event = await db.eg_get_active_event()
-    if not event:
-        await query.edit_message_text(msg.EG_NO_ACTIVE_EVENT)
-        return
-
-    await _eg_send_invite(update, context, user.id, event)
-
-
-async def _eg_join_request_handler(
-    update: Update, context: ContextTypes.DEFAULT_TYPE
-) -> None:
-    request = update.chat_join_request
-    event = await db.eg_get_active_event()
-    if not event or request.chat.id != event["event_group_id"]:
-        return
-
-    await context.bot.approve_chat_join_request(event["event_group_id"], request.from_user.id)
-    await db.eg_log_join_approval(event["id"], request.from_user.id)
-    logger.info("Approved join request from user %s", request.from_user.id)
 
 
 # ---------------------------------------------------------------------------
@@ -2167,191 +1992,149 @@ async def _ae_set_payment_command(
 
 
 # ---------------------------------------------------------------------------
-# Research Seminar — student flow, admin commands
+# AP Webinar — student flow, admin commands
 # ---------------------------------------------------------------------------
 
-def _rs_phone_keyboard() -> ReplyKeyboardMarkup:
-    from telegram import KeyboardButton
-    return ReplyKeyboardMarkup(
-        [
-            [KeyboardButton(msg.BTN_RS_SHARE_PHONE, request_contact=True)],
-            [msg.BTN_BACK],
-        ],
-        resize_keyboard=True,
-        one_time_keyboard=True,
-    )
+_APW_MEMBER_STATUSES = {"member", "administrator", "creator"}
 
 
-async def _handle_rs(
-    update: Update, chat_id: int, context: ContextTypes.DEFAULT_TYPE
-) -> None:
-    post = await db.rs_get_active_post()
-    if not post:
-        await update.message.reply_text(msg.RS_NO_POST)
+async def _apw_check_channels(bot, user_id: int) -> list[str]:
+    """Returns list of @handles for channels the user is NOT subscribed to."""
+    missing: list[str] = []
+    for handle in AP_WEBINAR_CHANNELS:
+        try:
+            member = await bot.get_chat_member(handle, user_id)
+            if member.status not in _APW_MEMBER_STATUSES:
+                missing.append(handle)
+        except TelegramError:
+            missing.append(handle)
+    return missing
+
+
+async def _apw_issue_link(update: Update, context: ContextTypes.DEFAULT_TYPE, chat_id: int, event: dict) -> None:
+    existing = await db.apw_get_issued_link(event["id"], chat_id)
+    if existing:
+        await update.effective_message.reply_text(
+            msg.APW_ALREADY_ISSUED.format(link=existing["invite_link"]),
+            reply_markup=_main_keyboard(),
+        )
         return
 
-    existing = await db.rs_get_registration(chat_id)
-    if existing:
-        await update.message.reply_text(msg.RS_ALREADY_REGISTERED)
+    if not AP_WEBINAR_GROUP_CHAT_ID:
+        await update.effective_message.reply_text("Webinar group is not configured yet. Please contact support.")
+        return
+
+    try:
+        invite = await context.bot.create_chat_invite_link(
+            chat_id=AP_WEBINAR_GROUP_CHAT_ID,
+            member_limit=1,
+        )
+        await db.apw_store_issued_link(event["id"], chat_id, invite.invite_link)
+        await update.effective_message.reply_text(
+            msg.APW_INVITE_SENT.format(link=invite.invite_link),
+            reply_markup=_main_keyboard(),
+        )
+    except Exception:
+        logger.exception("Failed to create APW invite for chat_id=%d", chat_id)
+        await update.effective_message.reply_text(
+            "Failed to generate invite link. Please contact support.",
+            reply_markup=_main_keyboard(),
+        )
+
+
+async def _handle_apw(
+    update: Update, chat_id: int, context: ContextTypes.DEFAULT_TYPE
+) -> None:
+    event = await db.apw_get_active_event()
+    if not event:
+        await update.message.reply_text(msg.APW_NO_POST)
         return
 
     await context.bot.copy_message(
         chat_id=chat_id,
-        from_chat_id=post["post_chat_id"],
-        message_id=post["post_message_id"],
-    )
-    await update.message.reply_text(msg.RS_ASK_FULL_NAME, reply_markup=_back_keyboard())
-    await db.set_flow(chat_id, "rs")
-    await db.set_status(chat_id, "rs_step_name")
-
-
-async def _handle_rs_name(
-    update: Update, chat_id: int, full_name: str, context: ContextTypes.DEFAULT_TYPE
-) -> None:
-    _rs_state[chat_id] = {"full_name": full_name}
-    await db.set_status(chat_id, "rs_step_phone")
-    await update.message.reply_text(msg.RS_ASK_PHONE, reply_markup=_rs_phone_keyboard())
-
-
-async def _handle_rs_phone(
-    update: Update, chat_id: int, phone: str, context: ContextTypes.DEFAULT_TYPE
-) -> None:
-    state = _rs_state.pop(chat_id, {})
-    full_name = state.get("full_name", "").strip()
-
-    if not full_name:
-        await db.set_status(chat_id, "rs_step_name")
-        await update.message.reply_text(msg.RS_ASK_FULL_NAME, reply_markup=_back_keyboard())
-        return
-
-    user = await db.get_user(chat_id)
-    first_name = user["first_name"] if user else ""
-    username = user["username"] if user else None
-
-    await db.rs_save_registration(chat_id, username, first_name, full_name, phone)
-    await db.set_flow(chat_id, None)
-    await db.set_status(chat_id, None)
-
-    try:
-        invite = await context.bot.create_chat_invite_link(
-            chat_id=RS_GROUP_CHAT_ID,
-            member_limit=1,
-        )
-        await update.message.reply_text(
-            msg.RS_REGISTERED.format(link=invite.invite_link),
-            reply_markup=_main_keyboard(),
-        )
-    except Exception:
-        logger.exception("Failed to create RS invite for chat_id=%d", chat_id)
-        await update.message.reply_text(
-            msg.RS_REGISTERED.format(link="(error generating link — please contact support)"),
-            reply_markup=_main_keyboard(),
-        )
-
-
-async def _rs_post_command(
-    update: Update, context: ContextTypes.DEFAULT_TYPE
-) -> None:
-    if update.effective_user.id != PERSON_X_CHAT_ID:
-        return
-    reply = update.message.reply_to_message
-    if not reply:
-        await update.message.reply_text(msg.RS_POST_USAGE)
-        return
-    await db.rs_save_post(reply.chat.id, reply.message_id)
-    await update.message.reply_text(msg.RS_POST_SET + "\n\nPrevious registrations have been cleared.")
-
-
-async def _rs_export_command(
-    update: Update, context: ContextTypes.DEFAULT_TYPE
-) -> None:
-    if update.effective_user.id != PERSON_X_CHAT_ID:
-        return
-    registrations = await db.rs_get_all_registrations()
-    if not registrations:
-        await update.message.reply_text(msg.RS_EXPORT_EMPTY)
-        return
-    lines = ["Research Seminar Registrations\n"]
-    for i, r in enumerate(registrations, 1):
-        upart = f" (@{r['username']})" if r.get("username") else ""
-        lines.append(f"{i}. {r['full_name']}{upart} — {r['phone']}")
-    content = "\n".join(lines).encode("utf-8")
-    import io
-    await update.message.reply_document(
-        document=io.BytesIO(content),
-        filename="rs_registrations.txt",
+        from_chat_id=event["post_chat_id"],
+        message_id=event["post_message_id"],
+        reply_markup=InlineKeyboardMarkup(
+            [[InlineKeyboardButton(msg.BTN_APW_JOIN, callback_data="apw_join")]]
+        ),
     )
 
 
-async def _rs_open_callback(
+async def _apw_join_callback(
     update: Update, context: ContextTypes.DEFAULT_TYPE
 ) -> None:
     query = update.callback_query
     await query.answer()
     chat_id = update.effective_user.id
 
-    post = await db.rs_get_active_post()
-    if not post:
-        await query.edit_message_text(msg.RS_NO_POST)
+    event = await db.apw_get_active_event()
+    if not event:
+        await query.edit_message_reply_markup(reply_markup=None)
+        await context.bot.send_message(chat_id=chat_id, text=msg.APW_NO_POST)
         return
 
-    existing = await db.rs_get_registration(chat_id)
-    if existing:
-        await query.edit_message_text(msg.RS_ALREADY_REGISTERED)
+    missing = await _apw_check_channels(context.bot, chat_id)
+    if missing:
+        links_text = "\n".join(f"• {link}" for link in missing)
+        await context.bot.send_message(
+            chat_id=chat_id,
+            text=msg.APW_NOT_MEMBER.format(links=links_text),
+            reply_markup=InlineKeyboardMarkup(
+                [[InlineKeyboardButton(msg.BTN_APW_CHECK, callback_data="apw_check")]]
+            ),
+        )
         return
 
-    await context.bot.copy_message(
-        chat_id=chat_id,
-        from_chat_id=post["post_chat_id"],
-        message_id=post["post_message_id"],
-    )
-    await context.bot.send_message(
-        chat_id=chat_id,
-        text=msg.RS_ASK_FULL_NAME,
-        reply_markup=_back_keyboard(),
-    )
-    await db.set_flow(chat_id, "rs")
-    await db.set_status(chat_id, "rs_step_name")
+    await _apw_issue_link(update, context, chat_id, event)
 
 
-async def _rs_remind_command(
+async def _apw_check_callback(
+    update: Update, context: ContextTypes.DEFAULT_TYPE
+) -> None:
+    query = update.callback_query
+    await query.answer()
+    chat_id = update.effective_user.id
+
+    event = await db.apw_get_active_event()
+    if not event:
+        await query.edit_message_text(msg.APW_NO_POST)
+        return
+
+    missing = await _apw_check_channels(context.bot, chat_id)
+    if missing:
+        links_text = "\n".join(f"• {link}" for link in missing)
+        await query.edit_message_text(
+            msg.APW_NOT_MEMBER.format(links=links_text),
+            reply_markup=InlineKeyboardMarkup(
+                [[InlineKeyboardButton(msg.BTN_APW_CHECK, callback_data="apw_check")]]
+            ),
+        )
+        return
+
+    await query.edit_message_reply_markup(reply_markup=None)
+    await _apw_issue_link(update, context, chat_id, event)
+
+
+async def _apw_set_command(
     update: Update, context: ContextTypes.DEFAULT_TYPE
 ) -> None:
     if update.effective_user.id != PERSON_X_CHAT_ID:
         return
     reply = update.message.reply_to_message
-    registered = {r["chat_id"] for r in await db.rs_get_all_registrations()}
-    all_chat_ids = await db.get_all_chat_ids()
-    inline_kb = InlineKeyboardMarkup(
-        [[InlineKeyboardButton(msg.BTN_RS_OPEN, callback_data="rs_open")]]
-    )
-    sent = failed = skipped = 0
-    for cid in all_chat_ids:
-        if cid in registered:
-            skipped += 1
-            continue
-        try:
-            if reply:
-                await context.bot.copy_message(
-                    chat_id=cid,
-                    from_chat_id=reply.chat.id,
-                    message_id=reply.message_id,
-                    reply_markup=inline_kb,
-                )
-            else:
-                await context.bot.send_message(
-                    chat_id=cid,
-                    text=msg.RS_REMIND_TEXT,
-                    reply_markup=inline_kb,
-                )
-            sent += 1
-        except Exception:
-            logger.warning("RS remind failed for chat_id=%d", cid)
-            failed += 1
-        await asyncio.sleep(0.05)
-    await update.message.reply_text(
-        msg.RS_REMIND_DONE.format(sent=sent, failed=failed, skipped=skipped)
-    )
+    if not reply:
+        await update.message.reply_text(msg.APW_POST_USAGE)
+        return
+    await db.apw_save_event(reply.chat.id, reply.message_id)
+    await update.message.reply_text(msg.APW_POST_SET)
+
+
+async def _apw_clear_command(
+    update: Update, context: ContextTypes.DEFAULT_TYPE
+) -> None:
+    if update.effective_user.id != PERSON_X_CHAT_ID:
+        return
+    await db.apw_deactivate_event()
+    await update.message.reply_text(msg.APW_CLEARED)
 
 
 # ---------------------------------------------------------------------------
@@ -3323,15 +3106,14 @@ def build_app() -> Application:
     app.add_handler(CommandHandler("sat_reroll", _sat_reroll_command, filters=_private))
     app.add_handler(CommandHandler("sat_list", _sat_list_command, filters=_private))
     app.add_handler(CallbackQueryHandler(_sat_view_callback, pattern="^sat_view:"))
-    app.add_handler(CommandHandler("rs_post", _rs_post_command, filters=_private))
     app.add_handler(CommandHandler("hku_set", _hku_set_command, filters=_private))
     app.add_handler(CommandHandler("hku_waitlist_msg", _hku_waitlist_msg_command, filters=_private))
-    app.add_handler(CommandHandler("rs_export", _rs_export_command, filters=_private))
-    app.add_handler(CommandHandler("rs_remind", _rs_remind_command, filters=_private))
-    app.add_handler(CallbackQueryHandler(_rs_open_callback, pattern="^rs_open$"))
+    app.add_handler(CommandHandler("apw_set", _apw_set_command, filters=_private))
+    app.add_handler(CommandHandler("apw_clear", _apw_clear_command, filters=_private))
+    app.add_handler(CallbackQueryHandler(_apw_join_callback, pattern="^apw_join$"))
+    app.add_handler(CallbackQueryHandler(_apw_check_callback, pattern="^apw_check$"))
     app.add_handler(CallbackQueryHandler(_sat_approve_callback, pattern="^sat_approve:"))
     app.add_handler(CallbackQueryHandler(_sat_reject_callback, pattern="^sat_reject:"))
-    app.add_handler(CallbackQueryHandler(_eg_check_membership_callback, pattern="^check_membership$"))
     app.add_handler(CallbackQueryHandler(_se_join_callback, pattern="^se_join$"))
     app.add_handler(CallbackQueryHandler(_se_check_callback, pattern="^se_check$"))
     app.add_handler(CallbackQueryHandler(_roll_confirm_callback, pattern="^se_confirm:"))
@@ -3348,6 +3130,4 @@ def build_app() -> Application:
     app.add_handler(CallbackQueryHandler(_ae_reject_callback, pattern="^ae_reject:"))
     app.add_handler(MessageHandler(_private & filters.CONTACT, handle_message))
     app.add_handler(MessageHandler(_private & ~filters.COMMAND, handle_message))
-    app.add_handler(ChatJoinRequestHandler(_eg_join_request_handler))
-
     return app

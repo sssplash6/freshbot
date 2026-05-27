@@ -537,7 +537,7 @@ BTN_PODCAST_CHECK = "\u2705 I've subscribed \u2014 check again"
 
 BTN_ADV_ENGLISH = "Special Offer \u2013 Advanced English"
 
-BTN_RS = "Register for Upcoming Research Seminar"
+BTN_AP_WEBINAR = "🎓 AP Webinar"
 
 BTN_HKU = "HKU Admissions Rep Event \U0001f1ed\U0001f1f0"
 
@@ -590,34 +590,25 @@ HKU_REGISTERED = (
     "Do not share this link \u2014 it will only work once."
 )
 
-RS_NO_POST = "\U0001f512 Registration is not open yet. Stay tuned!"
-RS_SLOTS_FULL = (
-    "Unfortunately, all 30 spots for this event have been filled. "
-    "Stay tuned for future events!"
+APW_NO_POST = "\U0001f512 Webinar registration is not open yet. Stay tuned!"
+APW_NOT_MEMBER = (
+    "To join the webinar, please subscribe to the following channel(s) first:\n\n"
+    "{links}\n\n"
+    "Once you\u2019ve subscribed, tap the button below."
 )
-RS_ALREADY_REGISTERED = (
-    "\u2705 You\u2019re already registered! We\u2019ll see you at the seminar."
+BTN_APW_JOIN = "Join Now"
+BTN_APW_CHECK = "\u2705 I\u2019ve subscribed \u2014 check again"
+APW_ALREADY_ISSUED = (
+    "\u2705 You already have a link to the webinar group:\n{link}\n\n"
+    "Do not share it \u2014 it will only work once."
 )
-RS_ASK_FULL_NAME = "Please enter your full name:"
-RS_ASK_PHONE = (
-    "Please share your phone number using the button below."
+APW_INVITE_SENT = (
+    "\U0001f389 You\u2019re in! Here is your one-time link to the webinar group:\n{link}\n\n"
+    "Do not share this link \u2014 it will only work once."
 )
-BTN_RS_SHARE_PHONE = "\U0001f4f1 Share my phone number"
-RS_PHONE_REQUIRED = "Please use the button below to share your phone number."
-RS_REGISTERED = (
-    "\U0001f389 You\u2019re registered for the Research Seminar!\n\n"
-    "Here is your invite link to join the group:\n{link}"
-)
-RS_POST_SET = "\u2705 Research Seminar intro post saved."
-RS_POST_USAGE = "Reply to a message with /rs_post to set the intro post."
-BTN_RS_OPEN = "Register for Research Seminar"
-RS_REMIND_TEXT = (
-    "\U0001f4e2 Good news: we\u2019ve added more spots to the Research Seminar for those who missed out. "
-    "Spots are limited \u2014 register now before they fill up again!"
-)
-RS_REMIND_USAGE = "Reply to a message with /rs_remind to broadcast it (or use /rs_remind default for the default text)."
-RS_REMIND_DONE = "\u2705 Sent to {sent} users ({failed} failed, {skipped} already registered)."
-RS_EXPORT_EMPTY = "No registrations yet."
+APW_POST_SET = "\u2705 AP Webinar intro post saved."
+APW_POST_USAGE = "Reply to a message with /apw_set to set the AP Webinar intro post."
+APW_CLEARED = "\u2705 AP Webinar deactivated."
 
 AE_INTRO = (
     "\U0001f4a5<b>Special Offer: Advanced English</b>\n\n"
@@ -850,11 +841,10 @@ SAT_REROLL_RESULT = (
 BTN_SAT_ENROLL = "Enroll at SAT Program"
 
 SAT_ENROLL_INFO = (
-    "\U0001f393 <b>SAT Program by Freshman Academy</b>\n\n"
+    "\U0001f393 <b>Online SAT Program by Freshman Academy</b>\n\n"
     "More than just SAT prep \u2014 you\u2019ll learn alongside admissions-focused mentors "
     "and driven peers, gaining early exposure to the college admissions world while improving your SAT.\n\n"
-    "\U0001f4b8 <b>Price:</b> <s>$240</s> $120/month (promotional)\n\n"
-    "\u26a0\ufe0f More than 50% of spots are already reserved.\n\n"
+    "\U0001f4b8 <b>Price:</b> <s>$240</s> $90/month (EID offer)\n\n"
     "To enroll, fill in the short form below and our team will reach out to you shortly."
 )
 
