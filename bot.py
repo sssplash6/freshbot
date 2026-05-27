@@ -2004,7 +2004,8 @@ async def _apw_check_channels(bot, user_id: int) -> list[str]:
             member = await bot.get_chat_member(handle, user_id)
             if member.status not in _MEMBER_STATUSES:
                 missing.append(handle)
-        except TelegramError:
+        except Exception:
+            logger.warning("APW: could not check membership for %s", handle)
             missing.append(handle)
     return missing
 
