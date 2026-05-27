@@ -2161,6 +2161,21 @@ async def _apw_submit_callback(
     await db.apw_save_interest(chat_id, user.username, user.first_name, selected_names)
     await query.edit_message_text(msg.APW_POLL_SUBMITTED)
 
+    if not AP_WEBINAR_GROUP_CHAT_ID:
+        return
+    try:
+        invite = await context.bot.create_chat_invite_link(
+            chat_id=AP_WEBINAR_GROUP_CHAT_ID,
+            member_limit=1,
+        )
+        await context.bot.send_message(
+            chat_id=chat_id,
+            text=msg.APW_INVITE_SENT.format(link=invite.invite_link),
+            reply_markup=_main_keyboard(),
+        )
+    except Exception:
+        logger.exception("Failed to create APW invite for chat_id=%d", chat_id)
+
 
 async def _apw_set_command(
     update: Update, context: ContextTypes.DEFAULT_TYPE
