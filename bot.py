@@ -2099,6 +2099,15 @@ async def _apw_join_callback(
         )
         return
 
+    existing_link = await db.apw_get_issued_link(event["id"], chat_id)
+    if existing_link:
+        await context.bot.send_message(
+            chat_id=chat_id,
+            text=msg.APW_ALREADY_ISSUED.format(link=existing_link["invite_link"]),
+            reply_markup=_main_keyboard(),
+        )
+        return
+
     await _apw_show_poll(query.message, chat_id)
 
 
@@ -2172,11 +2181,14 @@ async def _apw_submit_callback(
 
     if not AP_WEBINAR_GROUP_CHAT_ID:
         return
+    event = await db.apw_get_active_event()
     try:
         invite = await context.bot.create_chat_invite_link(
             chat_id=AP_WEBINAR_GROUP_CHAT_ID,
             member_limit=1,
         )
+        if event:
+            await db.apw_store_issued_link(event["id"], chat_id, invite.invite_link)
         await context.bot.send_message(
             chat_id=chat_id,
             text=msg.APW_INVITE_SENT.format(link=invite.invite_link),
