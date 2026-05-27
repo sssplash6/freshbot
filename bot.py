@@ -1997,6 +1997,32 @@ async def _ae_set_payment_command(
 # AP Webinar — student flow, admin commands
 # ---------------------------------------------------------------------------
 
+_APW_OPTIONS: list[tuple[str, str]] = [
+    ("micro",    "Microeconomics"),
+    ("macro",    "Macroeconomics"),
+    ("bpf",      "Business with Personal Finance"),
+    ("phys1",    "Physics I"),
+    ("usgov",    "US Gov and Politics"),
+    ("calc",     "Calculus"),
+    ("precalc",  "Precalculus"),
+]
+_APW_KEY_TO_NAME: dict[str, str] = dict(_APW_OPTIONS)
+
+_apw_poll_state: dict[int, set[str]] = {}
+
+
+def _apw_poll_keyboard(selected: set[str]) -> InlineKeyboardMarkup:
+    buttons = [
+        [InlineKeyboardButton(
+            f"{'✅' if key in selected else '⬜'} {label}",
+            callback_data=f"apw_ap:{key}",
+        )]
+        for key, label in _APW_OPTIONS
+    ]
+    buttons.append([InlineKeyboardButton(msg.BTN_APW_DONE, callback_data="apw_submit")])
+    return InlineKeyboardMarkup(buttons)
+
+
 async def _apw_check_channels(bot, user_id: int) -> list[str]:
     """Returns list of invite handles for channels the user is NOT subscribed to."""
     missing: list[str] = []
@@ -2012,35 +2038,18 @@ async def _apw_check_channels(bot, user_id: int) -> list[str]:
     return missing
 
 
-async def _apw_issue_link(update: Update, context: ContextTypes.DEFAULT_TYPE, chat_id: int, event: dict) -> None:
-    existing = await db.apw_get_issued_link(event["id"], chat_id)
+async def _apw_show_poll(effective_message, chat_id: int) -> None:
+    existing = await db.apw_get_interest(chat_id)
     if existing:
-        await update.effective_message.reply_text(
-            msg.APW_ALREADY_ISSUED.format(link=existing["invite_link"]),
-            reply_markup=_main_keyboard(),
+        await effective_message.reply_text(
+            msg.APW_POLL_ALREADY.format(aps=existing["interested_aps"]),
         )
         return
-
-    if not AP_WEBINAR_GROUP_CHAT_ID:
-        await update.effective_message.reply_text("Webinar group is not configured yet. Please contact support.")
-        return
-
-    try:
-        invite = await context.bot.create_chat_invite_link(
-            chat_id=AP_WEBINAR_GROUP_CHAT_ID,
-            member_limit=1,
-        )
-        await db.apw_store_issued_link(event["id"], chat_id, invite.invite_link)
-        await update.effective_message.reply_text(
-            msg.APW_INVITE_SENT.format(link=invite.invite_link),
-            reply_markup=_main_keyboard(),
-        )
-    except Exception:
-        logger.exception("Failed to create APW invite for chat_id=%d", chat_id)
-        await update.effective_message.reply_text(
-            "Failed to generate invite link. Please contact support.",
-            reply_markup=_main_keyboard(),
-        )
+    _apw_poll_state[chat_id] = set()
+    await effective_message.reply_text(
+        msg.APW_POLL_QUESTION,
+        reply_markup=_apw_poll_keyboard(set()),
+    )
 
 
 async def _handle_apw(
@@ -2086,7 +2095,7 @@ async def _apw_join_callback(
         )
         return
 
-    await _apw_issue_link(update, context, chat_id, event)
+    await _apw_show_poll(query.message, chat_id)
 
 
 async def _apw_check_callback(
@@ -2113,7 +2122,44 @@ async def _apw_check_callback(
         return
 
     await query.edit_message_reply_markup(reply_markup=None)
-    await _apw_issue_link(update, context, chat_id, event)
+    await _apw_show_poll(query.message, chat_id)
+
+
+async def _apw_ap_toggle_callback(
+    update: Update, context: ContextTypes.DEFAULT_TYPE
+) -> None:
+    query = update.callback_query
+    await query.answer()
+    chat_id = update.effective_user.id
+    key = query.data.split(":")[1]
+
+    selections = _apw_poll_state.setdefault(chat_id, set())
+    if key in selections:
+        selections.discard(key)
+    else:
+        selections.add(key)
+
+    await query.edit_message_reply_markup(_apw_poll_keyboard(selections))
+
+
+async def _apw_submit_callback(
+    update: Update, context: ContextTypes.DEFAULT_TYPE
+) -> None:
+    query = update.callback_query
+    chat_id = update.effective_user.id
+
+    selections = _apw_poll_state.get(chat_id, set())
+    if not selections:
+        await query.answer(msg.APW_POLL_EMPTY, show_alert=True)
+        return
+
+    await query.answer()
+    user = update.effective_user
+    _apw_poll_state.pop(chat_id, None)
+
+    selected_names = [_APW_KEY_TO_NAME[k] for k in selections if k in _APW_KEY_TO_NAME]
+    await db.apw_save_interest(chat_id, user.username, user.first_name, selected_names)
+    await query.edit_message_text(msg.APW_POLL_SUBMITTED)
 
 
 async def _apw_set_command(
@@ -2136,6 +2182,27 @@ async def _apw_clear_command(
         return
     await db.apw_deactivate_event()
     await update.message.reply_text(msg.APW_CLEARED)
+
+
+async def _apw_export_command(
+    update: Update, context: ContextTypes.DEFAULT_TYPE
+) -> None:
+    if update.effective_user.id != PERSON_X_CHAT_ID:
+        return
+    interests = await db.apw_get_all_interests()
+    if not interests:
+        await update.message.reply_text("No AP interest submissions yet.")
+        return
+    lines = ["Access AP Webinar — Interest Submissions\n"]
+    for i, r in enumerate(interests, 1):
+        upart = f" (@{r['username']})" if r.get("username") else ""
+        lines.append(f"{i}. {r['first_name']}{upart}: {r['interested_aps']}")
+    import io
+    content = "\n".join(lines).encode("utf-8")
+    await update.message.reply_document(
+        document=io.BytesIO(content),
+        filename="apw_interests.txt",
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -3111,8 +3178,11 @@ def build_app() -> Application:
     app.add_handler(CommandHandler("hku_waitlist_msg", _hku_waitlist_msg_command, filters=_private))
     app.add_handler(CommandHandler("apw_set", _apw_set_command, filters=_private))
     app.add_handler(CommandHandler("apw_clear", _apw_clear_command, filters=_private))
+    app.add_handler(CommandHandler("apw_export", _apw_export_command, filters=_private))
     app.add_handler(CallbackQueryHandler(_apw_join_callback, pattern="^apw_join$"))
     app.add_handler(CallbackQueryHandler(_apw_check_callback, pattern="^apw_check$"))
+    app.add_handler(CallbackQueryHandler(_apw_ap_toggle_callback, pattern="^apw_ap:"))
+    app.add_handler(CallbackQueryHandler(_apw_submit_callback, pattern="^apw_submit$"))
     app.add_handler(CallbackQueryHandler(_sat_approve_callback, pattern="^sat_approve:"))
     app.add_handler(CallbackQueryHandler(_sat_reject_callback, pattern="^sat_reject:"))
     app.add_handler(CallbackQueryHandler(_se_join_callback, pattern="^se_join$"))

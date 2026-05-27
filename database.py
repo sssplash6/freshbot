@@ -225,6 +225,16 @@ async def init_db() -> None:
                 FOREIGN KEY (event_id) REFERENCES apw_events(id)
             )
         """)
+        await db.execute("""
+            CREATE TABLE IF NOT EXISTS apw_interests (
+                id             INTEGER PRIMARY KEY AUTOINCREMENT,
+                chat_id        INTEGER NOT NULL UNIQUE,
+                username       TEXT,
+                first_name     TEXT NOT NULL,
+                interested_aps TEXT NOT NULL,
+                created_at     TEXT NOT NULL
+            )
+        """)
         for _col in [
             "ALTER TABLE adv_english_applications ADD COLUMN video_file_id TEXT",
             "ALTER TABLE adv_english_applications ADD COLUMN video_type TEXT",
@@ -1263,3 +1273,39 @@ async def apw_get_issued_link(event_id: int, student_chat_id: int) -> dict | Non
         ) as cursor:
             row = await cursor.fetchone()
             return dict(row) if row else None
+
+
+async def apw_save_interest(chat_id: int, username: str | None, first_name: str, aps: list[str]) -> None:
+    now = datetime.now(timezone.utc).isoformat()
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute(
+            """INSERT INTO apw_interests (chat_id, username, first_name, interested_aps, created_at)
+               VALUES (?, ?, ?, ?, ?)
+               ON CONFLICT(chat_id) DO UPDATE SET
+               username = excluded.username,
+               first_name = excluded.first_name,
+               interested_aps = excluded.interested_aps,
+               created_at = excluded.created_at""",
+            (chat_id, username, first_name, ", ".join(aps), now),
+        )
+        await db.commit()
+
+
+async def apw_get_interest(chat_id: int) -> dict | None:
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute(
+            "SELECT * FROM apw_interests WHERE chat_id = ?", (chat_id,)
+        ) as cursor:
+            row = await cursor.fetchone()
+            return dict(row) if row else None
+
+
+async def apw_get_all_interests() -> list[dict]:
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute(
+            "SELECT * FROM apw_interests ORDER BY created_at"
+        ) as cursor:
+            rows = await cursor.fetchall()
+            return [dict(r) for r in rows]

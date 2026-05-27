@@ -609,6 +609,13 @@ APW_INVITE_SENT = (
 APW_POST_SET = "\u2705 Access AP Webinar intro post saved."
 APW_POST_USAGE = "Reply to a message with /apw_set to set the Access AP Webinar intro post."
 APW_CLEARED = "\u2705 Access AP Webinar deactivated."
+APW_POLL_QUESTION = "Which AP courses are you interested in?\n\nSelect all that apply, then tap Done."
+BTN_APW_DONE = "Done \u2714\ufe0f"
+APW_POLL_ALREADY = "\u2705 You've already submitted your interests: {aps}"
+APW_POLL_EMPTY = "Please select at least one AP first."
+APW_POLL_SUBMITTED = (
+    "\u2705 Got it! We've noted your interests and will be in touch with more details on the AP Courses."
+)
 
 AE_INTRO = (
     "\U0001f4a5<b>Special Offer: Advanced English</b>\n\n"
