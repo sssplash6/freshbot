@@ -929,9 +929,10 @@ EG_ADMIN_HELP = (
 )
 
 BROADCAST_KEYBOARD_MESSAGE = (
-    "\U0001f393 <b>Access AP Webinar — coming soon!</b>\n\n"
-    "We’re launching a webinar series on college admissions and the AP program. "
-    "Tap the button below to secure your spot."
+    "\U0001f393 <b>Freshman Academy is launching AP Course Prep!</b>\n\n"
+    "Before we kick off, we’re hosting a free intro webinar — a chance to learn what the program is about, "
+    "ask questions, and meet your future mentors.\n\n"
+    "Tap the button below to join the webinar group and get notified when it goes live."
 )
 BROADCAST_KEYBOARD_DONE = "Keyboard broadcast: {sent} sent, {failed} failed ({total} total users)."
 
