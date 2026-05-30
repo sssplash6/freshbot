@@ -9,6 +9,7 @@ _last_message_time: dict[int, float] = {}
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardMarkup, ReplyKeyboardRemove, Update
 from telegram.error import TelegramError
 from telegram.ext import (
+    AIORateLimiter,
     Application,
     CallbackQueryHandler,
     CommandHandler,
@@ -16,6 +17,7 @@ from telegram.ext import (
     MessageHandler,
     filters,
 )
+from telegram.request import HTTPXRequest
 
 import database as db
 import messages as msg
@@ -1527,23 +1529,31 @@ async def _broadcast_keyboard_command(
     async def _run() -> None:
         sent = failed = 0
         first_error: str | None = None
-        for cid in chat_ids:
-            try:
-                await context.bot.send_message(
-                    chat_id=cid,
-                    text=msg.BROADCAST_KEYBOARD_MESSAGE,
-                    parse_mode="HTML",
-                    reply_markup=InlineKeyboardMarkup(
-                        [[InlineKeyboardButton(msg.BTN_APW_JOIN, callback_data="apw_join")]]
-                    ),
-                )
-                sent += 1
-            except Exception as e:
-                if first_error is None:
-                    first_error = f"{type(e).__name__}: {e}"
-                logger.warning("Broadcast failed for chat_id=%d: %s: %s", cid, type(e).__name__, e)
-                failed += 1
-            await asyncio.sleep(0.05)
+        # Cap broadcast concurrency so it can never starve the connection pool
+        # or Telegram send budget that live user replies depend on.
+        sem = asyncio.Semaphore(15)
+
+        async def _send_one(cid: int) -> None:
+            nonlocal sent, failed, first_error
+            async with sem:
+                try:
+                    await context.bot.send_message(
+                        chat_id=cid,
+                        text=msg.BROADCAST_KEYBOARD_MESSAGE,
+                        parse_mode="HTML",
+                        reply_markup=InlineKeyboardMarkup(
+                            [[InlineKeyboardButton(msg.BTN_APW_JOIN, callback_data="apw_join")]]
+                        ),
+                    )
+                    sent += 1
+                except Exception as e:
+                    if first_error is None:
+                        first_error = f"{type(e).__name__}: {e}"
+                    logger.warning("Broadcast failed for chat_id=%d: %s: %s", cid, type(e).__name__, e)
+                    failed += 1
+                await asyncio.sleep(0.05)
+
+        await asyncio.gather(*(_send_one(cid) for cid in chat_ids))
         result = msg.BROADCAST_KEYBOARD_DONE.format(sent=sent, failed=failed, total=len(chat_ids))
         if first_error:
             result += f"\n\nFirst error: {first_error}"
@@ -3166,9 +3176,18 @@ def build_app() -> Application:
     app = (
         Application.builder()
         .token(TELEGRAM_BOT_TOKEN)
-        .connect_timeout(30)
-        .read_timeout(30)
-        .write_timeout(30)
+        .concurrent_updates(True)
+        .rate_limiter(AIORateLimiter())
+        .request(
+            HTTPXRequest(
+                connection_pool_size=256,
+                pool_timeout=20,
+                connect_timeout=30,
+                read_timeout=30,
+                write_timeout=30,
+            )
+        )
+        .get_updates_request(HTTPXRequest(connection_pool_size=16))
         .build()
     )
 
