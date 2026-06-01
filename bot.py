@@ -2251,6 +2251,53 @@ async def _apw_export_command(
     )
 
 
+async def _hku_export_command(
+    update: Update, context: ContextTypes.DEFAULT_TYPE
+) -> None:
+    if update.effective_user.id != PERSON_X_CHAT_ID:
+        return
+    registrations = await db.hku_get_all_registrations()
+    if not registrations:
+        await update.message.reply_text("No HKU registrations yet.")
+        return
+    lines = ["HKU Admissions Rep Event — Registrations\n"]
+    for i, r in enumerate(registrations, 1):
+        upart = f" (@{r['username']})" if r.get("username") else ""
+        state = "link issued" if r.get("invite_link") else "waitlisted"
+        lines.append(
+            f"{i}. {r['first_name']}{upart} — {r['email']}, {r['phone']} [{state}]"
+        )
+    import io
+    content = "\n".join(lines).encode("utf-8")
+    await update.message.reply_document(
+        document=io.BytesIO(content),
+        filename="hku_registrations.txt",
+    )
+
+
+async def _rs_export_command(
+    update: Update, context: ContextTypes.DEFAULT_TYPE
+) -> None:
+    if update.effective_user.id != PERSON_X_CHAT_ID:
+        return
+    registrations = await db.rs_get_all_registrations()
+    if not registrations:
+        await update.message.reply_text("No Research Seminar registrations yet.")
+        return
+    lines = ["Research Seminar — Registrations\n"]
+    for i, r in enumerate(registrations, 1):
+        upart = f" (@{r['username']})" if r.get("username") else ""
+        lines.append(
+            f"{i}. {r['first_name']}{upart} — {r['full_name']}, {r['phone']}"
+        )
+    import io
+    content = "\n".join(lines).encode("utf-8")
+    await update.message.reply_document(
+        document=io.BytesIO(content),
+        filename="rs_registrations.txt",
+    )
+
+
 # ---------------------------------------------------------------------------
 # HKU Admissions Rep Event — student flow
 # ---------------------------------------------------------------------------
@@ -3231,6 +3278,8 @@ def build_app() -> Application:
     app.add_handler(CallbackQueryHandler(_sat_view_callback, pattern="^sat_view:"))
     app.add_handler(CommandHandler("hku_set", _hku_set_command, filters=_private))
     app.add_handler(CommandHandler("hku_waitlist_msg", _hku_waitlist_msg_command, filters=_private))
+    app.add_handler(CommandHandler("hku_export", _hku_export_command, filters=_private))
+    app.add_handler(CommandHandler("rs_export", _rs_export_command, filters=_private))
     app.add_handler(CommandHandler("apw_set", _apw_set_command, filters=_private))
     app.add_handler(CommandHandler("apw_clear", _apw_clear_command, filters=_private))
     app.add_handler(CommandHandler("apw_export", _apw_export_command, filters=_private))
