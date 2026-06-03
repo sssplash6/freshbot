@@ -842,6 +842,8 @@ ADMIN_STATS = (
 
 BTN_TRIAL_AP = "Attend Trial AP Lesson"
 
+TAP_COMING_SOON = "🚧 Trial AP Lessons are coming soon. Stay tuned!"
+
 TAP_INTRO = (
     "\U0001f393 <b>Attend a Trial AP Lesson</b>\n\n"
     "To get access to the trial lesson group, here's what to do:\n\n"

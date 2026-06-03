@@ -1793,13 +1793,9 @@ TAP_GROUP_CHAT_ID = -1003830859397
 async def _handle_trial_ap(
     update: Update, chat_id: int, context: ContextTypes.DEFAULT_TYPE
 ) -> None:
-    await update.message.reply_text(
-        msg.TAP_INTRO,
-        parse_mode="HTML",
-        reply_markup=InlineKeyboardMarkup(
-            [[InlineKeyboardButton(msg.BTN_TAP_JOIN, callback_data="tap_join")]]
-        ),
-    )
+    # Hard-gated to "coming soon". To re-enable the live flow, restore the
+    # TAP_INTRO message with the BTN_TAP_JOIN inline button (callback "tap_join").
+    await update.message.reply_text(msg.TAP_COMING_SOON)
 
 
 async def _tap_join_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
