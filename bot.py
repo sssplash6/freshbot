@@ -1799,16 +1799,39 @@ def _tap_intro_markup() -> InlineKeyboardMarkup:
 async def _handle_trial_ap(
     update: Update, chat_id: int, context: ContextTypes.DEFAULT_TYPE
 ) -> None:
-    # Hard-gated to "coming soon". To re-enable, restore the TAP_INTRO message
-    # with _tap_intro_markup() (and the same in _tap_join_callback).
-    await update.message.reply_text(msg.TAP_COMING_SOON)
+    entry = await db.tap_get_entry(chat_id)
+    if entry and entry["status"] == "confirmed" and entry.get("invite_link"):
+        await update.message.reply_text(
+            msg.TAP_ALREADY_CONFIRMED.format(link=entry["invite_link"]),
+            reply_markup=_main_keyboard(),
+        )
+        return
+    await update.message.reply_text(
+        msg.TAP_INTRO, parse_mode="HTML", reply_markup=_tap_intro_markup()
+    )
 
 
 async def _tap_join_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    # Inline "Join" button (e.g. from /broadcastkeyboard). Hard-gated to "coming soon".
+    # Inline "Join" button (e.g. from /broadcastkeyboard) — same streamlined intro.
     query = update.callback_query
     await query.answer()
-    await context.bot.send_message(chat_id=update.effective_user.id, text=msg.TAP_COMING_SOON)
+    chat_id = update.effective_user.id
+
+    entry = await db.tap_get_entry(chat_id)
+    if entry and entry["status"] == "confirmed" and entry.get("invite_link"):
+        await context.bot.send_message(
+            chat_id=chat_id,
+            text=msg.TAP_ALREADY_CONFIRMED.format(link=entry["invite_link"]),
+            reply_markup=_main_keyboard(),
+        )
+        return
+
+    await context.bot.send_message(
+        chat_id=chat_id,
+        text=msg.TAP_INTRO,
+        parse_mode="HTML",
+        reply_markup=_tap_intro_markup(),
+    )
 
 
 async def _tap_screenshot_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
