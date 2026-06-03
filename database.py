@@ -86,15 +86,6 @@ async def init_db() -> None:
             )
         """)
         await db.execute("""
-            CREATE TABLE IF NOT EXISTS tap_posts (
-                id              INTEGER PRIMARY KEY AUTOINCREMENT,
-                post_chat_id    INTEGER NOT NULL,
-                post_message_id INTEGER NOT NULL,
-                is_active       INTEGER NOT NULL DEFAULT 1,
-                created_at      TEXT NOT NULL
-            )
-        """)
-        await db.execute("""
             CREATE TABLE IF NOT EXISTS tap_entries (
                 id                   INTEGER PRIMARY KEY AUTOINCREMENT,
                 chat_id              INTEGER NOT NULL UNIQUE,
@@ -141,6 +132,7 @@ async def init_db() -> None:
             "hku_registrations",
             "apw_events", "apw_issued_links", "apw_interests",
             "rs_posts", "rs_registrations",
+            "tap_posts",
         ]:
             await db.execute(f"DROP TABLE IF EXISTS {_tbl}")
         await db.commit()
@@ -691,34 +683,6 @@ async def set_setting(key: str, value: str) -> None:
 # ---------------------------------------------------------------------------
 # Trial AP Lesson
 # ---------------------------------------------------------------------------
-
-async def tap_save_post(post_chat_id: int, post_message_id: int) -> None:
-    now = datetime.now(timezone.utc).isoformat()
-    async with aiosqlite.connect(DB_PATH) as db:
-        await db.execute("UPDATE tap_posts SET is_active = 0 WHERE is_active = 1")
-        await db.execute(
-            "INSERT INTO tap_posts (post_chat_id, post_message_id, is_active, created_at)"
-            " VALUES (?, ?, 1, ?)",
-            (post_chat_id, post_message_id, now),
-        )
-        await db.commit()
-
-
-async def tap_deactivate_post() -> None:
-    async with aiosqlite.connect(DB_PATH) as db:
-        await db.execute("UPDATE tap_posts SET is_active = 0 WHERE is_active = 1")
-        await db.commit()
-
-
-async def tap_get_active_post() -> dict | None:
-    async with aiosqlite.connect(DB_PATH) as db:
-        db.row_factory = aiosqlite.Row
-        async with db.execute(
-            "SELECT * FROM tap_posts WHERE is_active = 1 ORDER BY id DESC LIMIT 1"
-        ) as cursor:
-            row = await cursor.fetchone()
-            return dict(row) if row else None
-
 
 async def tap_save_entry(
     chat_id: int,

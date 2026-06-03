@@ -1790,27 +1790,32 @@ _SAT_LIST_IDS: frozenset[int] = frozenset(
 TAP_GROUP_CHAT_ID = -1003830859397
 
 
+def _tap_intro_markup() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        [[InlineKeyboardButton(msg.BTN_TAP_SCREENSHOT, callback_data="tap_screenshot")]]
+    )
+
+
 async def _handle_trial_ap(
     update: Update, chat_id: int, context: ContextTypes.DEFAULT_TYPE
 ) -> None:
+    entry = await db.tap_get_entry(chat_id)
+    if entry and entry["status"] == "confirmed" and entry.get("invite_link"):
+        await update.message.reply_text(
+            msg.TAP_ALREADY_CONFIRMED.format(link=entry["invite_link"]),
+            reply_markup=_main_keyboard(),
+        )
+        return
     await update.message.reply_text(
-        msg.TAP_INTRO,
-        parse_mode="HTML",
-        reply_markup=InlineKeyboardMarkup(
-            [[InlineKeyboardButton(msg.BTN_TAP_JOIN, callback_data="tap_join")]]
-        ),
+        msg.TAP_INTRO, parse_mode="HTML", reply_markup=_tap_intro_markup()
     )
 
 
 async def _tap_join_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    # Inline "Join" button (e.g. from /broadcastkeyboard) — same streamlined intro.
     query = update.callback_query
     await query.answer()
     chat_id = update.effective_user.id
-
-    post = await db.tap_get_active_post()
-    if not post:
-        await context.bot.send_message(chat_id=chat_id, text=msg.TAP_NO_POST)
-        return
 
     entry = await db.tap_get_entry(chat_id)
     if entry and entry["status"] == "confirmed" and entry.get("invite_link"):
@@ -1820,17 +1825,12 @@ async def _tap_join_callback(update: Update, context: ContextTypes.DEFAULT_TYPE)
             reply_markup=_main_keyboard(),
         )
         return
-    if entry and entry["status"] == "pending":
-        await context.bot.send_message(chat_id=chat_id, text=msg.TAP_ALREADY_SUBMITTED)
-        return
 
-    await context.bot.copy_message(
+    await context.bot.send_message(
         chat_id=chat_id,
-        from_chat_id=post["post_chat_id"],
-        message_id=post["post_message_id"],
-        reply_markup=InlineKeyboardMarkup(
-            [[InlineKeyboardButton(msg.BTN_TAP_SCREENSHOT, callback_data="tap_screenshot")]]
-        ),
+        text=msg.TAP_INTRO,
+        parse_mode="HTML",
+        reply_markup=_tap_intro_markup(),
     )
 
 
@@ -1959,24 +1959,6 @@ async def _tap_approve_callback(update: Update, context: ContextTypes.DEFAULT_TY
 
 async def _tap_reject_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     await _tap_decision_callback(update, context, "rejected")
-
-
-async def _tap_post_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    if update.effective_user.id != PERSON_X_CHAT_ID:
-        return
-    reply = update.message.reply_to_message
-    if not reply:
-        await update.message.reply_text(msg.TAP_POST_USAGE)
-        return
-    await db.tap_save_post(reply.chat.id, reply.message_id)
-    await update.message.reply_text(msg.TAP_POST_SET)
-
-
-async def _tap_clear_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    if update.effective_user.id != PERSON_X_CHAT_ID:
-        return
-    await db.tap_deactivate_post()
-    await update.message.reply_text(msg.TAP_CLEARED)
 
 
 async def _ae_remind_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -2281,8 +2263,6 @@ def build_app() -> Application:
     app.add_handler(CallbackQueryHandler(_ae_payment_made_callback, pattern="^ae_payment_made:"))
     app.add_handler(CallbackQueryHandler(_ae_payment_confirm_callback, pattern="^ae_payment_confirm:"))
     app.add_handler(CallbackQueryHandler(_ae_payment_reject_callback, pattern="^ae_payment_reject:"))
-    app.add_handler(CommandHandler("tap_post", _tap_post_command, filters=_private))
-    app.add_handler(CommandHandler("tap_clear", _tap_clear_command, filters=_private))
     app.add_handler(CallbackQueryHandler(_tap_join_callback, pattern="^tap_join$"))
     app.add_handler(CallbackQueryHandler(_tap_screenshot_callback, pattern="^tap_screenshot$"))
     app.add_handler(CallbackQueryHandler(_tap_approve_callback, pattern="^tap_approve:"))

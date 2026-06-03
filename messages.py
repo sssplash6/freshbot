@@ -847,16 +847,14 @@ TAP_COMING_SOON = "🚧 Trial AP Lessons are coming soon. Stay tuned!"
 TAP_INTRO = (
     "\U0001f393 <b>Attend a Trial AP Lesson</b>\n\n"
     "To get access to the trial lesson group, here's what to do:\n\n"
-    "1⃣ Tap <b>Join</b> below to receive our post.\n"
-    "2⃣ Repost it to your story or feed.\n"
-    "3⃣ Send us a screenshot of your repost as proof.\n\n"
-    "Once our team confirms your screenshot, you'll get a one-time invite link to the group."
+    "1⃣ Repost this post to your story or feed:\n"
+    "https://t.me/freshmanblog/2209\n\n"
+    "2⃣ Tap the button below and send a screenshot of your repost as proof.\n\n"
+    "Once our team confirms it, you'll get a one-time invite link to the group."
 )
 
 BTN_TAP_JOIN = "Join"
 BTN_TAP_SCREENSHOT = "\U0001f4f8 Send screenshot of repost"
-
-TAP_NO_POST = "\U0001f512 The trial lesson isn't active yet. Stay tuned!"
 
 TAP_ALREADY_SUBMITTED = (
     "You've already submitted a screenshot. We'll notify you once it's reviewed!"
@@ -891,7 +889,3 @@ TAP_REVIEWER_LINK_FAILED = "⚠️ Confirmed, but creating the invite link faile
 
 BTN_TAP_APPROVE = "✅ Confirm"
 BTN_TAP_REJECT = "❌ Reject"
-
-TAP_POST_SET = "✅ Trial AP Lesson post saved."
-TAP_POST_USAGE = "Reply to a message with /tap_post to set it as the Trial AP Lesson post."
-TAP_CLEARED = "\U0001f6d1 Trial AP Lesson deactivated."
