@@ -1025,3 +1025,62 @@ ADMIN_STATS = (
     "  Rejected: {ae_rejected}"
 )
 
+
+
+# ---------------------------------------------------------------------------
+# Trial AP Lesson
+# ---------------------------------------------------------------------------
+
+BTN_TRIAL_AP = "Attend Trial AP Lesson"
+
+TAP_INTRO = (
+    "\U0001f393 <b>Attend a Trial AP Lesson</b>\n\n"
+    "To get access to the trial lesson group, here's what to do:\n\n"
+    "1⃣ Tap <b>Join</b> below to receive our post.\n"
+    "2⃣ Repost it to your story or feed.\n"
+    "3⃣ Send us a screenshot of your repost as proof.\n\n"
+    "Once our team confirms your screenshot, you'll get a one-time invite link to the group."
+)
+
+BTN_TAP_JOIN = "Join"
+BTN_TAP_SCREENSHOT = "\U0001f4f8 Send screenshot of repost"
+
+TAP_NO_POST = "\U0001f512 The trial lesson isn't active yet. Stay tuned!"
+
+TAP_ALREADY_SUBMITTED = (
+    "You've already submitted a screenshot. We'll notify you once it's reviewed!"
+)
+
+TAP_ALREADY_CONFIRMED = (
+    "You're already confirmed! Here's your invite link to the group:\n{link}"
+)
+
+TAP_SCREENSHOT_PROMPT = (
+    "Send a screenshot of your repost here and we'll review it shortly."
+)
+
+TAP_SCREENSHOT_REQUIRED = "Please send a photo or document screenshot to continue."
+
+TAP_SUBMITTED = "⏳ Your screenshot is under review. We'll notify you of the result!"
+
+TAP_CONFIRMED = (
+    "✅ Your repost was confirmed! Here's your one-time invite link to the trial lesson group:\n{link}"
+)
+
+TAP_REJECTED = (
+    "❌ Your screenshot wasn't approved. Make sure it clearly shows your repost, then try again."
+)
+
+TAP_REVIEWER_ENTRY = "\U0001f4f8 New Trial AP Lesson repost from {first_name}{username_part}"
+
+TAP_REVIEWER_ACCEPTED = "✅ Confirmed. Invite link sent to the participant."
+TAP_REVIEWER_REJECTED = "❌ Rejected. Participant notified."
+TAP_REVIEWER_ALREADY_DECIDED = "ℹ️ Decision already recorded for this entry."
+TAP_REVIEWER_LINK_FAILED = "⚠️ Confirmed, but creating the invite link failed. Check bot admin rights on the group."
+
+BTN_TAP_APPROVE = "✅ Confirm"
+BTN_TAP_REJECT = "❌ Reject"
+
+TAP_POST_SET = "✅ Trial AP Lesson post saved."
+TAP_POST_USAGE = "Reply to a message with /tap_post to set it as the Trial AP Lesson post."
+TAP_CLEARED = "\U0001f6d1 Trial AP Lesson deactivated."

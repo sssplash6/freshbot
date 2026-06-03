@@ -120,6 +120,7 @@ _NAV_BUTTONS: frozenset[str] = frozenset({
     msg.BTN_PROGRAMS, msg.BTN_GENERAL_INQUIRY, msg.BTN_PODCAST,
     msg.BTN_SPECIAL_EVENTS, msg.BTN_HOME, msg.BTN_START,
     msg.BTN_ADV_ENGLISH, msg.BTN_SAT_GIVEAWAY, msg.BTN_SAT_ENROLL, msg.BTN_AP_WEBINAR,
+    msg.BTN_TRIAL_AP,
     # Program sub-menu
     msg.BTN_SAT, msg.BTN_ADMISSIONS, msg.BTN_FULL_SUPPORT, msg.BTN_MASTERS,
     msg.BTN_ADV_PLACEMENT, msg.BTN_IMKON, msg.BTN_RESEARCH_INSTITUTE,
@@ -138,6 +139,7 @@ def _main_keyboard() -> ReplyKeyboardMarkup:
     return ReplyKeyboardMarkup(
         [
             [msg.BTN_SAT_ENROLL, msg.BTN_PROGRAMS],
+            [msg.BTN_TRIAL_AP],
             [msg.BTN_GENERAL_INQUIRY],
         ],
         resize_keyboard=True,
@@ -310,6 +312,14 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
                         fid, ftype = document.file_id, "document"
                     await _handle_sat_screenshot(update, chat_id, fid, ftype, context)
                     return
+            if user_v and user_v.get("flow") == "tap" and user_v.get("status") == "tap_step_screenshot":
+                if photo or document:
+                    if photo:
+                        fid, ftype = photo[-1].file_id, "photo"
+                    else:
+                        fid, ftype = document.file_id, "document"
+                    await _handle_tap_screenshot(update, chat_id, fid, ftype, context)
+                    return
         contact = update.message.contact
         if contact:
             user_v = await db.get_user(chat_id)
@@ -372,6 +382,14 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             await update.message.reply_text(msg.SAT_GIVEAWAY_SCREENSHOT_REQUIRED)
             return
 
+    if user and user.get("flow") == "tap" and user.get("status") == "tap_step_screenshot":
+        if text in _NAV_BUTTONS:
+            await db.set_flow(chat_id, None)
+            await db.set_status(chat_id, None)
+        else:
+            await update.message.reply_text(msg.TAP_SCREENSHOT_REQUIRED)
+            return
+
     if user and user.get("flow") == "sat_enroll":
         if text in _NAV_BUTTONS:
             _sat_enroll_state.pop(chat_id, None)
@@ -409,6 +427,8 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         await _handle_apw(update, chat_id, context)
     elif text == msg.BTN_SAT_GIVEAWAY:
         await _handle_sat_giveaway(update, chat_id, context)
+    elif text == msg.BTN_TRIAL_AP:
+        await _handle_trial_ap(update, chat_id, context)
     elif text == msg.BTN_HKU:
         await _handle_hku(update, chat_id, context)
     elif text == msg.BTN_SAT_ENROLL:
@@ -2775,6 +2795,197 @@ async def _sat_reject_callback(update: Update, context: ContextTypes.DEFAULT_TYP
     await _sat_decision_callback(update, context, "rejected")
 
 
+# ---------------------------------------------------------------------------
+# Trial AP Lesson — student flow + review
+# ---------------------------------------------------------------------------
+
+TAP_GROUP_CHAT_ID = -1003830859397
+
+
+async def _handle_trial_ap(
+    update: Update, chat_id: int, context: ContextTypes.DEFAULT_TYPE
+) -> None:
+    await update.message.reply_text(
+        msg.TAP_INTRO,
+        parse_mode="HTML",
+        reply_markup=InlineKeyboardMarkup(
+            [[InlineKeyboardButton(msg.BTN_TAP_JOIN, callback_data="tap_join")]]
+        ),
+    )
+
+
+async def _tap_join_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    query = update.callback_query
+    await query.answer()
+    chat_id = update.effective_user.id
+
+    post = await db.tap_get_active_post()
+    if not post:
+        await context.bot.send_message(chat_id=chat_id, text=msg.TAP_NO_POST)
+        return
+
+    entry = await db.tap_get_entry(chat_id)
+    if entry and entry["status"] == "confirmed" and entry.get("invite_link"):
+        await context.bot.send_message(
+            chat_id=chat_id,
+            text=msg.TAP_ALREADY_CONFIRMED.format(link=entry["invite_link"]),
+            reply_markup=_main_keyboard(),
+        )
+        return
+    if entry and entry["status"] == "pending":
+        await context.bot.send_message(chat_id=chat_id, text=msg.TAP_ALREADY_SUBMITTED)
+        return
+
+    await context.bot.copy_message(
+        chat_id=chat_id,
+        from_chat_id=post["post_chat_id"],
+        message_id=post["post_message_id"],
+        reply_markup=InlineKeyboardMarkup(
+            [[InlineKeyboardButton(msg.BTN_TAP_SCREENSHOT, callback_data="tap_screenshot")]]
+        ),
+    )
+
+
+async def _tap_screenshot_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    query = update.callback_query
+    await query.answer()
+    chat_id = update.effective_user.id
+
+    entry = await db.tap_get_entry(chat_id)
+    if entry and entry["status"] == "confirmed" and entry.get("invite_link"):
+        await context.bot.send_message(
+            chat_id=chat_id,
+            text=msg.TAP_ALREADY_CONFIRMED.format(link=entry["invite_link"]),
+            reply_markup=_main_keyboard(),
+        )
+        return
+
+    await context.bot.send_message(
+        chat_id=chat_id,
+        text=msg.TAP_SCREENSHOT_PROMPT,
+        reply_markup=_back_keyboard(),
+    )
+    await db.set_flow(chat_id, "tap")
+    await db.set_status(chat_id, "tap_step_screenshot")
+
+
+async def _handle_tap_screenshot(
+    update: Update,
+    chat_id: int,
+    file_id: str,
+    file_type: str,
+    context: ContextTypes.DEFAULT_TYPE,
+) -> None:
+    user = await db.get_user(chat_id)
+    first_name = user["first_name"] if user else "Unknown"
+    username = user["username"] if user else None
+
+    await db.tap_save_entry(chat_id, username, first_name, file_id, file_type)
+    await db.set_flow(chat_id, None)
+    await db.set_status(chat_id, None)
+    await update.message.reply_text(msg.TAP_SUBMITTED, reply_markup=_main_keyboard())
+
+    username_part = f" (@{username})" if username else ""
+    keyboard = InlineKeyboardMarkup([[
+        InlineKeyboardButton(msg.BTN_TAP_APPROVE, callback_data=f"tap_approve:{chat_id}"),
+        InlineKeyboardButton(msg.BTN_TAP_REJECT, callback_data=f"tap_reject:{chat_id}"),
+    ]])
+    caption = msg.TAP_REVIEWER_ENTRY.format(first_name=first_name, username_part=username_part)
+
+    for reviewer_id in AP_MAN_CHAT_ID:
+        try:
+            if file_type == "photo":
+                sent = await context.bot.send_photo(
+                    chat_id=reviewer_id, photo=file_id, caption=caption, reply_markup=keyboard,
+                )
+            else:
+                sent = await context.bot.send_document(
+                    chat_id=reviewer_id, document=file_id, caption=caption, reply_markup=keyboard,
+                )
+            await db.tap_set_entry_reviewer_message(chat_id, sent.message_id)
+        except Exception:
+            logger.exception("Failed to send Trial AP entry to reviewer chat_id=%d", reviewer_id)
+
+
+async def _tap_decision_callback(
+    update: Update, context: ContextTypes.DEFAULT_TYPE, decision: str
+) -> None:
+    query = update.callback_query
+    await query.answer()
+
+    applicant_chat_id = int(query.data.split(":")[1])
+    entry = await db.tap_get_entry(applicant_chat_id)
+
+    if not entry or entry["status"] != "pending":
+        await query.answer(msg.TAP_REVIEWER_ALREADY_DECIDED, show_alert=True)
+        return
+
+    caption = query.message.caption or ""
+
+    if decision == "rejected":
+        await db.tap_set_entry_status(applicant_chat_id, "rejected")
+        try:
+            await context.bot.send_message(chat_id=applicant_chat_id, text=msg.TAP_REJECTED)
+        except Exception:
+            logger.exception("Failed to notify Trial AP participant chat_id=%d", applicant_chat_id)
+        await query.edit_message_caption(
+            caption=f"{caption}\n\n{msg.TAP_REVIEWER_REJECTED}", reply_markup=None,
+        )
+        return
+
+    # Confirmed → issue a one-time invite link to the group.
+    try:
+        invite = await context.bot.create_chat_invite_link(
+            chat_id=TAP_GROUP_CHAT_ID,
+            member_limit=1,
+        )
+    except Exception:
+        logger.exception("Failed to create Trial AP invite for chat_id=%d", applicant_chat_id)
+        await query.edit_message_caption(
+            caption=f"{caption}\n\n{msg.TAP_REVIEWER_LINK_FAILED}", reply_markup=query.message.reply_markup,
+        )
+        return
+
+    await db.tap_set_entry_status(applicant_chat_id, "confirmed")
+    await db.tap_set_entry_link(applicant_chat_id, invite.invite_link)
+    try:
+        await context.bot.send_message(
+            chat_id=applicant_chat_id,
+            text=msg.TAP_CONFIRMED.format(link=invite.invite_link),
+        )
+    except Exception:
+        logger.exception("Failed to notify Trial AP participant chat_id=%d", applicant_chat_id)
+    await query.edit_message_caption(
+        caption=f"{caption}\n\n{msg.TAP_REVIEWER_ACCEPTED}", reply_markup=None,
+    )
+
+
+async def _tap_approve_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    await _tap_decision_callback(update, context, "confirmed")
+
+
+async def _tap_reject_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    await _tap_decision_callback(update, context, "rejected")
+
+
+async def _tap_post_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    if update.effective_user.id != PERSON_X_CHAT_ID:
+        return
+    reply = update.message.reply_to_message
+    if not reply:
+        await update.message.reply_text(msg.TAP_POST_USAGE)
+        return
+    await db.tap_save_post(reply.chat.id, reply.message_id)
+    await update.message.reply_text(msg.TAP_POST_SET)
+
+
+async def _tap_clear_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    if update.effective_user.id != PERSON_X_CHAT_ID:
+        return
+    await db.tap_deactivate_post()
+    await update.message.reply_text(msg.TAP_CLEARED)
+
+
 async def _sat_webinar_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if update.effective_user.id != PERSON_X_CHAT_ID:
         return
@@ -3288,6 +3499,12 @@ def build_app() -> Application:
     app.add_handler(CallbackQueryHandler(_apw_submit_callback, pattern="^apw_submit$"))
     app.add_handler(CallbackQueryHandler(_sat_approve_callback, pattern="^sat_approve:"))
     app.add_handler(CallbackQueryHandler(_sat_reject_callback, pattern="^sat_reject:"))
+    app.add_handler(CommandHandler("tap_post", _tap_post_command, filters=_private))
+    app.add_handler(CommandHandler("tap_clear", _tap_clear_command, filters=_private))
+    app.add_handler(CallbackQueryHandler(_tap_join_callback, pattern="^tap_join$"))
+    app.add_handler(CallbackQueryHandler(_tap_screenshot_callback, pattern="^tap_screenshot$"))
+    app.add_handler(CallbackQueryHandler(_tap_approve_callback, pattern="^tap_approve:"))
+    app.add_handler(CallbackQueryHandler(_tap_reject_callback, pattern="^tap_reject:"))
     app.add_handler(CallbackQueryHandler(_se_join_callback, pattern="^se_join$"))
     app.add_handler(CallbackQueryHandler(_se_check_callback, pattern="^se_check$"))
     app.add_handler(CallbackQueryHandler(_roll_confirm_callback, pattern="^se_confirm:"))
