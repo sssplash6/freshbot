@@ -19,16 +19,15 @@ Telegram bot for Freshman Academy. python-telegram-bot (PTB) v21, async, **polli
 ## How routing works
 - **Text + contacts** → `handle_message` (bot.py). Dispatches by matching the message text against `msg.BTN_*` constants and the user's current `flow`/`status` (stored in DB per user). This is the main menu / reply-keyboard logic.
 - **Commands** (`/...`) → individual `CommandHandler`s, mostly **admin-only**, gated by `update.effective_user.id == PERSON_X_CHAT_ID` (some use other reviewer IDs).
-- **Inline buttons** → `CallbackQueryHandler`s keyed by `callback_data` **pattern prefix** (e.g. `^apw_join$`, `^ae_view:`).
+- **Inline buttons** → `CallbackQueryHandler`s keyed by `callback_data` **pattern prefix** (e.g. `^tap_join$`, `^ae_view:`).
 
 ## Feature domains (function/callback prefixes)
-- `eg_` — event giveaway (invite-link issuing, join approvals)
-- `se_` — special events (participant roster, rolls)
 - `ae_` — Advanced English applications (terms → payment → review flow)
-- `sat_` — SAT webinar / giveaway
-- `hku_` — HKU flow (phone/email collection)
-- `apw_` — AP webinar (join + AP-subject poll + submit)
+- `sat_enroll` — SAT Program enrollment (full name → SAT history → test date)
+- `tap_` — Trial AP Lesson (join → pre-set post → repost screenshot → reviewer confirm → group invite)
 - `q`/`qp:`/`qd:` — ask-a-question → expert Q&A threads
+
+Retired (removed in Phase 2, tables dropped on startup): `eg_` event giveaway, `se_` special events/rolls, `sat_` giveaway, `hku_` HKU event, `apw_` AP webinar, `rs_` research seminar.
 
 ## Conventions
 - Per-user state machine in DB: `flow` + `status` columns drive `handle_message` branching. Clear both (`set_flow(None)`, `set_status(None)`) when a flow completes.

@@ -39,14 +39,7 @@ from config import (
     PODCAST_CHANNEL_IDS,
     PODCAST_CHANNEL_HANDLES,
     PODCAST_YOUTUBE_URL,
-    SPECIAL_EVENT_CHANNEL_IDS,
-    SPECIAL_EVENT_CHANNEL_HANDLES,
     VALERA_CHAT_ID,
-    HKU_GROUP_CHAT_ID,
-    FRESHMANBLOG_CHANNEL_ID,
-    AP_WEBINAR_GROUP_CHAT_ID,
-    AP_WEBINAR_CHANNEL_IDS,
-    AP_WEBINAR_CHANNEL_INVITES,
     TELEGRAM_BOT_TOKEN,
     WEBSITE_URL_ADMISSIONS,
     WEBSITE_URL_FULL_SUPPORT,
@@ -106,7 +99,6 @@ _expert_clarification_state: dict[int, dict] = {}
 # Accumulates Advanced English application answers per chat_id across steps.
 _ae_state: dict[int, dict] = {}
 
-# Accumulates Research Seminar registration answers per chat_id.
 
 # Accumulates SAT enrollment answers per chat_id.
 _sat_enroll_state: dict[int, dict] = {}
@@ -118,9 +110,8 @@ _bypass_users: set[int] = set()
 _NAV_BUTTONS: frozenset[str] = frozenset({
     # Main menu
     msg.BTN_PROGRAMS, msg.BTN_GENERAL_INQUIRY, msg.BTN_PODCAST,
-    msg.BTN_SPECIAL_EVENTS, msg.BTN_HOME, msg.BTN_START,
-    msg.BTN_ADV_ENGLISH, msg.BTN_SAT_GIVEAWAY, msg.BTN_SAT_ENROLL, msg.BTN_AP_WEBINAR,
-    msg.BTN_TRIAL_AP,
+    msg.BTN_HOME, msg.BTN_START,
+    msg.BTN_ADV_ENGLISH, msg.BTN_SAT_ENROLL, msg.BTN_TRIAL_AP,
     # Program sub-menu
     msg.BTN_SAT, msg.BTN_ADMISSIONS, msg.BTN_FULL_SUPPORT, msg.BTN_MASTERS,
     msg.BTN_ADV_PLACEMENT, msg.BTN_IMKON, msg.BTN_RESEARCH_INSTITUTE,
@@ -139,8 +130,7 @@ def _main_keyboard() -> ReplyKeyboardMarkup:
     return ReplyKeyboardMarkup(
         [
             [msg.BTN_SAT_ENROLL, msg.BTN_PROGRAMS],
-            [msg.BTN_TRIAL_AP],
-            [msg.BTN_GENERAL_INQUIRY],
+            [msg.BTN_TRIAL_AP, msg.BTN_GENERAL_INQUIRY],
         ],
         resize_keyboard=True,
         is_persistent=True,
@@ -175,7 +165,6 @@ def _faq_keyboard() -> ReplyKeyboardMarkup:
         resize_keyboard=True,
         one_time_keyboard=True,
     )
-
 
 
 def _resolved_keyboard() -> ReplyKeyboardMarkup:
@@ -254,21 +243,16 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         return
     _last_message_time[chat_id] = now
 
-    # Event gate admin routing.
-    # If mid-event-setup OR not a reply to a known question, route to admin handler.
-    # If PERSON_X is also an expert and is replying (reply_to_message is set),
-    # let the expert handler run so student questions get answered.
+    # Admin routing for PERSON_X.
+    # If mid-video-setup, route to the video admin handler. Otherwise, if PERSON_X
+    # is an expert replying to a question, fall through to the expert handler;
+    # any other admin message is ignored.
     if chat_id == PERSON_X_CHAT_ID:
-        if _sevent_admin_state.get("step") is not None:
-            await _sevent_message_handler(update, context)
-            return
         if _video_admin_state.get("step") is not None:
             await _video_admin_message_handler(update, context)
             return
-        in_setup = _eg_admin_state.get("step") is not None
         is_reply = update.message.reply_to_message is not None
-        if in_setup or not (chat_id in _EXPERT_CHAT_IDS and is_reply and text):
-            await _eg_admin_message_handler(update, context)
+        if not (chat_id in _EXPERT_CHAT_IDS and is_reply and text):
             return
         # Fall through to expert handler below
 
@@ -307,14 +291,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
                         fid, ftype = document.file_id, "document"
                     await _handle_ae_payment_screenshot(update, chat_id, fid, ftype, context)
                     return
-            if user_v and user_v.get("flow") == "sat_giveaway" and user_v.get("status") == "sat_step_screenshot":
-                if photo or document:
-                    if photo:
-                        fid, ftype = photo[-1].file_id, "photo"
-                    else:
-                        fid, ftype = document.file_id, "document"
-                    await _handle_sat_screenshot(update, chat_id, fid, ftype, context)
-                    return
             if user_v and user_v.get("flow") == "tap" and user_v.get("status") == "tap_step_screenshot":
                 if photo or document:
                     if photo:
@@ -323,15 +299,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
                         fid, ftype = document.file_id, "document"
                     await _handle_tap_screenshot(update, chat_id, fid, ftype, context)
                     return
-        contact = update.message.contact
-        if contact:
-            user_v = await db.get_user(chat_id)
-            if user_v and user_v.get("flow") == "hku" and user_v.get("status") == "hku_step_phone":
-                if contact.user_id != update.effective_user.id:
-                    await update.message.reply_text(msg.HKU_PHONE_REQUIRED, reply_markup=_hku_phone_keyboard())
-                    return
-                await _handle_hku_phone(update, chat_id, contact.phone_number, context)
-                return
         return
 
     # Back always takes priority over free-text capture states
@@ -357,32 +324,12 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             await _handle_followup_text(update, chat_id, text, context)
             return
 
-    if user and user.get("flow") == "hku":
-        if text in _NAV_BUTTONS:
-            _hku_state.pop(chat_id, None)
-            await db.set_flow(chat_id, None)
-            await db.set_status(chat_id, None)
-        elif user.get("status") == "hku_step_email":
-            await _handle_hku_email(update, chat_id, text, context)
-            return
-        else:
-            await update.message.reply_text(msg.HKU_PHONE_REQUIRED, reply_markup=_hku_phone_keyboard())
-            return
-
     if user and user.get("flow") == "ae_payment" and user.get("status") == "ae_payment_step_screenshot":
         if text in _NAV_BUTTONS:
             await db.set_flow(chat_id, None)
             await db.set_status(chat_id, None)
         else:
             await update.message.reply_text(msg.AE_PAYMENT_SCREENSHOT_REQUIRED)
-            return
-
-    if user and user.get("flow") == "sat_giveaway" and user.get("status") == "sat_step_screenshot":
-        if text in _NAV_BUTTONS:
-            await db.set_flow(chat_id, None)
-            await db.set_status(chat_id, None)
-        else:
-            await update.message.reply_text(msg.SAT_GIVEAWAY_SCREENSHOT_REQUIRED)
             return
 
     if user and user.get("flow") == "tap" and user.get("status") == "tap_step_screenshot":
@@ -422,18 +369,10 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 
     if text == msg.BTN_PROGRAMS:
         await _handle_programs(update, chat_id)
-    elif text == msg.BTN_SPECIAL_EVENTS:
-        await _handle_special_events(update, chat_id, context)
     elif text == msg.BTN_ADV_ENGLISH:
         await _handle_adv_english(update, chat_id)
-    elif text == msg.BTN_AP_WEBINAR:
-        await _handle_apw(update, chat_id, context)
-    elif text == msg.BTN_SAT_GIVEAWAY:
-        await _handle_sat_giveaway(update, chat_id, context)
     elif text == msg.BTN_TRIAL_AP:
         await _handle_trial_ap(update, chat_id, context)
-    elif text == msg.BTN_HKU:
-        await _handle_hku(update, chat_id, context)
     elif text == msg.BTN_SAT_ENROLL:
         await _handle_sat_enroll(update, chat_id, context)
     elif text == msg.BTN_GENERAL_INQUIRY:
@@ -1358,141 +1297,17 @@ async def _handle_followup_text(
     await update.message.reply_text(msg.FOLLOWUP_FORWARDED, reply_markup=_start_keyboard())
 
 
-async def _eg_deliver_event_post(chat_id: int, event: dict, bot) -> None:
-    if event.get("post_message_id") and event.get("post_chat_id"):
-        await bot.copy_message(
-            chat_id=chat_id,
-            from_chat_id=event["post_chat_id"],
-            message_id=event["post_message_id"],
-        )
-    elif event.get("post_text"):
-        await bot.send_message(chat_id=chat_id, text=event["post_text"])
-
-
 # ---------------------------------------------------------------------------
 # Event gate — admin flow (PERSON_X only)
 # ---------------------------------------------------------------------------
 
 # In-memory state for the two-step /event setup (only one admin, no DB needed)
-_eg_admin_state: dict = {"step": None, "event_group_id": None}
 
 # In-memory state for /setvideo admin flow
 _video_admin_state: dict = {"step": None, "program": None}
 
-# In-memory state for /sevent admin flow
-_sevent_admin_state: dict = {"step": None}
 
 # Tracks last rolled participant ID for /reroll exclusion
-_roll_state: dict = {"last_id": None}
-
-
-async def _eg_admin_event_command(
-    update: Update, context: ContextTypes.DEFAULT_TYPE
-) -> None:
-    if update.effective_user.id != PERSON_X_CHAT_ID:
-        return
-    _eg_admin_state["step"] = "awaiting_group_id"
-    _eg_admin_state["event_group_id"] = None
-    await update.message.reply_text(
-        "Send me the event group ID (the negative integer, e.g. -1001234567890)."
-    )
-
-
-async def _eg_admin_message_handler(
-    update: Update, context: ContextTypes.DEFAULT_TYPE
-) -> None:
-    msg_obj = update.message
-    step = _eg_admin_state.get("step")
-
-    if step == "awaiting_group_id":
-        raw = (msg_obj.text or "").strip()
-        try:
-            group_id = int(raw)
-        except ValueError:
-            await msg_obj.reply_text("That doesn't look like a valid group ID. Send a negative integer.")
-            return
-        _eg_admin_state["event_group_id"] = group_id
-        _eg_admin_state["step"] = "awaiting_post"
-        await msg_obj.reply_text("Got it! Now send the event post — any message (text, photo, or forwarded post).")
-        return
-
-    if step == "awaiting_post":
-        post_chat_id = msg_obj.chat_id
-        post_message_id = msg_obj.message_id
-        post_text = msg_obj.text or msg_obj.caption
-
-        await db.eg_save_event(
-            _eg_admin_state["event_group_id"],
-            post_chat_id,
-            post_message_id,
-            post_text,
-        )
-        _eg_admin_state["step"] = None
-        _eg_admin_state["event_group_id"] = None
-        await msg_obj.reply_text(msg.EG_EVENT_ACTIVATED)
-
-        # Broadcast event post to all known bot users
-        event = await db.eg_get_active_event()
-        if event:
-            chat_ids = await db.get_all_chat_ids()
-            sent = 0
-            failed = 0
-            for cid in chat_ids:
-                try:
-                    await _eg_deliver_event_post(cid, event, context.bot)
-                    sent += 1
-                except Exception as e:
-                    logger.warning("Broadcast failed for chat_id=%d: %s", cid, e)
-                    failed += 1
-            await msg_obj.reply_text(
-                f"📢 Broadcast: {sent} sent, {failed} failed "
-                f"({len(chat_ids)} total users in DB)."
-            )
-        return
-
-    # No active setup — hint to use /event
-    await msg_obj.reply_text("Use /event to set up a new event.")
-
-
-async def _eg_admin_status(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    if update.effective_user.id != PERSON_X_CHAT_ID:
-        return
-
-    event = await db.eg_get_active_event()
-    if event:
-        links = await db.eg_count_issued_links(event["id"])
-        approvals = await db.eg_count_join_approvals(event["id"])
-        text = msg.EG_ADMIN_STATUS_TEMPLATE.format(
-            status="Active",
-            post_set="Yes",
-            last_updated=event["created_at"],
-            links_issued=links,
-            join_approvals=approvals,
-        )
-    else:
-        text = msg.EG_ADMIN_STATUS_TEMPLATE.format(
-            status="No active event",
-            post_set="No",
-            last_updated="—",
-            links_issued=0,
-            join_approvals=0,
-        )
-    await update.message.reply_text(text)
-
-
-async def _eg_admin_clearevent(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    if update.effective_user.id != PERSON_X_CHAT_ID:
-        return
-    _eg_admin_state["step"] = None
-    _eg_admin_state["event_group_id"] = None
-    await db.eg_deactivate_event()
-    await update.message.reply_text(msg.EG_ADMIN_EVENT_CLEARED)
-
-
-async def _eg_admin_help(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    if update.effective_user.id != PERSON_X_CHAT_ID:
-        return
-    await update.message.reply_text(msg.EG_ADMIN_HELP)
 
 
 async def _export_db_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -1516,7 +1331,6 @@ async def _stats_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         by_program = ""
 
     videos = ", ".join(s["videos_set"]) if s["videos_set"] else "none"
-    event_str = "Yes" if s["active_event"] else "No"
 
     await update.message.reply_text(
         msg.ADMIN_STATS.format(
@@ -1527,9 +1341,6 @@ async def _stats_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             pending_questions=s["pending_questions"],
             answered_questions=s["answered_questions"],
             questions_by_program=by_program,
-            active_event=event_str,
-            total_links=s["total_links"],
-            total_approvals=s["total_approvals"],
             pending_jobs=s["pending_jobs"],
             videos_set=videos,
             ae_total=s["ae_total"],
@@ -1564,7 +1375,7 @@ async def _broadcast_keyboard_command(
                         text=msg.BROADCAST_KEYBOARD_MESSAGE,
                         parse_mode="HTML",
                         reply_markup=InlineKeyboardMarkup(
-                            [[InlineKeyboardButton(msg.BTN_APW_JOIN, callback_data="apw_join")]]
+                            [[InlineKeyboardButton(msg.BTN_TAP_JOIN, callback_data="tap_join")]]
                         ),
                     )
                     sent += 1
@@ -1632,17 +1443,6 @@ async def _video_admin_message_handler(
     await update.message.reply_text(msg.SETVIDEO_SAVED.format(program=program))
 
 
-# ---------------------------------------------------------------------------
-# /sevent — admin flow (PERSON_X only)
-# ---------------------------------------------------------------------------
-
-async def _sevent_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    if update.effective_user.id != PERSON_X_CHAT_ID:
-        return
-    _sevent_admin_state["step"] = "awaiting_post"
-    await update.message.reply_text(msg.SEVENT_SEND_POST)
-
-
 async def _ping_experts_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if update.effective_user.id != PERSON_X_CHAT_ID:
         return
@@ -1660,71 +1460,6 @@ async def _ping_experts_command(update: Update, context: ContextTypes.DEFAULT_TY
                 fail.append(f"❌ {eid} ({program}): {e}")
     lines = ["*Ping results:*", ""] + ok + ([""] + fail if fail else [])
     await update.message.reply_text("\n".join(lines), parse_mode="Markdown")
-
-
-async def _sevent_participants_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    if update.effective_user.id != PERSON_X_CHAT_ID:
-        return
-    participants = await db.se_get_all_participants()
-    count = len(participants)
-    if count == 0:
-        await update.message.reply_text("No participants yet.")
-        return
-    lines = [f"{i + 1}. {p['first_name']}" + (f" (@{p['username']})" if p.get("username") else "") for i, p in enumerate(participants)]
-    header = f"Special event participants: {count}\n\n"
-    chunks, current = [], header
-    for line in lines:
-        if len(current) + len(line) + 1 > 4096:
-            await update.message.reply_text(current)
-            current = ""
-        current += line + "\n"
-    if current:
-        await update.message.reply_text(current)
-
-
-async def _sevent_message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    if _sevent_admin_state.get("step") != "awaiting_post":
-        return
-    msg_obj = update.message
-    await db.se_save_post(msg_obj.chat_id, msg_obj.message_id)
-    _sevent_admin_state["step"] = None
-    await msg_obj.reply_text(msg.SEVENT_SAVED)
-
-
-# ---------------------------------------------------------------------------
-# Special Events — student flow
-# ---------------------------------------------------------------------------
-
-async def _handle_special_events(
-    update: Update, chat_id: int, context: ContextTypes.DEFAULT_TYPE
-) -> None:
-    post = await db.se_get_active_post()
-    if not post:
-        await update.message.reply_text(msg.SE_NO_ACTIVE_EVENT, reply_markup=_main_keyboard())
-        return
-    await context.bot.copy_message(
-        chat_id=chat_id,
-        from_chat_id=post["post_chat_id"],
-        message_id=post["post_message_id"],
-    )
-    await update.message.reply_text(
-        msg.SE_JOIN_PROMPT,
-        reply_markup=InlineKeyboardMarkup(
-            [[InlineKeyboardButton(msg.BTN_CLICK_TO_JOIN, callback_data="se_join")]]
-        ),
-    )
-
-
-async def _se_get_missing_handles(bot, student_chat_id: int) -> list[str]:
-    missing: list[str] = []
-    for channel_id, handle in zip(SPECIAL_EVENT_CHANNEL_IDS, SPECIAL_EVENT_CHANNEL_HANDLES):
-        try:
-            member = await bot.get_chat_member(channel_id, student_chat_id)
-            if member.status not in _MEMBER_STATUSES:
-                missing.append(handle)
-        except TelegramError:
-            logger.warning("Cannot check SE membership in %s. Failing open.", channel_id)
-    return missing
 
 
 async def _podcast_get_missing(bot, chat_id: int) -> list[str]:
@@ -1783,71 +1518,6 @@ async def _podcast_check_callback(update: Update, context: ContextTypes.DEFAULT_
     except TelegramError as e:
         if "not modified" not in str(e).lower():
             raise
-
-
-async def _se_edit(query, *args, **kwargs) -> None:
-    try:
-        await query.edit_message_text(*args, **kwargs)
-    except TelegramError as e:
-        if "not modified" not in str(e).lower():
-            raise
-
-
-async def _se_check_membership_and_respond(
-    query, student_chat_id: int, first_name: str, username: str | None, context
-) -> None:
-    existing = await db.se_get_participant(student_chat_id)
-    if existing:
-        # Re-verify they're still subscribed — remove and re-gate if they left
-        if SPECIAL_EVENT_CHANNEL_IDS:
-            missing_handles = await _se_get_missing_handles(context.bot, student_chat_id)
-            if missing_handles:
-                await db.se_remove_participant(student_chat_id)
-                channel_list = "\n".join(f"• {h}" for h in missing_handles)
-                await _se_edit(
-                    query,
-                    msg.SE_MUST_JOIN.format(channel_list=channel_list),
-                    reply_markup=InlineKeyboardMarkup(
-                        [[InlineKeyboardButton(msg.BTN_SE_CHECK, callback_data="se_check")]]
-                    ),
-                )
-                return
-        await _se_edit(query, msg.SE_ALREADY_PARTICIPATING)
-        return
-
-    missing_handles = await _se_get_missing_handles(context.bot, student_chat_id) if SPECIAL_EVENT_CHANNEL_IDS else []
-
-    if missing_handles:
-        channel_list = "\n".join(f"• {h}" for h in missing_handles)
-        await _se_edit(
-            query,
-            msg.SE_MUST_JOIN.format(channel_list=channel_list),
-            reply_markup=InlineKeyboardMarkup(
-                [[InlineKeyboardButton(msg.BTN_SE_CHECK, callback_data="se_check")]]
-            ),
-        )
-        return
-
-    await db.se_add_participant(student_chat_id, first_name, username)
-    await _se_edit(query, msg.SE_NOW_PARTICIPATING)
-
-
-async def _se_join_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    query = update.callback_query
-    await query.answer()
-    user = update.effective_user
-    await _se_check_membership_and_respond(
-        query, user.id, user.first_name, user.username, context
-    )
-
-
-async def _se_check_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    query = update.callback_query
-    await query.answer()
-    user = update.effective_user
-    await _se_check_membership_and_respond(
-        query, user.id, user.first_name, user.username, context
-    )
 
 
 # ---------------------------------------------------------------------------
@@ -2030,581 +1700,7 @@ async def _ae_set_payment_command(
     await update.message.reply_text(msg.AE_SET_PAYMENT_SUCCESS)
 
 
-# ---------------------------------------------------------------------------
-# AP Webinar — student flow, admin commands
-# ---------------------------------------------------------------------------
-
-_APW_OPTIONS: list[tuple[str, str]] = [
-    ("micro",    "Microeconomics"),
-    ("macro",    "Macroeconomics"),
-    ("bpf",      "Business with Personal Finance"),
-    ("phys1",    "Physics I"),
-    ("usgov",    "US Gov and Politics"),
-    ("calc",     "Calculus"),
-    ("precalc",  "Precalculus"),
-]
-_APW_KEY_TO_NAME: dict[str, str] = dict(_APW_OPTIONS)
-
-_apw_poll_state: dict[int, set[str]] = {}
-
-
-def _apw_poll_keyboard(selected: set[str]) -> InlineKeyboardMarkup:
-    buttons = [
-        [InlineKeyboardButton(
-            f"{'✅' if key in selected else '☑️'} {label}",
-            callback_data=f"apw_ap:{key}",
-        )]
-        for key, label in _APW_OPTIONS
-    ]
-    buttons.append([InlineKeyboardButton(msg.BTN_APW_DONE, callback_data="apw_submit")])
-    return InlineKeyboardMarkup(buttons)
-
-
-async def _apw_check_channels(bot, user_id: int) -> list[str]:
-    """Returns list of invite handles for channels the user is NOT subscribed to."""
-    missing: list[str] = []
-    for i, cid in enumerate(AP_WEBINAR_CHANNEL_IDS):
-        invite = AP_WEBINAR_CHANNEL_INVITES[i] if i < len(AP_WEBINAR_CHANNEL_INVITES) else str(cid)
-        try:
-            member = await bot.get_chat_member(cid, user_id)
-            if member.status not in _MEMBER_STATUSES:
-                missing.append(invite)
-        except Exception as e:
-            logger.warning("APW: could not check membership for channel %s (%s) — failing open", cid, e)
-    return missing
-
-
-async def _apw_show_poll(effective_message, chat_id: int) -> None:
-    existing = await db.apw_get_interest(chat_id)
-    if existing:
-        await effective_message.reply_text(
-            msg.APW_POLL_ALREADY.format(aps=existing["interested_aps"]),
-        )
-        return
-    _apw_poll_state[chat_id] = set()
-    await effective_message.reply_text(
-        msg.APW_POLL_QUESTION,
-        reply_markup=_apw_poll_keyboard(set()),
-    )
-
-
-async def _handle_apw(
-    update: Update, chat_id: int, context: ContextTypes.DEFAULT_TYPE
-) -> None:
-    event = await db.apw_get_active_event()
-    if not event:
-        await update.message.reply_text(msg.APW_NO_POST)
-        return
-
-    await context.bot.copy_message(
-        chat_id=chat_id,
-        from_chat_id=event["post_chat_id"],
-        message_id=event["post_message_id"],
-        reply_markup=InlineKeyboardMarkup(
-            [[InlineKeyboardButton(msg.BTN_APW_JOIN, callback_data="apw_join")]]
-        ),
-    )
-
-
-async def _apw_join_callback(
-    update: Update, context: ContextTypes.DEFAULT_TYPE
-) -> None:
-    query = update.callback_query
-    await query.answer()
-    chat_id = update.effective_user.id
-
-    event = await db.apw_get_active_event()
-    if not event:
-        await query.edit_message_reply_markup(reply_markup=None)
-        await context.bot.send_message(chat_id=chat_id, text=msg.APW_NO_POST)
-        return
-
-    missing = await _apw_check_channels(context.bot, chat_id)
-    if missing:
-        links_text = "\n".join(f"• {link}" for link in missing)
-        await context.bot.send_message(
-            chat_id=chat_id,
-            text=msg.APW_NOT_MEMBER.format(links=links_text),
-            reply_markup=InlineKeyboardMarkup(
-                [[InlineKeyboardButton(msg.BTN_APW_CHECK, callback_data="apw_check")]]
-            ),
-        )
-        return
-
-    existing_link = await db.apw_get_issued_link(event["id"], chat_id)
-    if existing_link:
-        await context.bot.send_message(
-            chat_id=chat_id,
-            text=msg.APW_ALREADY_ISSUED.format(link=existing_link["invite_link"]),
-            reply_markup=_main_keyboard(),
-        )
-        return
-
-    await _apw_show_poll(query.message, chat_id)
-
-
-async def _apw_check_callback(
-    update: Update, context: ContextTypes.DEFAULT_TYPE
-) -> None:
-    query = update.callback_query
-    chat_id = update.effective_user.id
-
-    event = await db.apw_get_active_event()
-    if not event:
-        await query.answer()
-        await query.edit_message_text(msg.APW_NO_POST)
-        return
-
-    missing = await _apw_check_channels(context.bot, chat_id)
-    if missing:
-        await query.answer("You're still not subscribed to all channels.", show_alert=True)
-        links_text = "\n".join(f"• {link}" for link in missing)
-        try:
-            await query.edit_message_text(
-                msg.APW_NOT_MEMBER.format(links=links_text),
-                reply_markup=InlineKeyboardMarkup(
-                    [[InlineKeyboardButton(msg.BTN_APW_CHECK, callback_data="apw_check")]]
-                ),
-            )
-        except Exception:
-            pass
-        return
-
-    await query.answer()
-    await query.edit_message_text("✅ Subscribed!")
-    await _apw_show_poll(query.message, chat_id)
-
-
-async def _apw_ap_toggle_callback(
-    update: Update, context: ContextTypes.DEFAULT_TYPE
-) -> None:
-    query = update.callback_query
-    await query.answer()
-    chat_id = update.effective_user.id
-    key = query.data.split(":")[1]
-
-    selections = _apw_poll_state.setdefault(chat_id, set())
-    if key in selections:
-        selections.discard(key)
-    else:
-        selections.add(key)
-
-    await query.edit_message_reply_markup(_apw_poll_keyboard(selections))
-
-
-async def _apw_submit_callback(
-    update: Update, context: ContextTypes.DEFAULT_TYPE
-) -> None:
-    query = update.callback_query
-    chat_id = update.effective_user.id
-
-    selections = _apw_poll_state.get(chat_id, set())
-    if not selections:
-        await query.answer(msg.APW_POLL_EMPTY, show_alert=True)
-        return
-
-    await query.answer()
-    user = update.effective_user
-    _apw_poll_state.pop(chat_id, None)
-
-    selected_names = [_APW_KEY_TO_NAME[k] for k in selections if k in _APW_KEY_TO_NAME]
-    await db.apw_save_interest(chat_id, user.username, user.first_name, selected_names)
-    await query.edit_message_text(msg.APW_POLL_SUBMITTED)
-
-    if not AP_WEBINAR_GROUP_CHAT_ID:
-        return
-    event = await db.apw_get_active_event()
-    try:
-        invite = await context.bot.create_chat_invite_link(
-            chat_id=AP_WEBINAR_GROUP_CHAT_ID,
-            member_limit=1,
-        )
-        if event:
-            await db.apw_store_issued_link(event["id"], chat_id, invite.invite_link)
-        await context.bot.send_message(
-            chat_id=chat_id,
-            text=msg.APW_INVITE_SENT.format(link=invite.invite_link),
-            reply_markup=_main_keyboard(),
-        )
-    except Exception:
-        logger.exception("Failed to create APW invite for chat_id=%d", chat_id)
-
-
-async def _apw_set_command(
-    update: Update, context: ContextTypes.DEFAULT_TYPE
-) -> None:
-    if update.effective_user.id != PERSON_X_CHAT_ID:
-        return
-    reply = update.message.reply_to_message
-    if not reply:
-        await update.message.reply_text(msg.APW_POST_USAGE)
-        return
-    await db.apw_save_event(reply.chat.id, reply.message_id)
-    await update.message.reply_text(msg.APW_POST_SET)
-
-
-async def _apw_clear_command(
-    update: Update, context: ContextTypes.DEFAULT_TYPE
-) -> None:
-    if update.effective_user.id != PERSON_X_CHAT_ID:
-        return
-    await db.apw_deactivate_event()
-    await update.message.reply_text(msg.APW_CLEARED)
-
-
-async def _apw_export_command(
-    update: Update, context: ContextTypes.DEFAULT_TYPE
-) -> None:
-    if update.effective_user.id != PERSON_X_CHAT_ID:
-        return
-    interests = await db.apw_get_all_interests()
-    if not interests:
-        await update.message.reply_text("No AP interest submissions yet.")
-        return
-    lines = ["Access AP Webinar — Interest Submissions\n"]
-    for i, r in enumerate(interests, 1):
-        upart = f" (@{r['username']})" if r.get("username") else ""
-        lines.append(f"{i}. {r['first_name']}{upart}: {r['interested_aps']}")
-    import io
-    content = "\n".join(lines).encode("utf-8")
-    await update.message.reply_document(
-        document=io.BytesIO(content),
-        filename="apw_interests.txt",
-    )
-
-
 # Tables backing the features being retired — exported by /export_all, dropped by /retire_features.
-_RETIRED_FEATURE_TABLES: list[str] = [
-    "eg_events", "eg_issued_links", "eg_join_approvals",
-    "special_event_posts", "special_event_participants",
-    "sat_giveaway_posts", "sat_giveaway_entries",
-    "hku_registrations",
-    "apw_events", "apw_issued_links", "apw_interests",
-    "rs_posts", "rs_registrations",
-]
-
-
-async def _export_all_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    if update.effective_user.id != PERSON_X_CHAT_ID:
-        return
-    import io
-    import csv
-    exported = 0
-    total_rows = 0
-    for table in _RETIRED_FEATURE_TABLES:
-        try:
-            cols, rows = await db.fetch_table(table)
-        except Exception:
-            logger.exception("export_all: failed to read table %s", table)
-            await update.message.reply_text(f"⚠️ Could not read {table} (skipped).")
-            continue
-        buf = io.StringIO()
-        writer = csv.writer(buf)
-        writer.writerow(cols)
-        writer.writerows(rows)
-        data = buf.getvalue().encode("utf-8")
-        await update.message.reply_document(
-            document=io.BytesIO(data),
-            filename=f"{table}.csv",
-            caption=f"{table}: {len(rows)} row(s)",
-        )
-        exported += 1
-        total_rows += len(rows)
-    await update.message.reply_text(
-        f"✅ Exported {exported} table(s), {total_rows} row(s) total.\n"
-        "Save these files somewhere safe — this data will be permanently deleted in the next step."
-    )
-
-
-async def _hku_export_command(
-    update: Update, context: ContextTypes.DEFAULT_TYPE
-) -> None:
-    if update.effective_user.id != PERSON_X_CHAT_ID:
-        return
-    registrations = await db.hku_get_all_registrations()
-    if not registrations:
-        await update.message.reply_text("No HKU registrations yet.")
-        return
-    lines = ["HKU Admissions Rep Event — Registrations\n"]
-    for i, r in enumerate(registrations, 1):
-        upart = f" (@{r['username']})" if r.get("username") else ""
-        state = "link issued" if r.get("invite_link") else "waitlisted"
-        lines.append(
-            f"{i}. {r['first_name']}{upart} — {r['email']}, {r['phone']} [{state}]"
-        )
-    import io
-    content = "\n".join(lines).encode("utf-8")
-    await update.message.reply_document(
-        document=io.BytesIO(content),
-        filename="hku_registrations.txt",
-    )
-
-
-async def _rs_export_command(
-    update: Update, context: ContextTypes.DEFAULT_TYPE
-) -> None:
-    if update.effective_user.id != PERSON_X_CHAT_ID:
-        return
-    registrations = await db.rs_get_all_registrations()
-    if not registrations:
-        await update.message.reply_text("No Research Seminar registrations yet.")
-        return
-    lines = ["Research Seminar — Registrations\n"]
-    for i, r in enumerate(registrations, 1):
-        upart = f" (@{r['username']})" if r.get("username") else ""
-        lines.append(
-            f"{i}. {r['first_name']}{upart} — {r['full_name']}, {r['phone']}"
-        )
-    import io
-    content = "\n".join(lines).encode("utf-8")
-    await update.message.reply_document(
-        document=io.BytesIO(content),
-        filename="rs_registrations.txt",
-    )
-
-
-# ---------------------------------------------------------------------------
-# HKU Admissions Rep Event — student flow
-# ---------------------------------------------------------------------------
-
-HKU_SLOT_LIMIT = 21
-HKU_BYPASS_IDS = {1319487628, 1662850914, 7193768811}
-
-_hku_state: dict[int, dict] = {}
-
-
-def _hku_phone_keyboard() -> ReplyKeyboardMarkup:
-    from telegram import KeyboardButton
-    return ReplyKeyboardMarkup(
-        [
-            [KeyboardButton(msg.BTN_HKU_SHARE_PHONE, request_contact=True)],
-            [msg.BTN_BACK],
-        ],
-        resize_keyboard=True,
-        one_time_keyboard=True,
-    )
-
-
-async def _hku_check_gate(chat_id: int, context) -> bool:
-    """Returns True if the user is subscribed to freshmanblog."""
-    if not FRESHMANBLOG_CHANNEL_ID:
-        return True
-    try:
-        member = await context.bot.get_chat_member(FRESHMANBLOG_CHANNEL_ID, chat_id)
-        return member.status in _MEMBER_STATUSES
-    except Exception:
-        return False
-
-
-async def _hku_start_flow(reply_target, chat_id: int, context) -> None:
-    """Copy the HKU post (if set) then prompt for email."""
-    post_chat_id = await db.get_setting("hku_post_chat_id")
-    post_message_id = await db.get_setting("hku_post_message_id")
-    if post_chat_id and post_message_id:
-        try:
-            await context.bot.copy_message(
-                chat_id=chat_id,
-                from_chat_id=int(post_chat_id),
-                message_id=int(post_message_id),
-            )
-        except Exception:
-            logger.exception("Failed to copy HKU post to chat_id=%d", chat_id)
-    _hku_state[chat_id] = {}
-    await db.set_flow(chat_id, "hku")
-    await db.set_status(chat_id, "hku_step_email")
-    await reply_target.reply_text(msg.HKU_ASK_EMAIL, reply_markup=_back_keyboard())
-
-
-async def _handle_hku(
-    update: Update, chat_id: int, context: ContextTypes.DEFAULT_TYPE
-) -> None:
-    if not HKU_GROUP_CHAT_ID:
-        await update.message.reply_text(msg.HKU_NOT_ACTIVE, reply_markup=_main_keyboard())
-        return
-
-    existing = await db.hku_get_registration(chat_id)
-    if existing:
-        if existing["invite_link"]:
-            await update.message.reply_text(
-                msg.HKU_ALREADY_REGISTERED.format(link=existing["invite_link"]),
-                reply_markup=_main_keyboard(),
-            )
-        elif chat_id in HKU_BYPASS_IDS:
-            link = None
-            try:
-                invite = await context.bot.create_chat_invite_link(
-                    chat_id=HKU_GROUP_CHAT_ID, member_limit=1
-                )
-                link = invite.invite_link
-            except Exception:
-                logger.exception("Failed to create HKU invite for bypass chat_id=%d", chat_id)
-            if link:
-                await db.hku_save_registration(
-                    chat_id, existing["username"], existing["first_name"],
-                    existing["email"], existing["phone"], link,
-                )
-                await update.message.reply_text(
-                    msg.HKU_REGISTERED.format(link=link), parse_mode="HTML",
-                    reply_markup=_main_keyboard(),
-                )
-            else:
-                await update.message.reply_text(msg.HKU_ALREADY_WAITLISTED, reply_markup=_main_keyboard())
-        else:
-            await update.message.reply_text(msg.HKU_ALREADY_WAITLISTED, reply_markup=_main_keyboard())
-        return
-
-    if not await _hku_check_gate(chat_id, context):
-        keyboard = InlineKeyboardMarkup(
-            [[InlineKeyboardButton(msg.BTN_HKU_CHECK, callback_data="hku_check")]]
-        )
-        await update.message.reply_text(msg.HKU_MUST_SUBSCRIBE, reply_markup=keyboard)
-        return
-
-    await _hku_start_flow(update.message, chat_id, context)
-
-
-async def _handle_hku_email(
-    update: Update, chat_id: int, email: str, context: ContextTypes.DEFAULT_TYPE
-) -> None:
-    _hku_state.setdefault(chat_id, {})["email"] = email
-    await db.set_status(chat_id, "hku_step_phone")
-    await update.message.reply_text(msg.HKU_ASK_PHONE, reply_markup=_hku_phone_keyboard())
-
-
-async def _handle_hku_phone(
-    update: Update, chat_id: int, phone: str, context: ContextTypes.DEFAULT_TYPE
-) -> None:
-    state = _hku_state.pop(chat_id, {})
-    email = state.get("email", "").strip()
-
-    if not email:
-        await db.set_status(chat_id, "hku_step_email")
-        await update.message.reply_text(msg.HKU_ASK_EMAIL, reply_markup=_back_keyboard())
-        return
-
-    user = await db.get_user(chat_id)
-    first_name = user["first_name"] if user else ""
-    username = user["username"] if user else None
-
-    count = await db.hku_count_registrations()
-    if count >= HKU_SLOT_LIMIT and chat_id not in HKU_BYPASS_IDS:
-        await db.hku_save_registration(chat_id, username, first_name, email, phone, None)
-        await db.set_flow(chat_id, None)
-        await db.set_status(chat_id, None)
-        await update.message.reply_text(msg.HKU_WAITLISTED, reply_markup=_main_keyboard())
-        return
-
-    link = None
-    try:
-        invite = await context.bot.create_chat_invite_link(
-            chat_id=HKU_GROUP_CHAT_ID,
-            member_limit=1,
-        )
-        link = invite.invite_link
-    except Exception:
-        logger.exception("Failed to create HKU invite for chat_id=%d", chat_id)
-
-    await db.hku_save_registration(chat_id, username, first_name, email, phone, link)
-    await db.set_flow(chat_id, None)
-    await db.set_status(chat_id, None)
-
-    await update.message.reply_text(
-        msg.HKU_REGISTERED.format(link=link or "(error generating link — please contact support)"),
-        parse_mode="HTML",
-        reply_markup=_main_keyboard(),
-    )
-
-
-async def _hku_check_callback(
-    update: Update, context: ContextTypes.DEFAULT_TYPE
-) -> None:
-    query = update.callback_query
-    await query.answer()
-    chat_id = update.effective_user.id
-
-    if not HKU_GROUP_CHAT_ID:
-        await query.edit_message_text(msg.HKU_NOT_ACTIVE)
-        return
-
-    existing = await db.hku_get_registration(chat_id)
-    if existing:
-        if existing["invite_link"]:
-            await query.edit_message_text(
-                msg.HKU_ALREADY_REGISTERED.format(link=existing["invite_link"])
-            )
-        elif chat_id in HKU_BYPASS_IDS:
-            link = None
-            try:
-                invite = await context.bot.create_chat_invite_link(
-                    chat_id=HKU_GROUP_CHAT_ID, member_limit=1
-                )
-                link = invite.invite_link
-            except Exception:
-                logger.exception("Failed to create HKU invite for bypass chat_id=%d", chat_id)
-            if link:
-                await db.hku_save_registration(
-                    chat_id, existing["username"], existing["first_name"],
-                    existing["email"], existing["phone"], link,
-                )
-                await query.edit_message_text(
-                    msg.HKU_REGISTERED.format(link=link), parse_mode="HTML"
-                )
-            else:
-                await query.edit_message_text(msg.HKU_ALREADY_WAITLISTED)
-        else:
-            await query.edit_message_text(msg.HKU_ALREADY_WAITLISTED)
-        return
-
-    if not await _hku_check_gate(chat_id, context):
-        keyboard = InlineKeyboardMarkup(
-            [[InlineKeyboardButton(msg.BTN_HKU_CHECK, callback_data="hku_check")]]
-        )
-        await query.edit_message_text(msg.HKU_MUST_SUBSCRIBE, reply_markup=keyboard)
-        return
-
-    await query.edit_message_text("✅ Subscribed! Now let's get you registered.")
-    await _hku_start_flow(query.message, chat_id, context)
-
-
-async def _hku_set_command(
-    update: Update, context: ContextTypes.DEFAULT_TYPE
-) -> None:
-    if update.effective_user.id != PERSON_X_CHAT_ID:
-        return
-    reply = update.message.reply_to_message
-    if not reply:
-        await update.message.reply_text(msg.HKU_POST_USAGE)
-        return
-    await db.set_setting("hku_post_chat_id", str(reply.chat.id))
-    await db.set_setting("hku_post_message_id", str(reply.message_id))
-    await update.message.reply_text(msg.HKU_POST_SET)
-
-
-async def _hku_waitlist_msg_command(
-    update: Update, context: ContextTypes.DEFAULT_TYPE
-) -> None:
-    if update.effective_user.id != PERSON_X_CHAT_ID:
-        return
-    reply = update.message.reply_to_message
-    if not reply:
-        await update.message.reply_text(msg.HKU_WAITLIST_MSG_USAGE)
-        return
-    registrations = await db.hku_get_all_registrations()
-    waitlisted = [r for r in registrations if not r["invite_link"]]
-    sent = failed = 0
-    for r in waitlisted:
-        try:
-            await context.bot.copy_message(
-                chat_id=r["chat_id"],
-                from_chat_id=reply.chat.id,
-                message_id=reply.message_id,
-            )
-            sent += 1
-        except Exception:
-            logger.warning("HKU waitlist msg failed for chat_id=%d", r["chat_id"])
-            failed += 1
-        await asyncio.sleep(0.05)
-    await update.message.reply_text(msg.HKU_WAITLIST_MSG_DONE.format(sent=sent, failed=failed))
 
 
 # ---------------------------------------------------------------------------
@@ -2685,160 +1781,6 @@ async def _handle_sat_enroll_step(
 _SAT_LIST_IDS: frozenset[int] = frozenset(
     x for x in (PERSON_X_CHAT_ID, VALERA_CHAT_ID) if x is not None
 )
-
-
-async def _sat_list_command(
-    update: Update, context: ContextTypes.DEFAULT_TYPE
-) -> None:
-    if update.effective_chat.id not in _SAT_LIST_IDS:
-        return
-    enrollments = await db.sat_enroll_get_all()
-    if not enrollments:
-        await update.message.reply_text("No SAT enrollments yet.")
-        return
-    buttons = [
-        [InlineKeyboardButton(
-            f"{e['full_name']} — {e['test_date']}",
-            callback_data=f"sat_view:{e['chat_id']}",
-        )]
-        for e in enrollments
-    ]
-    await update.message.reply_text(
-        f"\U0001f4cb SAT Enrollments ({len(enrollments)}):",
-        reply_markup=InlineKeyboardMarkup(buttons),
-    )
-
-
-async def _sat_view_callback(
-    update: Update, context: ContextTypes.DEFAULT_TYPE
-) -> None:
-    query = update.callback_query
-    await query.answer()
-    if query.from_user.id not in _SAT_LIST_IDS:
-        return
-    chat_id = int(query.data.split(":")[1])
-    enrollments = await db.sat_enroll_get_all()
-    e = next((x for x in enrollments if x["chat_id"] == chat_id), None)
-    if not e:
-        await query.edit_message_text("Not found.")
-        return
-    upart = f" (@{e['username']})" if e.get("username") else ""
-    text = (
-        f"<b>{e['full_name']}</b>{upart}\n"
-        f"SAT history: {e['sat_history']}\n"
-        f"Desired test date: {e['test_date']}\n"
-        f"Enrolled: {e['enrolled_at'][:10]}"
-    )
-    await query.edit_message_text(text, parse_mode="HTML")
-
-
-# ---------------------------------------------------------------------------
-# SAT Program Giveaway — student flow, admin commands, reviewer callbacks
-# ---------------------------------------------------------------------------
-
-async def _handle_sat_giveaway(
-    update: Update, chat_id: int, context: ContextTypes.DEFAULT_TYPE
-) -> None:
-    post = await db.sat_get_active_post()
-    if not post:
-        await update.message.reply_text(msg.SAT_GIVEAWAY_NO_POST)
-        return
-
-    entry = await db.sat_get_entry(chat_id)
-    if entry and entry["status"] in ("pending", "approved"):
-        await update.message.reply_text(msg.SAT_GIVEAWAY_ALREADY_SUBMITTED)
-        return
-
-    await context.bot.copy_message(
-        chat_id=chat_id,
-        from_chat_id=post["post_chat_id"],
-        message_id=post["post_message_id"],
-    )
-    await update.message.reply_text(msg.SAT_GIVEAWAY_PROMPT, reply_markup=_back_keyboard())
-    await db.set_flow(chat_id, "sat_giveaway")
-    await db.set_status(chat_id, "sat_step_screenshot")
-
-
-async def _handle_sat_screenshot(
-    update: Update,
-    chat_id: int,
-    file_id: str,
-    file_type: str,
-    context: ContextTypes.DEFAULT_TYPE,
-) -> None:
-    user = await db.get_user(chat_id)
-    first_name = user["first_name"] if user else "Unknown"
-    username = user["username"] if user else None
-
-    await db.sat_save_entry(chat_id, username, first_name, file_id, file_type)
-    await db.set_flow(chat_id, None)
-    await db.set_status(chat_id, None)
-    await update.message.reply_text(msg.SAT_GIVEAWAY_SUBMITTED, reply_markup=_main_keyboard())
-
-    username_part = f" (@{username})" if username else ""
-    keyboard = InlineKeyboardMarkup([[
-        InlineKeyboardButton(msg.BTN_SAT_APPROVE, callback_data=f"sat_approve:{chat_id}"),
-        InlineKeyboardButton(msg.BTN_SAT_REJECT, callback_data=f"sat_reject:{chat_id}"),
-    ]])
-
-    for reviewer_id in SAT_MAN_CHAT_ID:
-        if file_type == "photo":
-            sent = await context.bot.send_photo(
-                chat_id=reviewer_id,
-                photo=file_id,
-                caption=msg.SAT_REVIEWER_ENTRY.format(
-                    first_name=first_name, username_part=username_part
-                ),
-                reply_markup=keyboard,
-            )
-        else:
-            sent = await context.bot.send_document(
-                chat_id=reviewer_id,
-                document=file_id,
-                caption=msg.SAT_REVIEWER_ENTRY.format(
-                    first_name=first_name, username_part=username_part
-                ),
-                reply_markup=keyboard,
-            )
-        await db.sat_set_entry_reviewer_message(chat_id, sent.message_id)
-
-
-async def _sat_decision_callback(
-    update: Update, context: ContextTypes.DEFAULT_TYPE, decision: str
-) -> None:
-    query = update.callback_query
-    await query.answer()
-
-    applicant_chat_id = int(query.data.split(":")[1])
-    entry = await db.sat_get_entry(applicant_chat_id)
-
-    if not entry or entry["status"] != "pending":
-        await query.answer(msg.SAT_REVIEWER_ALREADY_DECIDED, show_alert=True)
-        return
-
-    await db.sat_set_entry_status(applicant_chat_id, decision)
-
-    student_msg = msg.SAT_GIVEAWAY_APPROVED if decision == "approved" else msg.SAT_GIVEAWAY_REJECTED
-    reviewer_confirmation = msg.SAT_REVIEWER_ACCEPTED if decision == "approved" else msg.SAT_REVIEWER_REJECTED
-
-    try:
-        await context.bot.send_message(chat_id=applicant_chat_id, text=student_msg)
-    except Exception:
-        logger.exception("Failed to notify SAT giveaway participant chat_id=%d", applicant_chat_id)
-
-    caption = query.message.caption or ""
-    await query.edit_message_caption(
-        caption=f"{caption}\n\n{reviewer_confirmation}",
-        reply_markup=None,
-    )
-
-
-async def _sat_approve_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    await _sat_decision_callback(update, context, "approved")
-
-
-async def _sat_reject_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    await _sat_decision_callback(update, context, "rejected")
 
 
 # ---------------------------------------------------------------------------
@@ -3037,36 +1979,6 @@ async def _tap_clear_command(update: Update, context: ContextTypes.DEFAULT_TYPE)
     await update.message.reply_text(msg.TAP_CLEARED)
 
 
-async def _sat_webinar_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    if update.effective_user.id != PERSON_X_CHAT_ID:
-        return
-    keyboard = InlineKeyboardMarkup([[
-        InlineKeyboardButton("📺 Join the webinar", url="https://t.me/freshmanblog"),
-    ]])
-    chat_ids = await db.get_all_chat_ids()
-    sent = failed = 0
-    first_error: str | None = None
-    for cid in chat_ids:
-        try:
-            await context.bot.send_message(
-                chat_id=cid,
-                text=msg.SAT_WEBINAR_REMINDER,
-                reply_markup=keyboard,
-                parse_mode="HTML",
-            )
-            sent += 1
-        except Exception as e:
-            if first_error is None:
-                first_error = f"{type(e).__name__}: {e}"
-            logger.warning("Webinar remind failed for chat_id=%d: %s", cid, e)
-            failed += 1
-        await asyncio.sleep(0.05)
-    result = msg.SAT_WEBINAR_DONE.format(sent=sent, failed=failed, total=len(chat_ids))
-    if first_error:
-        result += f"\n\nFirst error: {first_error}"
-    await update.message.reply_text(result)
-
-
 async def _ae_remind_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if update.effective_user.id != PERSON_X_CHAT_ID:
         return
@@ -3141,161 +2053,7 @@ async def _ae_stuck_command(update: Update, context: ContextTypes.DEFAULT_TYPE) 
     )
 
 
-async def _sat_post_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    if update.effective_user.id != PERSON_X_CHAT_ID:
-        return
-    reply = update.message.reply_to_message
-    if not reply:
-        await update.message.reply_text(msg.SAT_POST_USAGE)
-        return
-    await db.sat_save_post(reply.chat.id, reply.message_id)
-    await update.message.reply_text(msg.SAT_POST_SET)
-
-
-async def _sat_remind_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    if update.effective_user.id != PERSON_X_CHAT_ID:
-        return
-    users = await db.sat_get_users_awaiting_screenshot()
-    sent = failed = 0
-    for u in users:
-        try:
-            await context.bot.send_message(
-                chat_id=u["chat_id"],
-                text=msg.SAT_REMIND_SCREENSHOT,
-                parse_mode="HTML",
-            )
-            sent += 1
-        except Exception:
-            logger.warning("Failed to remind SAT user chat_id=%d", u["chat_id"])
-            failed += 1
-    await update.message.reply_text(
-        msg.SAT_REMIND_DONE.format(sent=sent, failed=failed, total=len(users))
-    )
-
-
-async def _sat_reroll_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    if update.effective_user.id != PERSON_X_CHAT_ID:
-        return
-    approved = await db.sat_get_all_approved()
-    if len(approved) < 2:
-        await update.message.reply_text(
-            msg.SAT_REROLL_NOT_ENOUGH if approved else msg.SAT_REROLL_NO_ENTRIES
-        )
-        return
-    winners = _random.sample(approved, 2)
-
-    def _fmt(p: dict) -> str:
-        upart = f" (@{p['username']})" if p.get("username") else ""
-        return f'<a href="tg://user?id={p["chat_id"]}">{p["first_name"]}</a>{upart}'
-
-    await update.message.reply_text(
-        msg.SAT_REROLL_RESULT.format(winner1=_fmt(winners[0]), winner2=_fmt(winners[1])),
-        parse_mode="HTML",
-    )
-
-
-# ---------------------------------------------------------------------------
-# /roll and /reroll — pick a random special event participant (PERSON_X only)
-# ---------------------------------------------------------------------------
-
 import random as _random
-
-
-def _roll_format(participant: dict, header: str) -> str:
-    username_part = f" (@{participant['username']})" if participant.get("username") else ""
-    return header.format(
-        chat_id=participant["student_chat_id"],
-        first_name=participant["first_name"],
-        username_part=username_part,
-    )
-
-
-def _roll_keyboard(winner_chat_id: int) -> InlineKeyboardMarkup:
-    return InlineKeyboardMarkup([[
-        InlineKeyboardButton(msg.BTN_CONFIRM_WINNER, callback_data=f"se_confirm:{winner_chat_id}"),
-        InlineKeyboardButton(msg.BTN_REROLL_INLINE, callback_data="se_reroll"),
-    ]])
-
-
-async def _roll_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    if update.effective_user.id != PERSON_X_CHAT_ID:
-        return
-    participants = await db.se_get_all_participants()
-    if not participants:
-        await update.message.reply_text(msg.ROLL_NO_PARTICIPANTS)
-        return
-    winner = _random.choice(participants)
-    _roll_state["last_id"] = winner["student_chat_id"]
-    await update.message.reply_text(
-        _roll_format(winner, msg.ROLL_RESULT),
-        parse_mode="HTML",
-        reply_markup=_roll_keyboard(winner["student_chat_id"]),
-    )
-
-
-async def _reroll_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    if update.effective_user.id != PERSON_X_CHAT_ID:
-        return
-    if _roll_state["last_id"] is None:
-        await update.message.reply_text(msg.ROLL_USE_FIRST)
-        return
-    participants = await db.se_get_all_participants()
-    pool = [p for p in participants if p["student_chat_id"] != _roll_state["last_id"]]
-    if not pool:
-        await update.message.reply_text(msg.ROLL_ONLY_ONE)
-        return
-    winner = _random.choice(pool)
-    _roll_state["last_id"] = winner["student_chat_id"]
-    await update.message.reply_text(
-        _roll_format(winner, msg.REROLL_RESULT),
-        parse_mode="HTML",
-        reply_markup=_roll_keyboard(winner["student_chat_id"]),
-    )
-
-
-async def _roll_confirm_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    query = update.callback_query
-    await query.answer()
-    if update.effective_user.id != PERSON_X_CHAT_ID:
-        return
-    winner_chat_id = int(query.data.split(":")[1])
-    participants = await db.se_get_all_participants()
-    sent = failed = 0
-    for p in participants:
-        cid = p["student_chat_id"]
-        text = msg.ROLL_WINNER_NOTIFY if cid == winner_chat_id else msg.ROLL_LOSER_NOTIFY
-        try:
-            await context.bot.send_message(chat_id=cid, text=text)
-            sent += 1
-        except Exception:
-            logger.warning("Failed to notify participant chat_id=%d", cid)
-            failed += 1
-    _roll_state["last_id"] = None
-    await query.edit_message_text(
-        msg.ROLL_CONFIRMED.format(sent=sent, failed=failed),
-    )
-
-
-async def _se_reroll_inline_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    query = update.callback_query
-    await query.answer()
-    if update.effective_user.id != PERSON_X_CHAT_ID:
-        return
-    if _roll_state["last_id"] is None:
-        await query.edit_message_text(msg.ROLL_USE_FIRST)
-        return
-    participants = await db.se_get_all_participants()
-    pool = [p for p in participants if p["student_chat_id"] != _roll_state["last_id"]]
-    if not pool:
-        await query.edit_message_text(msg.ROLL_ONLY_ONE)
-        return
-    winner = _random.choice(pool)
-    _roll_state["last_id"] = winner["student_chat_id"]
-    await query.edit_message_text(
-        _roll_format(winner, msg.REROLL_RESULT),
-        parse_mode="HTML",
-        reply_markup=_roll_keyboard(winner["student_chat_id"]),
-    )
 
 
 # ---------------------------------------------------------------------------
@@ -3503,19 +2261,11 @@ def build_app() -> Application:
     app.add_handler(CommandHandler("start", start, filters=_private))
     app.add_handler(CommandHandler("cancel", cancel, filters=_private))
     app.add_handler(CommandHandler("clarify", clarify_command, filters=_private))
-    app.add_handler(CommandHandler("event", _eg_admin_event_command, filters=_private))
-    app.add_handler(CommandHandler("status", _eg_admin_status, filters=_private))
-    app.add_handler(CommandHandler("clearevent", _eg_admin_clearevent, filters=_private))
-    app.add_handler(CommandHandler("help", _eg_admin_help, filters=_private))
     app.add_handler(CommandHandler("broadcastkeyboard", _broadcast_keyboard_command, filters=_private))
     app.add_handler(CommandHandler("stats", _stats_command, filters=_private))
     app.add_handler(CommandHandler("export_db", _export_db_command, filters=_private))
     app.add_handler(CommandHandler("setvideo", _video_admin_command, filters=_private))
-    app.add_handler(CommandHandler("sevent", _sevent_command, filters=_private))
-    app.add_handler(CommandHandler("sparticipants", _sevent_participants_command, filters=_private))
     app.add_handler(CommandHandler("pingexperts", _ping_experts_command, filters=_private))
-    app.add_handler(CommandHandler("roll", _roll_command, filters=_private))
-    app.add_handler(CommandHandler("reroll", _reroll_command, filters=_private))
     app.add_handler(CommandHandler("followup", followup_command, filters=_private))
     app.add_handler(CommandHandler("santix", _santix_command, filters=_private))
     app.add_handler(CommandHandler("answered", _q_answered_command, filters=_private))
@@ -3531,41 +2281,16 @@ def build_app() -> Application:
     app.add_handler(CallbackQueryHandler(_ae_payment_made_callback, pattern="^ae_payment_made:"))
     app.add_handler(CallbackQueryHandler(_ae_payment_confirm_callback, pattern="^ae_payment_confirm:"))
     app.add_handler(CallbackQueryHandler(_ae_payment_reject_callback, pattern="^ae_payment_reject:"))
-    app.add_handler(CommandHandler("sat_webinar", _sat_webinar_command, filters=_private))
-    app.add_handler(CommandHandler("sat_post", _sat_post_command, filters=_private))
-    app.add_handler(CommandHandler("sat_remind", _sat_remind_command, filters=_private))
-    app.add_handler(CommandHandler("sat_reroll", _sat_reroll_command, filters=_private))
-    app.add_handler(CommandHandler("sat_list", _sat_list_command, filters=_private))
-    app.add_handler(CallbackQueryHandler(_sat_view_callback, pattern="^sat_view:"))
-    app.add_handler(CommandHandler("hku_set", _hku_set_command, filters=_private))
-    app.add_handler(CommandHandler("hku_waitlist_msg", _hku_waitlist_msg_command, filters=_private))
-    app.add_handler(CommandHandler("export_all", _export_all_command, filters=_private))
-    app.add_handler(CommandHandler("hku_export", _hku_export_command, filters=_private))
-    app.add_handler(CommandHandler("rs_export", _rs_export_command, filters=_private))
-    app.add_handler(CommandHandler("apw_set", _apw_set_command, filters=_private))
-    app.add_handler(CommandHandler("apw_clear", _apw_clear_command, filters=_private))
-    app.add_handler(CommandHandler("apw_export", _apw_export_command, filters=_private))
-    app.add_handler(CallbackQueryHandler(_apw_join_callback, pattern="^apw_join$"))
-    app.add_handler(CallbackQueryHandler(_apw_check_callback, pattern="^apw_check$"))
-    app.add_handler(CallbackQueryHandler(_apw_ap_toggle_callback, pattern="^apw_ap:"))
-    app.add_handler(CallbackQueryHandler(_apw_submit_callback, pattern="^apw_submit$"))
-    app.add_handler(CallbackQueryHandler(_sat_approve_callback, pattern="^sat_approve:"))
-    app.add_handler(CallbackQueryHandler(_sat_reject_callback, pattern="^sat_reject:"))
     app.add_handler(CommandHandler("tap_post", _tap_post_command, filters=_private))
     app.add_handler(CommandHandler("tap_clear", _tap_clear_command, filters=_private))
     app.add_handler(CallbackQueryHandler(_tap_join_callback, pattern="^tap_join$"))
     app.add_handler(CallbackQueryHandler(_tap_screenshot_callback, pattern="^tap_screenshot$"))
     app.add_handler(CallbackQueryHandler(_tap_approve_callback, pattern="^tap_approve:"))
     app.add_handler(CallbackQueryHandler(_tap_reject_callback, pattern="^tap_reject:"))
-    app.add_handler(CallbackQueryHandler(_se_join_callback, pattern="^se_join$"))
-    app.add_handler(CallbackQueryHandler(_se_check_callback, pattern="^se_check$"))
-    app.add_handler(CallbackQueryHandler(_roll_confirm_callback, pattern="^se_confirm:"))
-    app.add_handler(CallbackQueryHandler(_se_reroll_inline_callback, pattern="^se_reroll$"))
     app.add_handler(CallbackQueryHandler(_video_admin_program_callback, pattern="^setvideo_"))
     app.add_handler(CallbackQueryHandler(_q_program_callback, pattern="^qp:"))
     app.add_handler(CallbackQueryHandler(_q_date_callback, pattern="^qd:"))
     app.add_handler(CallbackQueryHandler(_podcast_check_callback, pattern="^podcast_check$"))
-    app.add_handler(CallbackQueryHandler(_hku_check_callback, pattern="^hku_check$"))
     app.add_handler(CallbackQueryHandler(_ae_apply_now_callback, pattern="^ae_apply_now$"))
     app.add_handler(CallbackQueryHandler(_ae_list_callback, pattern="^ae_list$"))
     app.add_handler(CallbackQueryHandler(_ae_view_callback, pattern="^ae_view:"))

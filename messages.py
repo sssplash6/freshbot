@@ -489,10 +489,8 @@ CANCEL_REPLY = "Session reset. Type /start to begin."
 # Button labels
 # ---------------------------------------------------------------------------
 BTN_PROGRAMS = "📚 Programs"
-BTN_SPECIAL_EVENTS = "Consultation Giveaway w/ Valera"
 BTN_GET_LINK = "🔗 Get Event Link"
 BTN_CLICK_TO_JOIN = "Click to join! 🎉"
-BTN_SE_CHECK = "✅ I've joined — check again"
 
 BTN_SAT = "SAT Program"
 BTN_ADMISSIONS = "Admissions Program"
@@ -537,85 +535,6 @@ BTN_PODCAST_CHECK = "\u2705 I've subscribed \u2014 check again"
 
 BTN_ADV_ENGLISH = "Special Offer \u2013 Advanced English"
 
-BTN_AP_WEBINAR = "🎓 Access AP Webinar"
-
-BTN_HKU = "HKU Admissions Rep Event \U0001f1ed\U0001f1f0"
-
-HKU_NOT_ACTIVE = "\U0001f512 This event is not active at the moment. Check back soon!"
-
-HKU_POST_SET = "✅ HKU event post saved."
-HKU_POST_USAGE = "Reply to a message with /hku_set to save it as the HKU event post."
-HKU_WAITLIST_MSG_USAGE = "Reply to a message with /hku_waitlist_msg to send it to all waitlisted users."
-HKU_WAITLIST_MSG_DONE = "✅ Sent to {sent} waitlisted users ({failed} failed)."
-
-HKU_MUST_SUBSCRIBE = (
-    "To get your invite link to the HKU Admissions Representative event, "
-    "please subscribe to @freshmanblog first.\n\n"
-    "Once you\u2019ve subscribed, tap the button below."
-)
-
-BTN_HKU_CHECK = "\u2705 I\u2019ve subscribed \u2014 check again"
-
-HKU_SLOTS_FULL = (
-    "Unfortunately, all 20 spots for this event have been filled. "
-    "Stay tuned for future events!"
-)
-
-HKU_WAITLISTED = (
-    "Unfortunately, all 20 spots have just been filled. "
-    "We\u2019ve saved your details and will reach out if a spot opens up."
-)
-
-HKU_ALREADY_REGISTERED = (
-    "You\u2019re already registered! Here is your invite link:\n{link}\n\n"
-    "Do not share it \u2014 it will only work once."
-)
-
-HKU_ALREADY_WAITLISTED = (
-    "You\u2019re on the waitlist \u2014 we\u2019ll reach out if a spot opens up."
-)
-
-HKU_ASK_EMAIL = "Please enter your email address:"
-
-HKU_ASK_PHONE = "Please share your phone number using the button below."
-
-BTN_HKU_SHARE_PHONE = "\U0001f4f1 Share my phone number"
-
-HKU_PHONE_REQUIRED = "Please use the button below to share your phone number."
-
-HKU_REGISTERED = (
-    "\U0001f1ed\U0001f1f0 <b>You\u2019re registered for the HKU Admissions Representative event!</b>\n\n"
-    "Here is your personal link to join the event group "
-    "(one-time use only):\n{link}\n\n"
-    "Do not share this link \u2014 it will only work once."
-)
-
-APW_NO_POST = "\U0001f512 Access AP Webinar is not open yet. Stay tuned!"
-APW_NOT_MEMBER = (
-    "To join the webinar, please subscribe to the following channel(s) first:\n\n"
-    "{links}\n\n"
-    "Once you\u2019ve subscribed, tap the button below."
-)
-BTN_APW_JOIN = "Join Now"
-BTN_APW_CHECK = "\u2705 I\u2019ve subscribed \u2014 check again"
-APW_ALREADY_ISSUED = (
-    "\u2705 You already have a link to the Access AP Webinar group:\n{link}\n\n"
-    "Do not share it \u2014 it will only work once."
-)
-APW_INVITE_SENT = (
-    "\U0001f389 You\u2019re in! Here is your one-time link to the Access AP Webinar group:\n{link}\n\n"
-    "Do not share this link \u2014 it will only work once."
-)
-APW_POST_SET = "\u2705 Access AP Webinar intro post saved."
-APW_POST_USAGE = "Reply to a message with /apw_set to set the Access AP Webinar intro post."
-APW_CLEARED = "\u2705 Access AP Webinar deactivated."
-APW_POLL_QUESTION = "Which AP courses are you interested in?\n\nSelect all that apply, then tap Done."
-BTN_APW_DONE = "Done \u2714\ufe0f"
-APW_POLL_ALREADY = "\u2705 You've already submitted your interests: {aps}"
-APW_POLL_EMPTY = "Please select at least one AP first."
-APW_POLL_SUBMITTED = (
-    "\u2705 Got it! We've noted your interests and will be in touch with more details on the AP Courses."
-)
 
 AE_INTRO = (
     "\U0001f4a5<b>Special Offer: Advanced English</b>\n\n"
@@ -784,62 +703,6 @@ AE_REVIEWER_ACCEPTED = "\u2705 Accepted. Applicant has been notified."
 AE_REVIEWER_REJECTED = "\u274c Rejected. Applicant has been notified."
 AE_REVIEWER_ALREADY_DECIDED = "\u2139\ufe0f Decision already recorded for this application."
 
-# ---------------------------------------------------------------------------
-# SAT Program Giveaway
-# ---------------------------------------------------------------------------
-
-BTN_SAT_GIVEAWAY = "SAT Program Giveaway"
-
-SAT_GIVEAWAY_NO_POST = "\U0001f512 The giveaway isn't active yet. Stay tuned!"
-
-SAT_GIVEAWAY_ALREADY_SUBMITTED = (
-    "You've already submitted an entry. We'll notify you once it's reviewed!"
-)
-
-SAT_GIVEAWAY_PROMPT = (
-    "Repost the post above to your story or feed, then send a screenshot here confirming you did."
-)
-
-SAT_GIVEAWAY_SUBMITTED = "\u23f3 Your entry is under review. We'll notify you of the result!"
-
-SAT_GIVEAWAY_APPROVED = "\u2705 Your entry was approved \u2014 you're in the giveaway! Good luck!"
-
-SAT_GIVEAWAY_REJECTED = "\u274c Your entry wasn't approved. Make sure the screenshot clearly shows the repost."
-
-SAT_GIVEAWAY_SCREENSHOT_REQUIRED = "Please send a photo or document screenshot to continue."
-
-SAT_REVIEWER_ENTRY = "\U0001f4f8 New SAT Giveaway entry from {first_name}{username_part}"
-
-SAT_REVIEWER_ACCEPTED = "\u2705 Approved. Participant notified."
-SAT_REVIEWER_REJECTED = "\u274c Rejected. Participant notified."
-SAT_REVIEWER_ALREADY_DECIDED = "\u2139\ufe0f Decision already recorded for this entry."
-
-BTN_SAT_APPROVE = "\u2705 Approve"
-BTN_SAT_REJECT = "\u274c Reject"
-
-SAT_REMIND_SCREENSHOT = (
-    "\u23f0 <b>Only 2 hours left until the webinar!</b>\n\n"
-    "Make sure to repost our post and send the screenshot here to secure your spot in the "
-    "<b>SAT Program Giveaway</b> \u2014 we're giving away <b>2 free seats</b> in our SAT Program!"
-)
-SAT_REMIND_DONE = "Reminder sent: {sent} delivered, {failed} failed ({total} total)."
-
-SAT_WEBINAR_REMINDER = (
-    "\U0001f393 <b>The SAT Webinar is starting now!</b>\n\n"
-    "Join us live on our Telegram channel \U0001f447"
-)
-SAT_WEBINAR_DONE = "Webinar reminder sent: {sent} delivered, {failed} failed ({total} total)."
-
-SAT_POST_SET = "\u2705 Giveaway post saved."
-SAT_POST_USAGE = "Reply to a message with /sat_post to set it as the giveaway post."
-
-SAT_REROLL_NO_ENTRIES = "No approved entries yet."
-SAT_REROLL_NOT_ENOUGH = "Need at least 2 approved entries to draw 2 winners."
-SAT_REROLL_RESULT = (
-    "\U0001f3ab SAT Giveaway Winners:\n"
-    "1. {winner1}\n"
-    "2. {winner2}"
-)
 
 # ---------------------------------------------------------------------------
 # SAT Program Enrollment
@@ -943,54 +806,6 @@ BROADCAST_KEYBOARD_MESSAGE = (
 )
 BROADCAST_KEYBOARD_DONE = "Keyboard broadcast: {sent} sent, {failed} failed ({total} total users)."
 
-# ---------------------------------------------------------------------------
-# Special Events — student flow
-# ---------------------------------------------------------------------------
-SE_NO_ACTIVE_EVENT = "No special event at the moment. Check back soon!"
-SE_JOIN_PROMPT = "Tap below to participate:"
-SE_MUST_JOIN = (
-    "To participate, please join the following channels first:\n"
-    "{channel_list}\n\n"
-    "Once you've joined, tap the button below."
-)
-SE_ALREADY_PARTICIPATING = "You're already signed up! We'll notify you on June 1. 🎉"
-SE_NOW_PARTICIPATING = (
-    "🎉 You are now participating!\n\n"
-    "We will release the results through the bot on June 1."
-)
-
-# ---------------------------------------------------------------------------
-# Special Events — admin flow
-# ---------------------------------------------------------------------------
-SEVENT_SEND_POST = (
-    "Send me the special event post (any message type — text, photo, or forwarded)."
-)
-SEVENT_SAVED = "✅ Special event post saved."
-
-# ---------------------------------------------------------------------------
-# /roll and /reroll
-# ---------------------------------------------------------------------------
-ROLL_NO_PARTICIPANTS = "No participants yet."
-ROLL_ONLY_ONE = "Only one participant — can't pick someone different."
-ROLL_USE_FIRST = "Use /roll first."
-ROLL_RESULT = '🎲 Result: <a href="tg://user?id={chat_id}">{first_name}</a>{username_part}'
-REROLL_RESULT = '🎲 Re-rolled: <a href="tg://user?id={chat_id}">{first_name}</a>{username_part}'
-
-BTN_CONFIRM_WINNER = "✅ Confirm Winner"
-BTN_REROLL_INLINE = "🎲 Reroll"
-
-ROLL_WINNER_NOTIFY = (
-    "Congratulations! 🎉\n\n"
-    "You have won the Consultation Giveaway with Valera: three consultations with Valera, "
-    "Freshman Founder, worth $360.\n\n"
-    "Valera will contact you personally with the next steps."
-)
-ROLL_LOSER_NOTIFY = (
-    "Thank you for participating in the Consultation Giveaway with Valera!\n\n"
-    "Unfortunately, you were not selected this time. "
-    "Stay tuned, we will be launching more opportunities soon."
-)
-ROLL_CONFIRMED = "✅ Winner confirmed. Notifications sent: {sent} delivered, {failed} failed."
 
 # ---------------------------------------------------------------------------
 # Admin stats
@@ -1009,11 +824,6 @@ ADMIN_STATS = (
     "  Answered: {answered_questions}\n"
     "{questions_by_program}"
     "\n"
-    "\U0001f4c5 Event Gate\n"
-    "  Active event: {active_event}\n"
-    "  Links issued (all time): {total_links}\n"
-    "  Join approvals (all time): {total_approvals}\n"
-    "\n"
     "⏰ Scheduled jobs pending: {pending_jobs}\n"
     "\n"
     "\U0001f3a5 Intro videos set: {videos_set}\n"
@@ -1024,7 +834,6 @@ ADMIN_STATS = (
     "  Accepted: {ae_accepted}\n"
     "  Rejected: {ae_rejected}"
 )
-
 
 
 # ---------------------------------------------------------------------------

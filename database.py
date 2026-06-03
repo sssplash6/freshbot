@@ -42,23 +42,6 @@ async def init_db() -> None:
                 created_at        TEXT
             )
         """)
-        await db.execute("""
-            CREATE TABLE IF NOT EXISTS eg_events (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                status TEXT NOT NULL,
-                event_group_id INTEGER,
-                post_chat_id INTEGER,
-                post_message_id INTEGER,
-                post_text TEXT,
-                created_at TEXT NOT NULL
-            )
-        """)
-        # Add event_group_id column to existing deployments that predate this field
-        try:
-            await db.execute("ALTER TABLE eg_events ADD COLUMN event_group_id INTEGER")
-            await db.commit()
-        except Exception:
-            pass
         # Add answer_text column to existing deployments that predate this field
         try:
             await db.execute("ALTER TABLE questions ADD COLUMN answer_text TEXT")
@@ -72,48 +55,10 @@ async def init_db() -> None:
         except Exception:
             pass
         await db.execute("""
-            CREATE TABLE IF NOT EXISTS eg_issued_links (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                event_id INTEGER NOT NULL,
-                student_chat_id INTEGER NOT NULL,
-                invite_link TEXT NOT NULL,
-                expires_at TEXT NOT NULL,
-                created_at TEXT NOT NULL,
-                FOREIGN KEY (event_id) REFERENCES eg_events(id)
-            )
-        """)
-        await db.execute("""
-            CREATE TABLE IF NOT EXISTS eg_join_approvals (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                event_id INTEGER NOT NULL,
-                student_chat_id INTEGER NOT NULL,
-                approved_at TEXT NOT NULL,
-                FOREIGN KEY (event_id) REFERENCES eg_events(id)
-            )
-        """)
-        await db.execute("""
             CREATE TABLE IF NOT EXISTS program_videos (
                 program    TEXT PRIMARY KEY,
                 file_id    TEXT NOT NULL,
                 created_at TEXT NOT NULL
-            )
-        """)
-        await db.execute("""
-            CREATE TABLE IF NOT EXISTS special_event_posts (
-                id              INTEGER PRIMARY KEY AUTOINCREMENT,
-                post_chat_id    INTEGER NOT NULL,
-                post_message_id INTEGER NOT NULL,
-                is_active       INTEGER NOT NULL DEFAULT 1,
-                created_at      TEXT NOT NULL
-            )
-        """)
-        await db.execute("""
-            CREATE TABLE IF NOT EXISTS special_event_participants (
-                id              INTEGER PRIMARY KEY AUTOINCREMENT,
-                student_chat_id INTEGER NOT NULL UNIQUE,
-                first_name      TEXT NOT NULL,
-                username        TEXT,
-                participated_at TEXT NOT NULL
             )
         """)
         await db.execute("""
@@ -138,48 +83,6 @@ async def init_db() -> None:
             CREATE TABLE IF NOT EXISTS bot_settings (
                 key   TEXT PRIMARY KEY,
                 value TEXT NOT NULL
-            )
-        """)
-        await db.execute("""
-            CREATE TABLE IF NOT EXISTS rs_posts (
-                id              INTEGER PRIMARY KEY AUTOINCREMENT,
-                post_chat_id    INTEGER NOT NULL,
-                post_message_id INTEGER NOT NULL,
-                is_active       INTEGER NOT NULL DEFAULT 1,
-                created_at      TEXT NOT NULL
-            )
-        """)
-        await db.execute("""
-            CREATE TABLE IF NOT EXISTS rs_registrations (
-                id            INTEGER PRIMARY KEY AUTOINCREMENT,
-                chat_id       INTEGER NOT NULL UNIQUE,
-                username      TEXT,
-                first_name    TEXT NOT NULL,
-                full_name     TEXT NOT NULL,
-                phone         TEXT NOT NULL,
-                registered_at TEXT NOT NULL
-            )
-        """)
-        await db.execute("""
-            CREATE TABLE IF NOT EXISTS sat_giveaway_posts (
-                id              INTEGER PRIMARY KEY AUTOINCREMENT,
-                post_chat_id    INTEGER NOT NULL,
-                post_message_id INTEGER NOT NULL,
-                is_active       INTEGER NOT NULL DEFAULT 1,
-                created_at      TEXT NOT NULL
-            )
-        """)
-        await db.execute("""
-            CREATE TABLE IF NOT EXISTS sat_giveaway_entries (
-                id                   INTEGER PRIMARY KEY AUTOINCREMENT,
-                chat_id              INTEGER NOT NULL UNIQUE,
-                username             TEXT,
-                first_name           TEXT NOT NULL,
-                screenshot_file_id   TEXT NOT NULL,
-                screenshot_file_type TEXT NOT NULL DEFAULT 'photo',
-                status               TEXT NOT NULL DEFAULT 'pending',
-                reviewer_message_id  INTEGER,
-                created_at           TEXT NOT NULL
             )
         """)
         await db.execute("""
@@ -217,47 +120,6 @@ async def init_db() -> None:
                 enrolled_at  TEXT NOT NULL
             )
         """)
-        await db.execute("""
-            CREATE TABLE IF NOT EXISTS hku_registrations (
-                id            INTEGER PRIMARY KEY AUTOINCREMENT,
-                chat_id       INTEGER NOT NULL UNIQUE,
-                username      TEXT,
-                first_name    TEXT NOT NULL,
-                email         TEXT NOT NULL,
-                phone         TEXT NOT NULL,
-                invite_link   TEXT,
-                registered_at TEXT NOT NULL
-            )
-        """)
-        await db.execute("""
-            CREATE TABLE IF NOT EXISTS apw_events (
-                id              INTEGER PRIMARY KEY AUTOINCREMENT,
-                post_chat_id    INTEGER NOT NULL,
-                post_message_id INTEGER NOT NULL,
-                status          TEXT NOT NULL DEFAULT 'active',
-                created_at      TEXT NOT NULL
-            )
-        """)
-        await db.execute("""
-            CREATE TABLE IF NOT EXISTS apw_issued_links (
-                id              INTEGER PRIMARY KEY AUTOINCREMENT,
-                event_id        INTEGER NOT NULL,
-                student_chat_id INTEGER NOT NULL,
-                invite_link     TEXT NOT NULL,
-                created_at      TEXT NOT NULL,
-                FOREIGN KEY (event_id) REFERENCES apw_events(id)
-            )
-        """)
-        await db.execute("""
-            CREATE TABLE IF NOT EXISTS apw_interests (
-                id             INTEGER PRIMARY KEY AUTOINCREMENT,
-                chat_id        INTEGER NOT NULL UNIQUE,
-                username       TEXT,
-                first_name     TEXT NOT NULL,
-                interested_aps TEXT NOT NULL,
-                created_at     TEXT NOT NULL
-            )
-        """)
         for _col in [
             "ALTER TABLE adv_english_applications ADD COLUMN video_file_id TEXT",
             "ALTER TABLE adv_english_applications ADD COLUMN video_type TEXT",
@@ -271,6 +133,16 @@ async def init_db() -> None:
                 await db.commit()
             except Exception:
                 pass
+        # Retired features — drop their tables permanently (data already exported).
+        for _tbl in [
+            "eg_events", "eg_issued_links", "eg_join_approvals",
+            "special_event_posts", "special_event_participants",
+            "sat_giveaway_posts", "sat_giveaway_entries",
+            "hku_registrations",
+            "apw_events", "apw_issued_links", "apw_interests",
+            "rs_posts", "rs_registrations",
+        ]:
+            await db.execute(f"DROP TABLE IF EXISTS {_tbl}")
         await db.commit()
 
 
@@ -591,102 +463,6 @@ async def mark_sibling_questions_answered(user_chat_id: int, question_text: str)
 # Event gate operations
 # ---------------------------------------------------------------------------
 
-async def eg_save_event(
-    event_group_id: int,
-    post_chat_id: int | None,
-    post_message_id: int | None,
-    post_text: str | None,
-) -> int:
-    now = datetime.now(timezone.utc).isoformat()
-    async with aiosqlite.connect(DB_PATH) as db:
-        await db.execute("UPDATE eg_events SET status = 'inactive' WHERE status = 'active'")
-        cursor = await db.execute(
-            "INSERT INTO eg_events "
-            "(status, event_group_id, post_chat_id, post_message_id, post_text, created_at) "
-            "VALUES ('active', ?, ?, ?, ?, ?)",
-            (event_group_id, post_chat_id, post_message_id, post_text, now),
-        )
-        event_id = cursor.lastrowid
-        await db.commit()
-    return event_id
-
-
-async def eg_get_active_event() -> dict | None:
-    async with aiosqlite.connect(DB_PATH) as db:
-        db.row_factory = aiosqlite.Row
-        async with db.execute(
-            "SELECT * FROM eg_events WHERE status = 'active' ORDER BY id DESC LIMIT 1"
-        ) as cursor:
-            row = await cursor.fetchone()
-            return dict(row) if row else None
-
-
-async def eg_deactivate_event() -> None:
-    async with aiosqlite.connect(DB_PATH) as db:
-        await db.execute("UPDATE eg_events SET status = 'inactive' WHERE status = 'active'")
-        await db.commit()
-
-
-async def eg_store_issued_link(
-    event_id: int,
-    student_chat_id: int,
-    invite_link: str,
-    expires_at: str,
-) -> None:
-    now = datetime.now(timezone.utc).isoformat()
-    async with aiosqlite.connect(DB_PATH) as db:
-        await db.execute(
-            "INSERT INTO eg_issued_links "
-            "(event_id, student_chat_id, invite_link, expires_at, created_at) "
-            "VALUES (?, ?, ?, ?, ?)",
-            (event_id, student_chat_id, invite_link, expires_at, now),
-        )
-        await db.commit()
-
-
-async def eg_log_join_approval(event_id: int, student_chat_id: int) -> None:
-    now = datetime.now(timezone.utc).isoformat()
-    async with aiosqlite.connect(DB_PATH) as db:
-        await db.execute(
-            "INSERT INTO eg_join_approvals (event_id, student_chat_id, approved_at) "
-            "VALUES (?, ?, ?)",
-            (event_id, student_chat_id, now),
-        )
-        await db.commit()
-
-
-async def eg_get_issued_link(event_id: int, student_chat_id: int) -> dict | None:
-    """Return the most recent non-expired link for this user+event, or None."""
-    now = datetime.now(timezone.utc).isoformat()
-    async with aiosqlite.connect(DB_PATH) as db:
-        db.row_factory = aiosqlite.Row
-        async with db.execute(
-            """SELECT * FROM eg_issued_links
-               WHERE event_id = ? AND student_chat_id = ? AND expires_at > ?
-               ORDER BY id DESC LIMIT 1""",
-            (event_id, student_chat_id, now),
-        ) as cursor:
-            row = await cursor.fetchone()
-            return dict(row) if row else None
-
-
-async def eg_count_issued_links(event_id: int) -> int:
-    async with aiosqlite.connect(DB_PATH) as db:
-        async with db.execute(
-            "SELECT COUNT(*) FROM eg_issued_links WHERE event_id = ?", (event_id,)
-        ) as cursor:
-            row = await cursor.fetchone()
-            return row[0]
-
-
-async def eg_count_join_approvals(event_id: int) -> int:
-    async with aiosqlite.connect(DB_PATH) as db:
-        async with db.execute(
-            "SELECT COUNT(*) FROM eg_join_approvals WHERE event_id = ?", (event_id,)
-        ) as cursor:
-            row = await cursor.fetchone()
-            return row[0]
-
 
 async def upsert_program_video(program: str, file_id: str) -> None:
     now = datetime.now(timezone.utc).isoformat()
@@ -739,10 +515,6 @@ async def get_stats() -> dict:
 
         pending_jobs      = await scalar("SELECT COUNT(*) FROM scheduled_jobs WHERE sent = 0")
 
-        active_event      = await scalar("SELECT COUNT(*) FROM eg_events WHERE status = 'active'")
-        total_links       = await scalar("SELECT COUNT(*) FROM eg_issued_links")
-        total_approvals   = await scalar("SELECT COUNT(*) FROM eg_join_approvals")
-
         videos_set        = await rows("SELECT program FROM program_videos")
 
         ae_total     = await scalar("SELECT COUNT(*) FROM adv_english_applications")
@@ -759,9 +531,6 @@ async def get_stats() -> dict:
         "answered_questions": answered_questions,
         "questions_by_program": questions_by_program,
         "pending_jobs": pending_jobs,
-        "active_event": active_event,
-        "total_links": total_links,
-        "total_approvals": total_approvals,
         "videos_set": [r[0] for r in videos_set],
         "ae_total": ae_total,
         "ae_pending": ae_pending,
@@ -780,71 +549,6 @@ async def get_all_chat_ids() -> list[int]:
 # ---------------------------------------------------------------------------
 # Special event operations
 # ---------------------------------------------------------------------------
-
-async def se_get_active_post() -> dict | None:
-    async with aiosqlite.connect(DB_PATH) as db:
-        db.row_factory = aiosqlite.Row
-        async with db.execute(
-            "SELECT * FROM special_event_posts WHERE is_active = 1 ORDER BY id DESC LIMIT 1"
-        ) as cursor:
-            row = await cursor.fetchone()
-            return dict(row) if row else None
-
-
-async def se_save_post(post_chat_id: int, post_message_id: int) -> None:
-    now = datetime.now(timezone.utc).isoformat()
-    async with aiosqlite.connect(DB_PATH) as db:
-        await db.execute("UPDATE special_event_posts SET is_active = 0 WHERE is_active = 1")
-        await db.execute(
-            "INSERT INTO special_event_posts (post_chat_id, post_message_id, is_active, created_at) "
-            "VALUES (?, ?, 1, ?)",
-            (post_chat_id, post_message_id, now),
-        )
-        await db.commit()
-
-
-async def se_get_all_participants() -> list[dict]:
-    async with aiosqlite.connect(DB_PATH) as db:
-        db.row_factory = aiosqlite.Row
-        async with db.execute(
-            "SELECT * FROM special_event_participants ORDER BY participated_at"
-        ) as cursor:
-            rows = await cursor.fetchall()
-            return [dict(r) for r in rows]
-
-
-async def se_get_participant(student_chat_id: int) -> dict | None:
-    async with aiosqlite.connect(DB_PATH) as db:
-        db.row_factory = aiosqlite.Row
-        async with db.execute(
-            "SELECT * FROM special_event_participants WHERE student_chat_id = ?",
-            (student_chat_id,),
-        ) as cursor:
-            row = await cursor.fetchone()
-            return dict(row) if row else None
-
-
-async def se_remove_participant(student_chat_id: int) -> None:
-    async with aiosqlite.connect(DB_PATH) as db:
-        await db.execute(
-            "DELETE FROM special_event_participants WHERE student_chat_id = ?",
-            (student_chat_id,),
-        )
-        await db.commit()
-
-
-async def se_add_participant(
-    student_chat_id: int, first_name: str, username: str | None
-) -> None:
-    now = datetime.now(timezone.utc).isoformat()
-    async with aiosqlite.connect(DB_PATH) as db:
-        await db.execute(
-            """INSERT OR IGNORE INTO special_event_participants
-               (student_chat_id, first_name, username, participated_at)
-               VALUES (?, ?, ?, ?)""",
-            (student_chat_id, first_name, username, now),
-        )
-        await db.commit()
 
 
 # ---------------------------------------------------------------------------
@@ -985,150 +689,6 @@ async def set_setting(key: str, value: str) -> None:
 
 
 # ---------------------------------------------------------------------------
-# SAT Giveaway operations
-# ---------------------------------------------------------------------------
-
-async def rs_save_post(post_chat_id: int, post_message_id: int) -> None:
-    now = datetime.now(timezone.utc).isoformat()
-    async with aiosqlite.connect(DB_PATH) as db:
-        await db.execute("UPDATE rs_posts SET is_active = 0 WHERE is_active = 1")
-        await db.execute(
-            "INSERT INTO rs_posts (post_chat_id, post_message_id, is_active, created_at)"
-            " VALUES (?, ?, 1, ?)",
-            (post_chat_id, post_message_id, now),
-        )
-        await db.execute("DELETE FROM rs_registrations")
-        await db.commit()
-
-
-async def rs_get_active_post() -> dict | None:
-    async with aiosqlite.connect(DB_PATH) as db:
-        db.row_factory = aiosqlite.Row
-        async with db.execute(
-            "SELECT * FROM rs_posts WHERE is_active = 1 ORDER BY id DESC LIMIT 1"
-        ) as cursor:
-            row = await cursor.fetchone()
-            return dict(row) if row else None
-
-
-async def rs_count_registrations() -> int:
-    async with aiosqlite.connect(DB_PATH) as db:
-        async with db.execute("SELECT COUNT(*) FROM rs_registrations") as cursor:
-            row = await cursor.fetchone()
-            return row[0] if row else 0
-
-
-async def rs_get_registration(chat_id: int) -> dict | None:
-    async with aiosqlite.connect(DB_PATH) as db:
-        db.row_factory = aiosqlite.Row
-        async with db.execute(
-            "SELECT * FROM rs_registrations WHERE chat_id = ?", (chat_id,)
-        ) as cursor:
-            row = await cursor.fetchone()
-            return dict(row) if row else None
-
-
-async def rs_save_registration(
-    chat_id: int, username: str | None, first_name: str, full_name: str, phone: str
-) -> None:
-    now = datetime.now(timezone.utc).isoformat()
-    async with aiosqlite.connect(DB_PATH) as db:
-        await db.execute(
-            """INSERT OR IGNORE INTO rs_registrations
-               (chat_id, username, first_name, full_name, phone, registered_at)
-               VALUES (?, ?, ?, ?, ?, ?)""",
-            (chat_id, username, first_name, full_name, phone, now),
-        )
-        await db.commit()
-
-
-async def rs_get_all_registrations() -> list[dict]:
-    async with aiosqlite.connect(DB_PATH) as db:
-        db.row_factory = aiosqlite.Row
-        async with db.execute(
-            "SELECT * FROM rs_registrations ORDER BY registered_at"
-        ) as cursor:
-            rows = await cursor.fetchall()
-            return [dict(r) for r in rows]
-
-
-async def sat_save_post(post_chat_id: int, post_message_id: int) -> None:
-    now = datetime.now(timezone.utc).isoformat()
-    async with aiosqlite.connect(DB_PATH) as db:
-        await db.execute("UPDATE sat_giveaway_posts SET is_active = 0 WHERE is_active = 1")
-        await db.execute(
-            "INSERT INTO sat_giveaway_posts (post_chat_id, post_message_id, is_active, created_at)"
-            " VALUES (?, ?, 1, ?)",
-            (post_chat_id, post_message_id, now),
-        )
-        await db.commit()
-
-
-async def sat_get_active_post() -> dict | None:
-    async with aiosqlite.connect(DB_PATH) as db:
-        db.row_factory = aiosqlite.Row
-        async with db.execute(
-            "SELECT * FROM sat_giveaway_posts WHERE is_active = 1 ORDER BY id DESC LIMIT 1"
-        ) as cursor:
-            row = await cursor.fetchone()
-            return dict(row) if row else None
-
-
-async def sat_save_entry(
-    chat_id: int,
-    username: str | None,
-    first_name: str,
-    screenshot_file_id: str,
-    screenshot_file_type: str,
-) -> None:
-    now = datetime.now(timezone.utc).isoformat()
-    async with aiosqlite.connect(DB_PATH) as db:
-        await db.execute(
-            """INSERT INTO sat_giveaway_entries
-               (chat_id, username, first_name, screenshot_file_id, screenshot_file_type, status, created_at)
-               VALUES (?, ?, ?, ?, ?, 'pending', ?)
-               ON CONFLICT(chat_id) DO UPDATE SET
-                   username = excluded.username,
-                   first_name = excluded.first_name,
-                   screenshot_file_id = excluded.screenshot_file_id,
-                   screenshot_file_type = excluded.screenshot_file_type,
-                   status = 'pending',
-                   reviewer_message_id = NULL,
-                   created_at = excluded.created_at""",
-            (chat_id, username, first_name, screenshot_file_id, screenshot_file_type, now),
-        )
-        await db.commit()
-
-
-async def sat_get_entry(chat_id: int) -> dict | None:
-    async with aiosqlite.connect(DB_PATH) as db:
-        db.row_factory = aiosqlite.Row
-        async with db.execute(
-            "SELECT * FROM sat_giveaway_entries WHERE chat_id = ?", (chat_id,)
-        ) as cursor:
-            row = await cursor.fetchone()
-            return dict(row) if row else None
-
-
-async def sat_set_entry_reviewer_message(chat_id: int, message_id: int) -> None:
-    async with aiosqlite.connect(DB_PATH) as db:
-        await db.execute(
-            "UPDATE sat_giveaway_entries SET reviewer_message_id = ? WHERE chat_id = ?",
-            (message_id, chat_id),
-        )
-        await db.commit()
-
-
-async def sat_set_entry_status(chat_id: int, status: str) -> None:
-    async with aiosqlite.connect(DB_PATH) as db:
-        await db.execute(
-            "UPDATE sat_giveaway_entries SET status = ? WHERE chat_id = ?",
-            (status, chat_id),
-        )
-        await db.commit()
-
-
-# ---------------------------------------------------------------------------
 # Trial AP Lesson
 # ---------------------------------------------------------------------------
 
@@ -1223,26 +783,6 @@ async def tap_set_entry_link(chat_id: int, invite_link: str) -> None:
         await db.commit()
 
 
-async def sat_get_users_awaiting_screenshot() -> list[dict]:
-    async with aiosqlite.connect(DB_PATH) as db:
-        db.row_factory = aiosqlite.Row
-        async with db.execute(
-            "SELECT * FROM users WHERE flow = 'sat_giveaway' AND status = 'sat_step_screenshot'"
-        ) as cursor:
-            rows = await cursor.fetchall()
-            return [dict(r) for r in rows]
-
-
-async def sat_get_all_approved() -> list[dict]:
-    async with aiosqlite.connect(DB_PATH) as db:
-        db.row_factory = aiosqlite.Row
-        async with db.execute(
-            "SELECT * FROM sat_giveaway_entries WHERE status = 'approved' ORDER BY created_at"
-        ) as cursor:
-            rows = await cursor.fetchall()
-            return [dict(r) for r in rows]
-
-
 # ---------------------------------------------------------------------------
 # SAT Program Enrollment operations
 # ---------------------------------------------------------------------------
@@ -1291,156 +831,3 @@ async def sat_enroll_get_all() -> list[dict]:
         ) as cursor:
             rows = await cursor.fetchall()
             return [dict(r) for r in rows]
-
-
-async def hku_count_registrations() -> int:
-    async with aiosqlite.connect(DB_PATH) as db:
-        async with db.execute("SELECT COUNT(*) FROM hku_registrations") as cursor:
-            row = await cursor.fetchone()
-            return row[0] if row else 0
-
-
-async def hku_get_registration(chat_id: int) -> dict | None:
-    async with aiosqlite.connect(DB_PATH) as db:
-        db.row_factory = aiosqlite.Row
-        async with db.execute(
-            "SELECT * FROM hku_registrations WHERE chat_id = ?", (chat_id,)
-        ) as cursor:
-            row = await cursor.fetchone()
-            return dict(row) if row else None
-
-
-async def hku_save_registration(
-    chat_id: int,
-    username: str | None,
-    first_name: str,
-    email: str,
-    phone: str,
-    invite_link: str | None = None,
-) -> None:
-    now = datetime.now(timezone.utc).isoformat()
-    async with aiosqlite.connect(DB_PATH) as db:
-        await db.execute(
-            """INSERT INTO hku_registrations
-               (chat_id, username, first_name, email, phone, invite_link, registered_at)
-               VALUES (?, ?, ?, ?, ?, ?, ?)
-               ON CONFLICT(chat_id) DO UPDATE SET
-               invite_link = excluded.invite_link""",
-            (chat_id, username, first_name, email, phone, invite_link, now),
-        )
-        await db.commit()
-
-
-async def hku_get_all_registrations() -> list[dict]:
-    async with aiosqlite.connect(DB_PATH) as db:
-        db.row_factory = aiosqlite.Row
-        async with db.execute(
-            "SELECT * FROM hku_registrations ORDER BY registered_at"
-        ) as cursor:
-            rows = await cursor.fetchall()
-            return [dict(r) for r in rows]
-
-
-# ---------------------------------------------------------------------------
-# AP Webinar
-# ---------------------------------------------------------------------------
-
-async def apw_save_event(post_chat_id: int, post_message_id: int) -> None:
-    now = datetime.now(timezone.utc).isoformat()
-    async with aiosqlite.connect(DB_PATH) as db:
-        await db.execute("UPDATE apw_events SET status = 'inactive' WHERE status = 'active'")
-        await db.execute(
-            "INSERT INTO apw_events (post_chat_id, post_message_id, status, created_at) VALUES (?, ?, 'active', ?)",
-            (post_chat_id, post_message_id, now),
-        )
-        await db.commit()
-
-
-async def apw_get_active_event() -> dict | None:
-    async with aiosqlite.connect(DB_PATH) as db:
-        db.row_factory = aiosqlite.Row
-        async with db.execute(
-            "SELECT * FROM apw_events WHERE status = 'active' ORDER BY id DESC LIMIT 1"
-        ) as cursor:
-            row = await cursor.fetchone()
-            return dict(row) if row else None
-
-
-async def apw_deactivate_event() -> None:
-    async with aiosqlite.connect(DB_PATH) as db:
-        await db.execute("UPDATE apw_events SET status = 'inactive' WHERE status = 'active'")
-        await db.commit()
-
-
-async def apw_store_issued_link(event_id: int, student_chat_id: int, invite_link: str) -> None:
-    now = datetime.now(timezone.utc).isoformat()
-    async with aiosqlite.connect(DB_PATH) as db:
-        await db.execute(
-            "INSERT INTO apw_issued_links (event_id, student_chat_id, invite_link, created_at) VALUES (?, ?, ?, ?)",
-            (event_id, student_chat_id, invite_link, now),
-        )
-        await db.commit()
-
-
-async def apw_get_issued_link(event_id: int, student_chat_id: int) -> dict | None:
-    async with aiosqlite.connect(DB_PATH) as db:
-        db.row_factory = aiosqlite.Row
-        async with db.execute(
-            "SELECT * FROM apw_issued_links WHERE event_id = ? AND student_chat_id = ?",
-            (event_id, student_chat_id),
-        ) as cursor:
-            row = await cursor.fetchone()
-            return dict(row) if row else None
-
-
-async def apw_save_interest(chat_id: int, username: str | None, first_name: str, aps: list[str]) -> None:
-    now = datetime.now(timezone.utc).isoformat()
-    async with aiosqlite.connect(DB_PATH) as db:
-        await db.execute(
-            """INSERT INTO apw_interests (chat_id, username, first_name, interested_aps, created_at)
-               VALUES (?, ?, ?, ?, ?)
-               ON CONFLICT(chat_id) DO UPDATE SET
-               username = excluded.username,
-               first_name = excluded.first_name,
-               interested_aps = excluded.interested_aps,
-               created_at = excluded.created_at""",
-            (chat_id, username, first_name, ", ".join(aps), now),
-        )
-        await db.commit()
-
-
-async def apw_get_interest(chat_id: int) -> dict | None:
-    async with aiosqlite.connect(DB_PATH) as db:
-        db.row_factory = aiosqlite.Row
-        async with db.execute(
-            "SELECT * FROM apw_interests WHERE chat_id = ?", (chat_id,)
-        ) as cursor:
-            row = await cursor.fetchone()
-            return dict(row) if row else None
-
-
-async def apw_get_all_interests() -> list[dict]:
-    async with aiosqlite.connect(DB_PATH) as db:
-        db.row_factory = aiosqlite.Row
-        async with db.execute(
-            "SELECT * FROM apw_interests ORDER BY created_at"
-        ) as cursor:
-            rows = await cursor.fetchall()
-            return [dict(r) for r in rows]
-
-
-async def fetch_table(table: str) -> tuple[list[str], list[tuple]]:
-    """Return (column_names, rows) for an arbitrary table — used by /export_all."""
-    async with aiosqlite.connect(DB_PATH) as db:
-        async with db.execute(f"SELECT * FROM {table}") as cursor:
-            rows = await cursor.fetchall()
-            cols = [d[0] for d in cursor.description]
-            return cols, [tuple(r) for r in rows]
-
-
-async def drop_tables(tables: list[str]) -> None:
-    """Permanently DROP the given tables. Used when retiring a feature."""
-    async with aiosqlite.connect(DB_PATH) as db:
-        for t in tables:
-            await db.execute(f"DROP TABLE IF EXISTS {t}")
-        await db.commit()
