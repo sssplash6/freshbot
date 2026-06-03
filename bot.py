@@ -2277,6 +2277,7 @@ _RETIRED_FEATURE_TABLES: list[str] = [
     "sat_giveaway_posts", "sat_giveaway_entries",
     "hku_registrations",
     "apw_events", "apw_issued_links", "apw_interests",
+    "rs_posts", "rs_registrations",
 ]
 
 
