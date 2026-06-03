@@ -2270,6 +2270,48 @@ async def _apw_export_command(
     )
 
 
+# Tables backing the features being retired — exported by /export_all, dropped by /retire_features.
+_RETIRED_FEATURE_TABLES: list[str] = [
+    "eg_events", "eg_issued_links", "eg_join_approvals",
+    "special_event_posts", "special_event_participants",
+    "sat_giveaway_posts", "sat_giveaway_entries",
+    "hku_registrations",
+    "apw_events", "apw_issued_links", "apw_interests",
+]
+
+
+async def _export_all_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    if update.effective_user.id != PERSON_X_CHAT_ID:
+        return
+    import io
+    import csv
+    exported = 0
+    total_rows = 0
+    for table in _RETIRED_FEATURE_TABLES:
+        try:
+            cols, rows = await db.fetch_table(table)
+        except Exception:
+            logger.exception("export_all: failed to read table %s", table)
+            await update.message.reply_text(f"⚠️ Could not read {table} (skipped).")
+            continue
+        buf = io.StringIO()
+        writer = csv.writer(buf)
+        writer.writerow(cols)
+        writer.writerows(rows)
+        data = buf.getvalue().encode("utf-8")
+        await update.message.reply_document(
+            document=io.BytesIO(data),
+            filename=f"{table}.csv",
+            caption=f"{table}: {len(rows)} row(s)",
+        )
+        exported += 1
+        total_rows += len(rows)
+    await update.message.reply_text(
+        f"✅ Exported {exported} table(s), {total_rows} row(s) total.\n"
+        "Save these files somewhere safe — this data will be permanently deleted in the next step."
+    )
+
+
 async def _hku_export_command(
     update: Update, context: ContextTypes.DEFAULT_TYPE
 ) -> None:
@@ -3488,6 +3530,7 @@ def build_app() -> Application:
     app.add_handler(CallbackQueryHandler(_sat_view_callback, pattern="^sat_view:"))
     app.add_handler(CommandHandler("hku_set", _hku_set_command, filters=_private))
     app.add_handler(CommandHandler("hku_waitlist_msg", _hku_waitlist_msg_command, filters=_private))
+    app.add_handler(CommandHandler("export_all", _export_all_command, filters=_private))
     app.add_handler(CommandHandler("hku_export", _hku_export_command, filters=_private))
     app.add_handler(CommandHandler("rs_export", _rs_export_command, filters=_private))
     app.add_handler(CommandHandler("apw_set", _apw_set_command, filters=_private))

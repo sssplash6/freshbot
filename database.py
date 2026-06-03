@@ -1427,3 +1427,20 @@ async def apw_get_all_interests() -> list[dict]:
         ) as cursor:
             rows = await cursor.fetchall()
             return [dict(r) for r in rows]
+
+
+async def fetch_table(table: str) -> tuple[list[str], list[tuple]]:
+    """Return (column_names, rows) for an arbitrary table — used by /export_all."""
+    async with aiosqlite.connect(DB_PATH) as db:
+        async with db.execute(f"SELECT * FROM {table}") as cursor:
+            rows = await cursor.fetchall()
+            cols = [d[0] for d in cursor.description]
+            return cols, [tuple(r) for r in rows]
+
+
+async def drop_tables(tables: list[str]) -> None:
+    """Permanently DROP the given tables. Used when retiring a feature."""
+    async with aiosqlite.connect(DB_PATH) as db:
+        for t in tables:
+            await db.execute(f"DROP TABLE IF EXISTS {t}")
+        await db.commit()
