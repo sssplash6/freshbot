@@ -242,6 +242,9 @@ async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 # ---------------------------------------------------------------------------
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    # Edited messages (and other non-message updates) arrive with update.message=None.
+    if update.message is None:
+        return
     text = update.message.text
     chat_id = update.effective_chat.id
 
@@ -2935,7 +2938,12 @@ async def _handle_tap_screenshot(
     ]])
     caption = msg.TAP_REVIEWER_ENTRY.format(first_name=first_name, username_part=username_part)
 
-    for reviewer_id in AP_MAN_CHAT_ID:
+    reviewers = ADV_PLACEMENT_MAN_CHAT_ID or [PERSON_X_CHAT_ID]
+    if not ADV_PLACEMENT_MAN_CHAT_ID:
+        logger.warning(
+            "ADV_PLACEMENT_MAN_CHAT_ID is empty — routing Trial AP screenshot to PERSON_X fallback."
+        )
+    for reviewer_id in reviewers:
         try:
             if file_type == "photo":
                 sent = await context.bot.send_photo(
