@@ -709,15 +709,18 @@ AE_REVIEWER_ALREADY_DECIDED = "\u2139\ufe0f Decision already recorded for this a
 # ---------------------------------------------------------------------------
 
 BTN_SAT_ENROLL = "Enroll at SAT Program"
+BTN_SAT_ONLINE = "\U0001f5a5\ufe0f Online"
+BTN_SAT_OFFLINE = "\U0001f3eb Offline"
 
 SAT_ENROLL_INFO = (
-    "\U0001f393 <b>Online SAT Program by Freshman Academy</b>\n\n"
+    "\U0001f393 <b>SAT Program by Freshman Academy</b>\n\n"
     "More than just SAT prep \u2014 you\u2019ll learn alongside admissions-focused mentors "
     "and driven peers, gaining early exposure to the college admissions world while improving your SAT.\n\n"
-    "\U0001f4b8 <b>Price:</b> <s>$240</s> $90/month (EID offer)\n\n"
+    "\U0001f4b8 <b>Price:</b> $120\n\n"
     "To enroll, fill in the short form below and our team will reach out to you shortly."
 )
 
+SAT_ENROLL_ASK_FORMAT = "Will you be joining Online or Offline?"
 SAT_ENROLL_ASK_NAME = "What\u2019s your name?"
 SAT_ENROLL_ASK_HISTORY = (
     "Have you taken the SAT before?\n\n"
@@ -728,6 +731,7 @@ SAT_ENROLL_SUBMITTED = "\u2705 Thank you! Freshman Team will reach out to you so
 SAT_ENROLL_EXPERT_ENTRY = (
     "\U0001f4cb New SAT Program enrollment\n"
     "From: <a href=\"tg://user?id={chat_id}\">{first_name}</a>{username_part}\n\n"
+    "<b>Format:</b> {format_type}\n"
     "<b>Name:</b> {full_name}\n"
     "<b>SAT History:</b> {sat_history}\n"
     "<b>Desired Test Date:</b> {test_date}"

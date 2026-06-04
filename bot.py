@@ -183,6 +183,14 @@ def _back_keyboard() -> ReplyKeyboardMarkup:
     )
 
 
+def _sat_format_keyboard() -> ReplyKeyboardMarkup:
+    return ReplyKeyboardMarkup(
+        [[msg.BTN_SAT_ONLINE, msg.BTN_SAT_OFFLINE], [msg.BTN_BACK]],
+        resize_keyboard=True,
+        one_time_keyboard=True,
+    )
+
+
 def _start_keyboard() -> ReplyKeyboardMarkup:
     return ReplyKeyboardMarkup(
         [[msg.BTN_START]],
@@ -1716,8 +1724,8 @@ async def _handle_sat_enroll(
     )
     _sat_enroll_state[chat_id] = {}
     await db.set_flow(chat_id, "sat_enroll")
-    await db.set_status(chat_id, "sat_enroll_step_name")
-    await update.message.reply_text(msg.SAT_ENROLL_ASK_NAME, reply_markup=_back_keyboard())
+    await db.set_status(chat_id, "sat_enroll_step_format")
+    await update.message.reply_text(msg.SAT_ENROLL_ASK_FORMAT, reply_markup=_sat_format_keyboard())
 
 
 async def _handle_sat_enroll_step(
@@ -1726,7 +1734,15 @@ async def _handle_sat_enroll_step(
     user = await db.get_user(chat_id)
     status = user.get("status") if user else None
 
-    if status == "sat_enroll_step_name":
+    if status == "sat_enroll_step_format":
+        if text not in (msg.BTN_SAT_ONLINE, msg.BTN_SAT_OFFLINE):
+            await update.message.reply_text(msg.SAT_ENROLL_ASK_FORMAT, reply_markup=_sat_format_keyboard())
+            return
+        _sat_enroll_state.setdefault(chat_id, {})["format_type"] = text.strip()
+        await db.set_status(chat_id, "sat_enroll_step_name")
+        await update.message.reply_text(msg.SAT_ENROLL_ASK_NAME, reply_markup=_back_keyboard())
+
+    elif status == "sat_enroll_step_name":
         if not text.strip():
             await update.message.reply_text(msg.SAT_ENROLL_ASK_NAME, reply_markup=_back_keyboard())
             return
@@ -1741,6 +1757,7 @@ async def _handle_sat_enroll_step(
 
     elif status == "sat_enroll_step_date":
         state = _sat_enroll_state.pop(chat_id, {})
+        format_type = state.get("format_type", "")
         full_name = state.get("full_name", "")
         sat_history = state.get("sat_history", "")
         test_date = text.strip()
@@ -1759,6 +1776,7 @@ async def _handle_sat_enroll_step(
             first_name=first_name,
             username_part=username_part,
             chat_id=chat_id,
+            format_type=format_type,
             full_name=full_name,
             sat_history=sat_history,
             test_date=test_date,
