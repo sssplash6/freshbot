@@ -547,7 +547,9 @@ AE_INTRO = (
     "✅ Freshman Alumni Network Membership\n"
     "✅ Access to the Nest One Co-working Space\n\n"
     "\U0001f4cd <b>Where:</b> <a href=\"https://yandex.uz/maps/-/CPftJ6OW\">Freshman Office</a>\n"
-    "\U0001f4c5 <b>When:</b> Sundays and Wednesdays from 1:00 PM to 2:30 PM"
+    "\U0001f4c5 <b>When:</b> Sundays and Wednesdays from 1:00 PM to 2:30 PM\n\n"
+    "\U0001f525 <b>Early Offer: $149</b> — apply by <b>June 24</b>!\n"
+    "After June 24: $169"
 )
 
 BTN_AE_APPLY_NOW = "Apply Now"
