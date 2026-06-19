@@ -129,6 +129,7 @@ _NAV_BUTTONS: frozenset[str] = frozenset({
 def _main_keyboard() -> ReplyKeyboardMarkup:
     return ReplyKeyboardMarkup(
         [
+            [msg.BTN_ADV_ENGLISH],
             [msg.BTN_SAT_ENROLL, msg.BTN_PROGRAMS],
             [msg.BTN_TRIAL_AP, msg.BTN_GENERAL_INQUIRY],
         ],
