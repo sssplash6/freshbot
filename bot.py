@@ -192,6 +192,13 @@ def _sat_format_keyboard() -> ReplyKeyboardMarkup:
     )
 
 
+def _ae_format_keyboard() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup([[
+        InlineKeyboardButton(msg.BTN_AE_ONLINE, callback_data="ae_format:online"),
+        InlineKeyboardButton(msg.BTN_AE_OFFLINE, callback_data="ae_format:offline"),
+    ]])
+
+
 def _start_keyboard() -> ReplyKeyboardMarkup:
     return ReplyKeyboardMarkup(
         [[msg.BTN_START]],
@@ -359,13 +366,16 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             return
 
     if user and user.get("flow") == "adv_english" and user.get("status") in (
-        "ae_step_full_name", "ae_step_video", "ae_step_ielts", "ae_step_sat",
+        "ae_step_format", "ae_step_full_name", "ae_step_video", "ae_step_ielts", "ae_step_sat",
         "ae_step_why", "ae_step_perspective", "ae_step_resources",
     ):
         if text in _NAV_BUTTONS:
             _ae_state.pop(chat_id, None)
             await db.set_flow(chat_id, None)
             await db.set_status(chat_id, None)
+        elif user.get("status") == "ae_step_format":
+            await update.message.reply_text(msg.AE_ASK_FORMAT, reply_markup=_ae_format_keyboard())
+            return
         elif user.get("status") == "ae_step_video":
             await update.message.reply_text(msg.AE_VIDEO_REQUIRED, reply_markup=_back_keyboard())
             return
@@ -518,7 +528,27 @@ async def _ae_apply_now_callback(update: Update, context: ContextTypes.DEFAULT_T
 
     _ae_state[chat_id] = {}
     await db.set_flow(chat_id, "adv_english")
+    await db.set_status(chat_id, "ae_step_format")
+    await query.message.reply_text(msg.AE_ASK_FORMAT, reply_markup=_ae_format_keyboard())
+
+
+async def _ae_format_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    query = update.callback_query
+    await query.answer()
+    chat_id = update.effective_chat.id
+
+    user = await db.get_user(chat_id)
+    if not (user and user.get("flow") == "adv_english" and user.get("status") == "ae_step_format"):
+        return
+
+    choice = query.data.split(":")[1]
+    format_type = msg.BTN_AE_ONLINE if choice == "online" else msg.BTN_AE_OFFLINE
+    _ae_state.setdefault(chat_id, {})["format_type"] = format_type
     await db.set_status(chat_id, "ae_step_full_name")
+    try:
+        await query.edit_message_reply_markup(reply_markup=None)
+    except Exception:
+        pass
     await query.message.reply_text(msg.AE_PROMPT_FULL_NAME, reply_markup=_back_keyboard())
 
 
@@ -604,6 +634,7 @@ async def _ae_finish(
     username = user.get("username") if user else None
     first_name = user["first_name"] if user else "Unknown"
 
+    format_type     = answers.get("format_type", "")
     full_name       = answers.get("full_name", "")
     video_file_id   = answers.get("video_file_id", "")
     video_type      = answers.get("video_type", "video")
@@ -617,6 +648,7 @@ async def _ae_finish(
     await db.ae_save_application(
         chat_id=chat_id,
         username=username,
+        format_type=format_type,
         full_name=full_name,
         video_file_id=video_file_id,
         video_type=video_type,
@@ -696,6 +728,7 @@ async def _ae_view_callback(
         f"<b>Advanced English Application</b>\n"
         f"{'─' * 28}\n"
         f"<b>Name:</b> {app['full_name']}{username_part}\n"
+        f"<b>Format:</b> {app.get('format_type') or 'N/A'}\n"
         f"<b>Status:</b> {app['status']}\n"
         f"<b>SAT:</b> {app.get('sat_score') or 'N/A'}\n\n"
         f"<b>Q: Why do you want to join Advanced English?</b>\n{app['why_adv_english']}\n\n"
@@ -2291,6 +2324,7 @@ def build_app() -> Application:
     app.add_handler(CallbackQueryHandler(_q_date_callback, pattern="^qd:"))
     app.add_handler(CallbackQueryHandler(_podcast_check_callback, pattern="^podcast_check$"))
     app.add_handler(CallbackQueryHandler(_ae_apply_now_callback, pattern="^ae_apply_now$"))
+    app.add_handler(CallbackQueryHandler(_ae_format_callback, pattern="^ae_format:"))
     app.add_handler(CallbackQueryHandler(_ae_list_callback, pattern="^ae_list$"))
     app.add_handler(CallbackQueryHandler(_ae_view_callback, pattern="^ae_view:"))
     app.add_handler(CallbackQueryHandler(_ae_accept_callback, pattern="^ae_accept:"))

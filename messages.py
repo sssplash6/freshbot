@@ -554,6 +554,10 @@ AE_INTRO = (
 
 BTN_AE_APPLY_NOW = "Apply Now"
 
+AE_ASK_FORMAT = "Will you be joining Online or Offline?"
+BTN_AE_ONLINE = "\U0001f5a5️ Online"
+BTN_AE_OFFLINE = "\U0001f3eb Offline"
+
 AE_ALREADY_APPLIED = "You've already applied. We'll be in touch!"
 
 AE_STATUS_PENDING = "⏳ Your application is under review. We’ll notify you of the decision soon."
