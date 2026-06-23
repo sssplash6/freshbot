@@ -808,9 +808,8 @@ EG_ADMIN_HELP = (
 )
 
 BROADCAST_KEYBOARD_MESSAGE = (
-    "\U0001f389 <b>New: Admissions Program Fair!</b>\n\n"
-    "We’ve just added an <b>Admissions Program Fair</b> button to your menu.\n\n"
-    "Tap <b>“Admissions Program Fair”</b> below to register — it only takes a minute."
+    "\U0001f389 <b>Your menu has been updated!</b>\n\n"
+    "Tap a button below to get started."
 )
 BROADCAST_KEYBOARD_DONE = "Keyboard broadcast: {sent} sent, {failed} failed ({total} total users)."
 
@@ -897,62 +896,3 @@ TAP_REVIEWER_LINK_FAILED = "⚠️ Confirmed, but creating the invite link faile
 
 BTN_TAP_APPROVE = "✅ Confirm"
 BTN_TAP_REJECT = "❌ Reject"
-
-
-# ---------------------------------------------------------------------------
-# Admissions Program Fair
-# ---------------------------------------------------------------------------
-
-BTN_APF = "Admissions Program Fair"
-
-APF_INTRO = (
-    "\U0001f393 <b>Admissions Program Fair</b>\n\n"
-    "Register below to join. Please answer the two short questions that follow — "
-    "our team will confirm your spot shortly."
-)
-
-APF_ASK_NAME = "What’s your full name?"
-APF_ASK_COHORT = (
-    "Which month and year was your program?\n\n"
-    "Please provide the month and year (e.g. “July 2024”)."
-)
-
-APF_NAME_REQUIRED = "Please type your full name to continue."
-APF_COHORT_REQUIRED = "Please type the month and year of your program to continue."
-
-APF_SUBMITTED = (
-    "✅ Thank you! Your registration has been submitted for review. "
-    "We’ll notify you once it’s confirmed."
-)
-
-APF_ALREADY_PENDING = "⏳ Your registration is under review. We’ll notify you soon."
-APF_ALREADY_APPROVED = "✅ You’re already registered for the Admissions Program Fair!"
-
-APF_APPROVED = (
-    "✅ You’re confirmed for the Admissions Program Fair! See you there."
-)
-APF_REJECTED = (
-    "Thank you for registering. Unfortunately, your Admissions Program Fair "
-    "registration was not approved at this time."
-)
-
-APF_REVIEWER_ENTRY = (
-    "\U0001f4cb New Admissions Program Fair registration\n"
-    "From: <a href=\"tg://user?id={chat_id}\">{first_name}</a>{username_part}\n\n"
-    "<b>Name:</b> {full_name}\n"
-    "<b>Admissions Program cohort:</b> {cohort}"
-)
-
-BTN_APF_APPROVE = "✅ Approve"
-BTN_APF_REJECT = "❌ Reject"
-
-APF_REVIEWER_APPROVED = "✅ Approved. Applicant has been notified."
-APF_REVIEWER_REJECTED = "❌ Rejected. Applicant has been notified."
-APF_REVIEWER_ALREADY_DECIDED = "ℹ️ Decision already recorded for this registration."
-
-APF_SET_POST_SUCCESS = "✅ Admissions Program Fair post saved."
-APF_SET_POST_USAGE = "Reply to any message with /apf_set_post to save it as the fair post."
-
-APF_LIST_EMPTY = "No approved Admissions Program Fair registrations yet."
-APF_LIST_HEADER = "\U0001f4cb Approved Admissions Program Fair registrations ({count}):"
-APF_LIST_ENTRY = "{idx}. {full_name} — {cohort}{username_part}"
