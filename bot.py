@@ -103,6 +103,13 @@ _ae_state: dict[int, dict] = {}
 # Accumulates SAT enrollment answers per chat_id.
 _sat_enroll_state: dict[int, dict] = {}
 
+# Accumulates Admissions Program Fair answers per chat_id.
+_apf_state: dict[int, dict] = {}
+
+# Hard-fixed reviewers who receive Admissions Program Fair registrations and
+# can approve/reject them.
+APF_REVIEWER_CHAT_IDS: list[int] = [7185151344]
+
 # Chat IDs with bypass mode active — skips "coming soon" gates to expose real flows.
 _bypass_users: set[int] = set()
 
@@ -111,7 +118,7 @@ _NAV_BUTTONS: frozenset[str] = frozenset({
     # Main menu
     msg.BTN_PROGRAMS, msg.BTN_GENERAL_INQUIRY, msg.BTN_PODCAST,
     msg.BTN_HOME, msg.BTN_START,
-    msg.BTN_ADV_ENGLISH, msg.BTN_SAT_ENROLL, msg.BTN_TRIAL_AP,
+    msg.BTN_ADV_ENGLISH, msg.BTN_SAT_ENROLL, msg.BTN_TRIAL_AP, msg.BTN_APF,
     # Program sub-menu
     msg.BTN_SAT, msg.BTN_ADMISSIONS, msg.BTN_FULL_SUPPORT, msg.BTN_MASTERS,
     msg.BTN_ADV_PLACEMENT, msg.BTN_IMKON, msg.BTN_RESEARCH_INSTITUTE,
@@ -130,6 +137,7 @@ def _main_keyboard() -> ReplyKeyboardMarkup:
     return ReplyKeyboardMarkup(
         [
             [msg.BTN_ADV_ENGLISH],
+            [msg.BTN_APF],
             [msg.BTN_SAT_ENROLL, msg.BTN_PROGRAMS],
             [msg.BTN_TRIAL_AP, msg.BTN_GENERAL_INQUIRY],
         ],
@@ -365,6 +373,15 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             await _handle_sat_enroll_step(update, chat_id, text, context)
             return
 
+    if user and user.get("flow") == "apf":
+        if text in _NAV_BUTTONS:
+            _apf_state.pop(chat_id, None)
+            await db.set_flow(chat_id, None)
+            await db.set_status(chat_id, None)
+        else:
+            await _handle_apf_step(update, chat_id, text, context)
+            return
+
     if user and user.get("flow") == "adv_english" and user.get("status") in (
         "ae_step_format", "ae_step_full_name", "ae_step_video", "ae_step_ielts", "ae_step_sat",
         "ae_step_why", "ae_step_perspective", "ae_step_resources",
@@ -394,6 +411,8 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         await _handle_trial_ap(update, chat_id, context)
     elif text == msg.BTN_SAT_ENROLL:
         await _handle_sat_enroll(update, chat_id, context)
+    elif text == msg.BTN_APF:
+        await _handle_apf(update, chat_id, context)
     elif text == msg.BTN_GENERAL_INQUIRY:
         await _handle_general_inquiry(update, chat_id)
     elif text == msg.BTN_PODCAST:
@@ -1238,6 +1257,15 @@ async def _handle_back(update: Update, chat_id: int) -> None:
             reply_markup=_main_keyboard(),
         )
         return
+    if flow == "apf":
+        _apf_state.pop(chat_id, None)
+        await db.set_flow(chat_id, None)
+        await db.set_status(chat_id, None)
+        await update.message.reply_text(
+            msg.WELCOME.format(first_name=first_name),
+            reply_markup=_main_keyboard(),
+        )
+        return
     elif flow == "general_inquiry":
         await db.set_flow(chat_id, None)
         await db.set_status(chat_id, None)
@@ -2013,6 +2041,175 @@ async def _tap_reject_callback(update: Update, context: ContextTypes.DEFAULT_TYP
     await _tap_decision_callback(update, context, "rejected")
 
 
+# ---------------------------------------------------------------------------
+# Admissions Program Fair — student flow + review
+# ---------------------------------------------------------------------------
+
+async def _handle_apf(
+    update: Update, chat_id: int, context: ContextTypes.DEFAULT_TYPE
+) -> None:
+    existing = await db.apf_get_submission(chat_id)
+    if existing and existing["status"] == "approved":
+        await update.message.reply_text(msg.APF_ALREADY_APPROVED, reply_markup=_main_keyboard())
+        return
+    if existing and existing["status"] == "pending":
+        await update.message.reply_text(msg.APF_ALREADY_PENDING, reply_markup=_main_keyboard())
+        return
+
+    # Forward the configured fair post first, then start the registration questions.
+    post_chat_id = await db.get_setting("apf_post_chat_id")
+    post_message_id = await db.get_setting("apf_post_message_id")
+    if post_chat_id and post_message_id:
+        try:
+            await context.bot.copy_message(
+                chat_id=chat_id,
+                from_chat_id=int(post_chat_id),
+                message_id=int(post_message_id),
+            )
+        except Exception:
+            logger.exception("Failed to forward APF post to chat_id=%d", chat_id)
+            await update.message.reply_text(msg.APF_INTRO, parse_mode="HTML")
+    else:
+        await update.message.reply_text(msg.APF_INTRO, parse_mode="HTML")
+
+    _apf_state[chat_id] = {}
+    await db.set_flow(chat_id, "apf")
+    await db.set_status(chat_id, "apf_step_name")
+    await update.message.reply_text(msg.APF_ASK_NAME, reply_markup=_back_keyboard())
+
+
+async def _handle_apf_step(
+    update: Update, chat_id: int, text: str, context: ContextTypes.DEFAULT_TYPE
+) -> None:
+    user = await db.get_user(chat_id)
+    status = user.get("status") if user else None
+
+    if status == "apf_step_name":
+        if not text.strip():
+            await update.message.reply_text(msg.APF_NAME_REQUIRED, reply_markup=_back_keyboard())
+            return
+        _apf_state.setdefault(chat_id, {})["full_name"] = text.strip()
+        await db.set_status(chat_id, "apf_step_cohort")
+        await update.message.reply_text(msg.APF_ASK_COHORT, reply_markup=_back_keyboard())
+
+    elif status == "apf_step_cohort":
+        if not text.strip():
+            await update.message.reply_text(msg.APF_COHORT_REQUIRED, reply_markup=_back_keyboard())
+            return
+        state = _apf_state.pop(chat_id, {})
+        full_name = state.get("full_name", "")
+        cohort = text.strip()
+
+        first_name = user["first_name"] if user else "Unknown"
+        username = user["username"] if user else None
+
+        await db.apf_save_submission(chat_id, username, first_name, full_name, cohort)
+        await db.set_flow(chat_id, None)
+        await db.set_status(chat_id, None)
+        await update.message.reply_text(msg.APF_SUBMITTED, reply_markup=_main_keyboard())
+
+        username_part = f" (@{username})" if username else ""
+        keyboard = InlineKeyboardMarkup([[
+            InlineKeyboardButton(msg.BTN_APF_APPROVE, callback_data=f"apf_approve:{chat_id}"),
+            InlineKeyboardButton(msg.BTN_APF_REJECT, callback_data=f"apf_reject:{chat_id}"),
+        ]])
+        reviewer_text = msg.APF_REVIEWER_ENTRY.format(
+            chat_id=chat_id,
+            first_name=first_name,
+            username_part=username_part,
+            full_name=full_name,
+            cohort=cohort,
+        )
+        for reviewer_id in APF_REVIEWER_CHAT_IDS:
+            try:
+                sent = await context.bot.send_message(
+                    chat_id=reviewer_id,
+                    text=reviewer_text,
+                    parse_mode="HTML",
+                    reply_markup=keyboard,
+                )
+                await db.apf_set_reviewer_message(chat_id, sent.message_id)
+            except Exception:
+                logger.exception("Failed to send APF registration to reviewer chat_id=%d", reviewer_id)
+
+
+async def _apf_decision_callback(
+    update: Update, context: ContextTypes.DEFAULT_TYPE, decision: str
+) -> None:
+    query = update.callback_query
+    await query.answer()
+
+    applicant_chat_id = int(query.data.split(":")[1])
+    submission = await db.apf_get_submission(applicant_chat_id)
+
+    if not submission or submission["status"] != "pending":
+        await query.answer(msg.APF_REVIEWER_ALREADY_DECIDED, show_alert=True)
+        return
+
+    base_text = query.message.text or ""
+
+    if decision == "approved":
+        await db.apf_set_status(applicant_chat_id, "approved")
+        applicant_msg = msg.APF_APPROVED
+        reviewer_confirmation = msg.APF_REVIEWER_APPROVED
+    else:
+        await db.apf_set_status(applicant_chat_id, "rejected")
+        applicant_msg = msg.APF_REJECTED
+        reviewer_confirmation = msg.APF_REVIEWER_REJECTED
+
+    try:
+        await context.bot.send_message(chat_id=applicant_chat_id, text=applicant_msg)
+    except Exception:
+        logger.exception("Failed to notify APF applicant chat_id=%d", applicant_chat_id)
+
+    await query.edit_message_text(
+        text=f"{base_text}\n\n{reviewer_confirmation}", reply_markup=None,
+    )
+
+
+async def _apf_approve_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    await _apf_decision_callback(update, context, "approved")
+
+
+async def _apf_reject_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    await _apf_decision_callback(update, context, "rejected")
+
+
+async def _apf_set_post_command(
+    update: Update, context: ContextTypes.DEFAULT_TYPE
+) -> None:
+    if update.effective_user.id != PERSON_X_CHAT_ID:
+        return
+    reply = update.message.reply_to_message
+    if not reply:
+        await update.message.reply_text(msg.APF_SET_POST_USAGE)
+        return
+    await db.set_setting("apf_post_chat_id", str(reply.chat.id))
+    await db.set_setting("apf_post_message_id", str(reply.message_id))
+    await update.message.reply_text(msg.APF_SET_POST_SUCCESS)
+
+
+async def _apf_list_command(
+    update: Update, context: ContextTypes.DEFAULT_TYPE
+) -> None:
+    if update.effective_chat.id not in APF_REVIEWER_CHAT_IDS:
+        return
+    approved = await db.apf_get_by_status(["approved"])
+    if not approved:
+        await update.message.reply_text(msg.APF_LIST_EMPTY)
+        return
+    lines = [msg.APF_LIST_HEADER.format(count=len(approved))]
+    for idx, sub in enumerate(approved, start=1):
+        username_part = f" (@{sub['username']})" if sub.get("username") else ""
+        lines.append(msg.APF_LIST_ENTRY.format(
+            idx=idx,
+            full_name=sub["full_name"],
+            cohort=sub["cohort"],
+            username_part=username_part,
+        ))
+    await update.message.reply_text("\n".join(lines))
+
+
 async def _ae_remind_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if update.effective_user.id != PERSON_X_CHAT_ID:
         return
@@ -2311,6 +2508,8 @@ def build_app() -> Application:
     app.add_handler(CommandHandler("ae_remind", _ae_remind_command, filters=_private))
     app.add_handler(CommandHandler("ae_stuck", _ae_stuck_command, filters=_private))
     app.add_handler(CommandHandler("ae_payment_remind", _ae_payment_remind_command, filters=_private))
+    app.add_handler(CommandHandler("apf_set_post", _apf_set_post_command, filters=_private))
+    app.add_handler(CommandHandler("apf_list", _apf_list_command, filters=_private))
     app.add_handler(CallbackQueryHandler(_ae_terms_accept_callback, pattern="^ae_terms_accept:"))
     app.add_handler(CallbackQueryHandler(_ae_payment_made_callback, pattern="^ae_payment_made:"))
     app.add_handler(CallbackQueryHandler(_ae_payment_confirm_callback, pattern="^ae_payment_confirm:"))
@@ -2319,6 +2518,8 @@ def build_app() -> Application:
     app.add_handler(CallbackQueryHandler(_tap_screenshot_callback, pattern="^tap_screenshot$"))
     app.add_handler(CallbackQueryHandler(_tap_approve_callback, pattern="^tap_approve:"))
     app.add_handler(CallbackQueryHandler(_tap_reject_callback, pattern="^tap_reject:"))
+    app.add_handler(CallbackQueryHandler(_apf_approve_callback, pattern="^apf_approve:"))
+    app.add_handler(CallbackQueryHandler(_apf_reject_callback, pattern="^apf_reject:"))
     app.add_handler(CallbackQueryHandler(_video_admin_program_callback, pattern="^setvideo_"))
     app.add_handler(CallbackQueryHandler(_q_program_callback, pattern="^qp:"))
     app.add_handler(CallbackQueryHandler(_q_date_callback, pattern="^qd:"))

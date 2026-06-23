@@ -111,6 +111,19 @@ async def init_db() -> None:
                 enrolled_at  TEXT NOT NULL
             )
         """)
+        await db.execute("""
+            CREATE TABLE IF NOT EXISTS apf_submissions (
+                id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+                chat_id             INTEGER NOT NULL UNIQUE,
+                username            TEXT,
+                first_name          TEXT NOT NULL,
+                full_name           TEXT NOT NULL,
+                cohort              TEXT NOT NULL,
+                status              TEXT NOT NULL DEFAULT 'pending',
+                reviewer_message_id INTEGER,
+                created_at          TEXT NOT NULL
+            )
+        """)
         for _col in [
             "ALTER TABLE adv_english_applications ADD COLUMN video_file_id TEXT",
             "ALTER TABLE adv_english_applications ADD COLUMN video_type TEXT",
@@ -794,6 +807,86 @@ async def sat_enroll_get_all() -> list[dict]:
         db.row_factory = aiosqlite.Row
         async with db.execute(
             "SELECT * FROM sat_enrollments ORDER BY enrolled_at"
+        ) as cursor:
+            rows = await cursor.fetchall()
+            return [dict(r) for r in rows]
+
+
+# ---------------------------------------------------------------------------
+# Admissions Program Fair operations
+# ---------------------------------------------------------------------------
+
+async def apf_save_submission(
+    chat_id: int,
+    username: str | None,
+    first_name: str,
+    full_name: str,
+    cohort: str,
+) -> None:
+    now = datetime.now(timezone.utc).isoformat()
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute(
+            """INSERT INTO apf_submissions
+               (chat_id, username, first_name, full_name, cohort, status, created_at)
+               VALUES (?, ?, ?, ?, ?, 'pending', ?)
+               ON CONFLICT(chat_id) DO UPDATE SET
+                   username = excluded.username,
+                   first_name = excluded.first_name,
+                   full_name = excluded.full_name,
+                   cohort = excluded.cohort,
+                   status = 'pending',
+                   reviewer_message_id = NULL,
+                   created_at = excluded.created_at""",
+            (chat_id, username, first_name, full_name, cohort, now),
+        )
+        await db.commit()
+
+
+async def apf_get_submission(chat_id: int) -> dict | None:
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute(
+            "SELECT * FROM apf_submissions WHERE chat_id = ?", (chat_id,)
+        ) as cursor:
+            row = await cursor.fetchone()
+            return dict(row) if row else None
+
+
+async def apf_set_reviewer_message(chat_id: int, message_id: int) -> None:
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute(
+            "UPDATE apf_submissions SET reviewer_message_id = ? WHERE chat_id = ?",
+            (message_id, chat_id),
+        )
+        await db.commit()
+
+
+async def apf_set_status(chat_id: int, status: str) -> None:
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute(
+            "UPDATE apf_submissions SET status = ? WHERE chat_id = ?",
+            (status, chat_id),
+        )
+        await db.commit()
+
+
+async def apf_get_by_status(statuses: list[str]) -> list[dict]:
+    placeholders = ",".join("?" * len(statuses))
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute(
+            f"SELECT * FROM apf_submissions WHERE status IN ({placeholders}) ORDER BY created_at",
+            statuses,
+        ) as cursor:
+            rows = await cursor.fetchall()
+            return [dict(r) for r in rows]
+
+
+async def apf_get_all() -> list[dict]:
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute(
+            "SELECT * FROM apf_submissions ORDER BY created_at"
         ) as cursor:
             rows = await cursor.fetchall()
             return [dict(r) for r in rows]
