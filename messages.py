@@ -808,9 +808,9 @@ EG_ADMIN_HELP = (
 )
 
 BROADCAST_KEYBOARD_MESSAGE = (
-    "\U0001f393 <b>Attend a free Trial AP Lesson with Freshman Academy!</b>\n\n"
-    "Get a real taste of our AP classes — meet the mentors and see how we teach.\n\n"
-    "Tap the button below to join and reserve your spot."
+    "\U0001f389 <b>New: Admissions Program Fair!</b>\n\n"
+    "We’ve just added an <b>Admissions Program Fair</b> button to your menu.\n\n"
+    "Tap <b>“Admissions Program Fair”</b> below to register — it only takes a minute."
 )
 BROADCAST_KEYBOARD_DONE = "Keyboard broadcast: {sent} sent, {failed} failed ({total} total users)."
 
@@ -913,12 +913,12 @@ APF_INTRO = (
 
 APF_ASK_NAME = "What’s your full name?"
 APF_ASK_COHORT = (
-    "Which Admissions Program cohort were you in?\n\n"
+    "Which month and year was your program?\n\n"
     "Please provide the month and year (e.g. “July 2024”)."
 )
 
 APF_NAME_REQUIRED = "Please type your full name to continue."
-APF_COHORT_REQUIRED = "Please type your Admissions Program month and year to continue."
+APF_COHORT_REQUIRED = "Please type the month and year of your program to continue."
 
 APF_SUBMITTED = (
     "✅ Thank you! Your registration has been submitted for review. "

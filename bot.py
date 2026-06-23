@@ -1443,9 +1443,7 @@ async def _broadcast_keyboard_command(
                         chat_id=cid,
                         text=msg.BROADCAST_KEYBOARD_MESSAGE,
                         parse_mode="HTML",
-                        reply_markup=InlineKeyboardMarkup(
-                            [[InlineKeyboardButton(msg.BTN_TAP_JOIN, callback_data="tap_join")]]
-                        ),
+                        reply_markup=_main_keyboard(),
                     )
                     sent += 1
                 except Exception as e:
