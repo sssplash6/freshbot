@@ -533,6 +533,27 @@ PODCAST_ACCESS_GRANTED = (
 
 BTN_PODCAST_CHECK = "\u2705 I've subscribed \u2014 check again"
 
+BTN_IVYMAXXING = "\U0001f393 Ivymaxxing with Sega Arakelyan"
+
+IVY_MUST_JOIN = (
+    "To join <b>Ivymaxxing with Sega Arakelyan</b>, please join the following first:\n"
+    "{channel_list}\n\n"
+    "Once you've joined, tap the button below."
+)
+
+IVY_ACCESS_GRANTED = (
+    "\U0001f393 You're all set for <b>Ivymaxxing with Sega Arakelyan</b>!\n\n"
+    "The link to the webinar will be sent to the <b>Freshman Class of 2031</b> group chat "
+    "15 minutes before it starts \u2014 so keep an eye on the chat.{calendar_line}"
+)
+
+IVY_CALENDAR_LINE = (
+    "\n\nPlease tap <a href=\"{calendar_url}\">Add to my Google Calendar</a> "
+    "so you don't miss it. \U0001f5d3\ufe0f"
+)
+
+BTN_IVY_CHECK = "\u2705 I've joined \u2014 check again"
+
 BTN_ADV_ENGLISH = "Special Offer \u2013 Advanced English"
 
 

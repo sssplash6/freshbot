@@ -110,7 +110,7 @@ _bypass_users: set[int] = set()
 _NAV_BUTTONS: frozenset[str] = frozenset({
     # Main menu
     msg.BTN_PROGRAMS, msg.BTN_GENERAL_INQUIRY, msg.BTN_PODCAST,
-    msg.BTN_HOME, msg.BTN_START,
+    msg.BTN_HOME, msg.BTN_START, msg.BTN_IVYMAXXING,
     msg.BTN_ADV_ENGLISH, msg.BTN_SAT_ENROLL, msg.BTN_TRIAL_AP,
     # Program sub-menu
     msg.BTN_SAT, msg.BTN_ADMISSIONS, msg.BTN_FULL_SUPPORT, msg.BTN_MASTERS,
@@ -129,7 +129,7 @@ _NAV_BUTTONS: frozenset[str] = frozenset({
 def _main_keyboard() -> ReplyKeyboardMarkup:
     return ReplyKeyboardMarkup(
         [
-            [msg.BTN_ADV_ENGLISH],
+            [msg.BTN_IVYMAXXING, msg.BTN_ADV_ENGLISH],
             [msg.BTN_SAT_ENROLL, msg.BTN_PROGRAMS],
             [msg.BTN_GENERAL_INQUIRY],
         ],
@@ -398,6 +398,8 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         await _handle_general_inquiry(update, chat_id)
     elif text == msg.BTN_PODCAST:
         await _handle_podcast(update, chat_id)
+    elif text == msg.BTN_IVYMAXXING:
+        await _handle_ivymaxxing(update, chat_id)
     elif text == msg.BTN_SAT:
         await _handle_program(update, chat_id, msg.BTN_SAT)
     elif text == msg.BTN_ADMISSIONS:
@@ -1561,6 +1563,84 @@ async def _podcast_check_callback(update: Update, context: ContextTypes.DEFAULT_
 
 
 # ---------------------------------------------------------------------------
+# Ivymaxxing with Sega Arakelyan — webinar gate (must be in both groups)
+# ---------------------------------------------------------------------------
+
+IVY_REQUIRED_GROUP_IDS = [-1003765677875, -1001481432083]
+IVY_REQUIRED_GROUP_HANDLES = ["@freshmanclassof2031", "@freshmanblog"]
+# `&` is escaped to `&amp;` because the URL is embedded in a Telegram HTML link.
+IVY_CALENDAR_URL = (
+    "https://calendar.google.com/calendar/event?action=TEMPLATE"
+    "&amp;tmeid=M29ha3Fyc2FkY2hrcDBwaGVnNjdvMDlpMm4gc2VnYUBmcmVzaG1hbi5hY2FkZW15"
+    "&amp;tmsrc=sega%40freshman.academy"
+)
+
+
+async def _ivy_get_missing(bot, chat_id: int) -> list[str]:
+    missing = []
+    for group_id, handle in zip(IVY_REQUIRED_GROUP_IDS, IVY_REQUIRED_GROUP_HANDLES):
+        try:
+            member = await bot.get_chat_member(group_id, chat_id)
+            if member.status not in _MEMBER_STATUSES:
+                missing.append(handle)
+        except TelegramError:
+            logger.warning("Cannot check Ivymaxxing membership in %s. Failing open.", group_id)
+    return missing
+
+
+def _ivy_granted_text() -> str:
+    calendar_line = (
+        msg.IVY_CALENDAR_LINE.format(calendar_url=IVY_CALENDAR_URL) if IVY_CALENDAR_URL else ""
+    )
+    return msg.IVY_ACCESS_GRANTED.format(calendar_line=calendar_line)
+
+
+async def _handle_ivymaxxing(update: Update, chat_id: int) -> None:
+    missing = await _ivy_get_missing(update.get_bot(), chat_id)
+    if missing:
+        channel_list = "\n".join(f"• {h}" for h in missing)
+        await update.message.reply_text(
+            msg.IVY_MUST_JOIN.format(channel_list=channel_list),
+            parse_mode="HTML",
+            reply_markup=InlineKeyboardMarkup(
+                [[InlineKeyboardButton(msg.BTN_IVY_CHECK, callback_data="ivy_check")]]
+            ),
+        )
+        return
+    await update.message.reply_text(
+        _ivy_granted_text(),
+        parse_mode="HTML",
+        reply_markup=_main_keyboard(),
+    )
+
+
+async def _ivy_check_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    query = update.callback_query
+    await query.answer()
+    chat_id = update.effective_user.id
+    missing = await _ivy_get_missing(context.bot, chat_id)
+    if missing:
+        channel_list = "\n".join(f"• {h}" for h in missing)
+        try:
+            await query.edit_message_text(
+                msg.IVY_MUST_JOIN.format(channel_list=channel_list),
+                parse_mode="HTML",
+                reply_markup=InlineKeyboardMarkup(
+                    [[InlineKeyboardButton(msg.BTN_IVY_CHECK, callback_data="ivy_check")]]
+                ),
+            )
+        except TelegramError as e:
+            if "not modified" not in str(e).lower():
+                raise
+        return
+    try:
+        await query.edit_message_text(_ivy_granted_text(), parse_mode="HTML")
+    except TelegramError as e:
+        if "not modified" not in str(e).lower():
+            raise
+
+
+# ---------------------------------------------------------------------------
 # AE payment flow — terms acceptance, payment QR, screenshot review, invite link
 # ---------------------------------------------------------------------------
 
@@ -2322,6 +2402,7 @@ def build_app() -> Application:
     app.add_handler(CallbackQueryHandler(_q_program_callback, pattern="^qp:"))
     app.add_handler(CallbackQueryHandler(_q_date_callback, pattern="^qd:"))
     app.add_handler(CallbackQueryHandler(_podcast_check_callback, pattern="^podcast_check$"))
+    app.add_handler(CallbackQueryHandler(_ivy_check_callback, pattern="^ivy_check$"))
     app.add_handler(CallbackQueryHandler(_ae_apply_now_callback, pattern="^ae_apply_now$"))
     app.add_handler(CallbackQueryHandler(_ae_format_callback, pattern="^ae_format:"))
     app.add_handler(CallbackQueryHandler(_ae_list_callback, pattern="^ae_list$"))
