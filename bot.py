@@ -1610,6 +1610,7 @@ async def _handle_ivymaxxing(update: Update, chat_id: int) -> None:
     await update.message.reply_text(
         _ivy_granted_text(),
         parse_mode="HTML",
+        disable_web_page_preview=True,
         reply_markup=_main_keyboard(),
     )
 
@@ -1634,7 +1635,9 @@ async def _ivy_check_callback(update: Update, context: ContextTypes.DEFAULT_TYPE
                 raise
         return
     try:
-        await query.edit_message_text(_ivy_granted_text(), parse_mode="HTML")
+        await query.edit_message_text(
+            _ivy_granted_text(), parse_mode="HTML", disable_web_page_preview=True
+        )
     except TelegramError as e:
         if "not modified" not in str(e).lower():
             raise
