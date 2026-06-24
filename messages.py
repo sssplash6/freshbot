@@ -829,9 +829,11 @@ EG_ADMIN_HELP = (
 )
 
 BROADCAST_KEYBOARD_MESSAGE = (
-    "\U0001f389 <b>Your menu has been updated!</b>\n\n"
-    "Tap a button below to get started."
+    "\U0001f393 <b>New: Ivymaxxing with Sega Arakelyan!</b>\n\n"
+    "We're hosting a webinar with Sega Arakelyan on getting into top universities. "
+    "Tap the button below to join."
 )
+BROADCAST_KEYBOARD_MENU_NOTE = "Your menu has been updated \U0001f447"
 BROADCAST_KEYBOARD_DONE = "Keyboard broadcast: {sent} sent, {failed} failed ({total} total users)."
 
 

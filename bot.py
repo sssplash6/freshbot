@@ -1414,11 +1414,20 @@ async def _broadcast_keyboard_command(
             nonlocal sent, failed, first_error
             async with sem:
                 try:
+                    # Refresh the persistent reply keyboard for every user...
+                    await context.bot.send_message(
+                        chat_id=cid,
+                        text=msg.BROADCAST_KEYBOARD_MENU_NOTE,
+                        reply_markup=_main_keyboard(),
+                    )
+                    # ...then the event promo with its inline join button.
                     await context.bot.send_message(
                         chat_id=cid,
                         text=msg.BROADCAST_KEYBOARD_MESSAGE,
                         parse_mode="HTML",
-                        reply_markup=_main_keyboard(),
+                        reply_markup=InlineKeyboardMarkup(
+                            [[InlineKeyboardButton(msg.BTN_IVYMAXXING, callback_data="ivy_join")]]
+                        ),
                     )
                     sent += 1
                 except Exception as e:
@@ -1595,24 +1604,37 @@ def _ivy_granted_text() -> str:
     return msg.IVY_ACCESS_GRANTED.format(calendar_line=calendar_line)
 
 
-async def _handle_ivymaxxing(update: Update, chat_id: int) -> None:
-    missing = await _ivy_get_missing(update.get_bot(), chat_id)
+async def _ivy_send_flow(bot, chat_id: int) -> None:
+    missing = await _ivy_get_missing(bot, chat_id)
     if missing:
         channel_list = "\n".join(f"• {h}" for h in missing)
-        await update.message.reply_text(
-            msg.IVY_MUST_JOIN.format(channel_list=channel_list),
+        await bot.send_message(
+            chat_id=chat_id,
+            text=msg.IVY_MUST_JOIN.format(channel_list=channel_list),
             parse_mode="HTML",
             reply_markup=InlineKeyboardMarkup(
                 [[InlineKeyboardButton(msg.BTN_IVY_CHECK, callback_data="ivy_check")]]
             ),
         )
         return
-    await update.message.reply_text(
-        _ivy_granted_text(),
+    await bot.send_message(
+        chat_id=chat_id,
+        text=_ivy_granted_text(),
         parse_mode="HTML",
         disable_web_page_preview=True,
         reply_markup=_main_keyboard(),
     )
+
+
+async def _handle_ivymaxxing(update: Update, chat_id: int) -> None:
+    await _ivy_send_flow(update.get_bot(), chat_id)
+
+
+async def _ivy_join_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    # Inline "join" button from /broadcastkeyboard — runs the same gate flow.
+    query = update.callback_query
+    await query.answer()
+    await _ivy_send_flow(context.bot, update.effective_user.id)
 
 
 async def _ivy_check_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -2406,6 +2428,7 @@ def build_app() -> Application:
     app.add_handler(CallbackQueryHandler(_q_date_callback, pattern="^qd:"))
     app.add_handler(CallbackQueryHandler(_podcast_check_callback, pattern="^podcast_check$"))
     app.add_handler(CallbackQueryHandler(_ivy_check_callback, pattern="^ivy_check$"))
+    app.add_handler(CallbackQueryHandler(_ivy_join_callback, pattern="^ivy_join$"))
     app.add_handler(CallbackQueryHandler(_ae_apply_now_callback, pattern="^ae_apply_now$"))
     app.add_handler(CallbackQueryHandler(_ae_format_callback, pattern="^ae_format:"))
     app.add_handler(CallbackQueryHandler(_ae_list_callback, pattern="^ae_list$"))
