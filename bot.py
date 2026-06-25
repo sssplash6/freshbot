@@ -1426,7 +1426,7 @@ async def _broadcast_keyboard_command(
                         text=msg.BROADCAST_KEYBOARD_MESSAGE,
                         parse_mode="HTML",
                         reply_markup=InlineKeyboardMarkup(
-                            [[InlineKeyboardButton(msg.BTN_IVYMAXXING, callback_data="ivy_join")]]
+                            [[InlineKeyboardButton(msg.BTN_ADMISSIONS_APPLY, url=msg.ADMISSIONS_APPLY_URL)]]
                         ),
                     )
                     sent += 1

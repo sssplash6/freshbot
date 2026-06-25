@@ -535,6 +535,9 @@ BTN_PODCAST_CHECK = "\u2705 I've subscribed \u2014 check again"
 
 BTN_IVYMAXXING = "\U0001f393 Ivymaxxing with Sega Arakelyan"
 
+BTN_ADMISSIONS_APPLY = "\U0001f4dd Learn More & Apply"
+ADMISSIONS_APPLY_URL = "https://freshman.academy/admissions"
+
 IVY_MUST_JOIN = (
     "To join <b>Ivymaxxing with Sega Arakelyan</b>, please join the following first:\n"
     "{channel_list}\n\n"
@@ -829,9 +832,13 @@ EG_ADMIN_HELP = (
 )
 
 BROADCAST_KEYBOARD_MESSAGE = (
-    "\U0001f393 <b>New: Ivymaxxing with Sega Arakelyan!</b>\n\n"
-    "We're hosting a webinar with Sega Arakelyan on getting into top universities. "
-    "Tap the button below to join."
+    "⚡️ <b>Deadline Extension for the Admissions Program</b>\n\n"
+    "Don't miss out on an opportunity to boost your application with the most "
+    "experienced mentors from Yale, UPenn, Cornell, Stanford, Babson, Yale-NUS, "
+    "Virginia Tech, UCLA, and more.\n\n"
+    "<b>Final Deadline: June 27, 2026</b>\n\n"
+    "<i>*Limited need-based financial support is available for online &amp; offline "
+    "programs in Tashkent.</i>"
 )
 BROADCAST_KEYBOARD_MENU_NOTE = "Your menu has been updated \U0001f447"
 BROADCAST_KEYBOARD_DONE = "Keyboard broadcast: {sent} sent, {failed} failed ({total} total users)."
