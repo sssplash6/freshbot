@@ -61,6 +61,7 @@ _PROGRAM_EXPERT: dict[str, list[int]] = {
     msg.BTN_ADV_PLACEMENT: ADV_PLACEMENT_MAN_CHAT_ID,
     msg.BTN_IMKON: IMKON_MAN_CHAT_ID,
     msg.BTN_RESEARCH_INSTITUTE: RI_MAN_CHAT_ID,
+    msg.BTN_ADV_ENGLISH_PROGRAM: [ADV_ENGLISH_REVIEWER_CHAT_ID],
     "General Inquiry": GENERAL_MAN_CHAT_ID,
 }
 
@@ -115,6 +116,7 @@ _NAV_BUTTONS: frozenset[str] = frozenset({
     # Program sub-menu
     msg.BTN_SAT, msg.BTN_ADMISSIONS, msg.BTN_FULL_SUPPORT, msg.BTN_MASTERS,
     msg.BTN_ADV_PLACEMENT, msg.BTN_IMKON, msg.BTN_RESEARCH_INSTITUTE,
+    msg.BTN_ADV_ENGLISH_PROGRAM,
     # Action / FAQ / resolved keyboards
     msg.BTN_ASK_QUESTION, msg.BTN_REGISTER,
     msg.BTN_FAQ_YES, msg.BTN_FAQ_NO,
@@ -144,7 +146,7 @@ def _program_keyboard() -> ReplyKeyboardMarkup:
             [msg.BTN_FULL_SUPPORT, msg.BTN_ADMISSIONS],
             [msg.BTN_IMKON, msg.BTN_MASTERS],
             [msg.BTN_RESEARCH_INSTITUTE, msg.BTN_ADV_PLACEMENT],
-            [msg.BTN_SAT],
+            [msg.BTN_SAT, msg.BTN_ADV_ENGLISH_PROGRAM],
             [msg.BTN_HOME],
         ],
         resize_keyboard=True,
@@ -414,6 +416,8 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         await _handle_program(update, chat_id, msg.BTN_IMKON)
     elif text == msg.BTN_RESEARCH_INSTITUTE:
         await _handle_program(update, chat_id, msg.BTN_RESEARCH_INSTITUTE)
+    elif text == msg.BTN_ADV_ENGLISH_PROGRAM:
+        await _handle_program(update, chat_id, msg.BTN_ADV_ENGLISH_PROGRAM)
     elif text == msg.BTN_ASK_QUESTION:
         await _handle_ask_question(update, chat_id, context)
     elif text == msg.BTN_REGISTER:
@@ -492,6 +496,23 @@ async def _handle_adv_english(update: Update, chat_id: int) -> None:
         [InlineKeyboardButton(msg.BTN_AE_APPLY_NOW, callback_data="ae_apply_now")]
     ])
     await update.message.reply_text(msg.AE_INTRO, reply_markup=keyboard, parse_mode="HTML")
+
+
+async def _ae_program_faq_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Inline 'Learn More' button (e.g. from /broadcastkeyboard) — show the AE FAQ
+    and drop the user into the same question flow a program selection would."""
+    query = update.callback_query
+    await query.answer()
+    chat_id = update.effective_chat.id
+
+    await db.set_program(chat_id, msg.BTN_ADV_ENGLISH_PROGRAM)
+    await db.set_flow(chat_id, "question")
+    await db.set_status(chat_id, "faq_shown")
+    await query.message.reply_text(
+        msg.PROGRAM_FAQ_MESSAGE[msg.BTN_ADV_ENGLISH_PROGRAM],
+        reply_markup=_faq_keyboard(),
+        parse_mode="HTML",
+    )
 
 
 async def _ae_apply_now_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -1127,6 +1148,12 @@ async def _handle_register(update: Update, chat_id: int) -> None:
         return
 
     program = user.get("program") if user else None
+
+    # Advanced English has no booking URL — route to its standalone application flow.
+    if program == msg.BTN_ADV_ENGLISH_PROGRAM:
+        await _handle_adv_english(update, chat_id)
+        return
+
     intro = _PROGRAM_WEBSITE_INTRO.get(program, msg.WEBSITE_LINK_INTRO)
     await update.message.reply_text(intro, reply_markup=ReplyKeyboardRemove())
     await update.message.reply_text(
@@ -1414,20 +1441,15 @@ async def _broadcast_keyboard_command(
             nonlocal sent, failed, first_error
             async with sem:
                 try:
-                    # Refresh the persistent reply keyboard for every user...
-                    await context.bot.send_message(
-                        chat_id=cid,
-                        text=msg.BROADCAST_KEYBOARD_MENU_NOTE,
-                        reply_markup=_main_keyboard(),
-                    )
-                    # ...then the event promo with its inline join button.
+                    # Advanced English July promo: learn more (FAQ) or apply.
                     await context.bot.send_message(
                         chat_id=cid,
                         text=msg.BROADCAST_KEYBOARD_MESSAGE,
                         parse_mode="HTML",
-                        reply_markup=InlineKeyboardMarkup(
-                            [[InlineKeyboardButton(msg.BTN_ADMISSIONS_APPLY, url=msg.ADMISSIONS_APPLY_URL)]]
-                        ),
+                        reply_markup=InlineKeyboardMarkup([
+                            [InlineKeyboardButton(msg.BTN_AE_LEARN_MORE, callback_data="ae_program_faq")],
+                            [InlineKeyboardButton(msg.BTN_AE_APPLY_NOW, callback_data="ae_apply_now")],
+                        ]),
                     )
                     sent += 1
                 except Exception as e:
@@ -2429,6 +2451,7 @@ def build_app() -> Application:
     app.add_handler(CallbackQueryHandler(_podcast_check_callback, pattern="^podcast_check$"))
     app.add_handler(CallbackQueryHandler(_ivy_check_callback, pattern="^ivy_check$"))
     app.add_handler(CallbackQueryHandler(_ivy_join_callback, pattern="^ivy_join$"))
+    app.add_handler(CallbackQueryHandler(_ae_program_faq_callback, pattern="^ae_program_faq$"))
     app.add_handler(CallbackQueryHandler(_ae_apply_now_callback, pattern="^ae_apply_now$"))
     app.add_handler(CallbackQueryHandler(_ae_format_callback, pattern="^ae_format:"))
     app.add_handler(CallbackQueryHandler(_ae_list_callback, pattern="^ae_list$"))

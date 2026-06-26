@@ -40,6 +40,12 @@ PROGRAM_DESCRIPTIONS = {
         "Our program supports students at any stage of their research — whether in ideating, evaluation of sources, writing, and editing.\n\n"
         "This is a unique opportunity to turn your research ideas into potential publications, elevating your profile for academic and career advancement."
     ),
+    "Advanced English": (
+        "Advanced English is designed to help you get your level of English to an entirely new level. "
+        "As a part of the class, you will learn to critically assess texts and effectively communicate your thoughts in your written works. "
+        "This class is also perfect for those who want to get a taste of and prepare for quality international education.\n\n"
+        "Note that Advanced English will most certainly be the most challenging English class you have ever had."
+    ),
     "Master's Support": (
         "Master's Support is Freshman's comprehensive admissions program for students pursuing graduate education at top global universities.\n\n"
         "What's included:\n\n"
@@ -318,6 +324,54 @@ MS_FAQ_ITEMS = [
     ),
 ]
 
+AE_PROGRAM_FAQ_ITEMS = [
+    (
+        "Who is this program best suited for?",
+        "If you are tired of simply learning English and want to transition to discussing solid concepts in English instead, then the program is best suited for you. "
+        "It is also meant for those who want to train academic rigor and the capacity to handle a workload level beyond traditional curricula. "
+        "Another type of people are those who use it as a stepping stone to first train and then transition into harder programs at Freshman. "
+        "Lastly, any ages and occupations are welcome, meaning our cohorts are diverse in both criteria.",
+    ),
+    (
+        "Is Advanced English good for improving my English?",
+        "Yes, but not in a traditional way. There won't be memorizing of grammar rules, yet the foundational skills you will build throughout the program (reading, writing, critical thinking) will help you with a range of English-related activities—be it taking the SAT or writing your own research paper.",
+    ),
+    (
+        "Can you give a brief explanation of the course's structure and design?",
+        "Students read and analyze fundamental texts on all topics, including but not limited to undergraduate education, technology, philosophy, history, and social sciences. "
+        "We will engage in seminar-style discussions, write critical reflections that force us to articulate complicated arguments with clarity and precision, learn basic research concepts so you know how to back up your claims with evidence, and navigate an undergraduate-level workload to build the stamina required for higher education.",
+    ),
+    (
+        "Are there eligibility criteria for AE? Can I apply even if I don't have IELTS?",
+        "The only requirement to take Advanced English is English proficiency. An IELTS score of 7.0+ is ideal. "
+        "However, if there is some other way to demonstrate your proficiency, that also works: e.g., an SAT English section score, experience studying abroad, or a quick interview with one of our mentors.",
+    ),
+    (
+        "Do you select students for the program, or is it first-come, first-served?",
+        "Most of the students applying on time will be admitted unless the groups for the cohorts are full or you lack English proficiency.",
+    ),
+    (
+        "Is the July cohort going to be any different from June?",
+        "Every new cohort will have a brand-new curriculum and, this time around, it will be even better-structured and engaging. "
+        "Additionally, we are adding weekly homework reviews with the TAs to get feedback on your writing!",
+    ),
+    (
+        "Is there an online program this time?",
+        "Yes, but please note that the online curriculum will match the June offline curriculum. "
+        "We are also expecting a larger cohort for the July offline program, which offers you the opportunity to visit us at Nest One and join our future in-person events.",
+    ),
+    (
+        "What's included?",
+        "✅ 8 Seminars\n"
+        "✅ Q&A sessions\n"
+        "✅ Weekly Homework\n"
+        "✅ New Curriculum\n"
+        "✅ Presentation Review\n"
+        "✅ Freshman Alumni Network Membership\n"
+        "✅ Access to the Nest One Co-working Space",
+    ),
+]
+
 SAT_FAQ_MESSAGE = _build_faq_message(SAT_FAQ_ITEMS)
 FS_FAQ_MESSAGE = _build_faq_message(FS_FAQ_ITEMS)
 AP_FAQ_MESSAGE = _build_faq_message(AP_FAQ_ITEMS)
@@ -326,6 +380,7 @@ MS_FAQ_MESSAGE = _build_faq_message(MS_FAQ_ITEMS)
 RI_FAQ_MESSAGE = _build_faq_message(RI_FAQ_ITEMS)
 IMKON_FAQ_MESSAGE = _build_faq_message(IMKON_FAQ_ITEMS)
 PARTNERSHIPS_FAQ_MESSAGE = _build_faq_message(PARTNERSHIPS_FAQ_ITEMS)
+AE_PROGRAM_FAQ_MESSAGE = _build_faq_message(AE_PROGRAM_FAQ_ITEMS)
 
 # Lookup: program button label → FAQ message. Programs absent from this dict show no FAQ.
 PROGRAM_FAQ_MESSAGE: dict[str, str] = {
@@ -336,6 +391,7 @@ PROGRAM_FAQ_MESSAGE: dict[str, str] = {
     "AP Classes": ADV_PLACEMENT_FAQ_MESSAGE,
     "Research Institute": RI_FAQ_MESSAGE,
     "Imkon": IMKON_FAQ_MESSAGE,
+    "Advanced English": AE_PROGRAM_FAQ_MESSAGE,
 }
 
 FAQ_TYPE_QUESTION = (
@@ -499,6 +555,7 @@ BTN_MASTERS = "Master's Support"
 BTN_ADV_PLACEMENT = "AP Classes"
 BTN_IMKON = "Imkon"
 BTN_RESEARCH_INSTITUTE = "Research Institute"
+BTN_ADV_ENGLISH_PROGRAM = "Advanced English"
 
 BTN_GENERAL_INQUIRY = "💬 General Inquiry"
 BTN_ASK_QUESTION = "Ask a question"
@@ -832,14 +889,13 @@ EG_ADMIN_HELP = (
 )
 
 BROADCAST_KEYBOARD_MESSAGE = (
-    "⚡️ <b>Deadline Extension for the Admissions Program</b>\n\n"
-    "Don't miss out on an opportunity to boost your application with the most "
-    "experienced mentors from Yale, UPenn, Cornell, Stanford, Babson, Yale-NUS, "
-    "Virginia Tech, UCLA, and more.\n\n"
-    "<b>Final Deadline: June 27, 2026</b>\n\n"
-    "<i>*Limited need-based financial support is available for online &amp; offline "
-    "programs in Tashkent.</i>"
+    "🎉 <b>We're launching our new Advanced English July cohort!</b>\n\n"
+    "Advanced English is our most challenging English class — built to take your reading, "
+    "writing, and critical thinking to an entirely new level and prepare you for quality "
+    "international education.\n\n"
+    "Tap a button below to learn more about the program or apply 👇"
 )
+BTN_AE_LEARN_MORE = "📖 Learn More"
 BROADCAST_KEYBOARD_MENU_NOTE = "Your menu has been updated \U0001f447"
 BROADCAST_KEYBOARD_DONE = "Keyboard broadcast: {sent} sent, {failed} failed ({total} total users)."
 
