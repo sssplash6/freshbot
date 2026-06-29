@@ -1441,14 +1441,13 @@ async def _broadcast_keyboard_command(
             nonlocal sent, failed, first_error
             async with sem:
                 try:
-                    # Advanced English July promo: learn more (FAQ) or apply.
+                    # SAT Padawan launch promo: enroll in the SAT Program.
                     await context.bot.send_message(
                         chat_id=cid,
                         text=msg.BROADCAST_KEYBOARD_MESSAGE,
                         parse_mode="HTML",
                         reply_markup=InlineKeyboardMarkup([
-                            [InlineKeyboardButton(msg.BTN_AE_LEARN_MORE, callback_data="ae_program_faq")],
-                            [InlineKeyboardButton(msg.BTN_AE_APPLY_NOW, callback_data="ae_apply_now")],
+                            [InlineKeyboardButton(msg.BTN_SAT_ENROLL, callback_data="sat_enroll_inline")],
                         ]),
                     )
                     sent += 1
@@ -1885,6 +1884,30 @@ async def _handle_sat_enroll(
     await db.set_flow(chat_id, "sat_enroll")
     await db.set_status(chat_id, "sat_enroll_step_format")
     await update.message.reply_text(msg.SAT_ENROLL_ASK_FORMAT, reply_markup=_sat_format_keyboard())
+
+
+async def _sat_enroll_inline_callback(
+    update: Update, context: ContextTypes.DEFAULT_TYPE
+) -> None:
+    # Inline "Enroll at SAT Program" button (e.g. from /broadcastkeyboard) —
+    # starts the same SAT enrollment flow.
+    query = update.callback_query
+    await query.answer()
+    chat_id = update.effective_chat.id
+
+    await context.bot.send_message(
+        chat_id=chat_id,
+        text=msg.SAT_ENROLL_INFO,
+        parse_mode="HTML",
+    )
+    _sat_enroll_state[chat_id] = {}
+    await db.set_flow(chat_id, "sat_enroll")
+    await db.set_status(chat_id, "sat_enroll_step_format")
+    await context.bot.send_message(
+        chat_id=chat_id,
+        text=msg.SAT_ENROLL_ASK_FORMAT,
+        reply_markup=_sat_format_keyboard(),
+    )
 
 
 async def _handle_sat_enroll_step(
@@ -2451,6 +2474,7 @@ def build_app() -> Application:
     app.add_handler(CallbackQueryHandler(_podcast_check_callback, pattern="^podcast_check$"))
     app.add_handler(CallbackQueryHandler(_ivy_check_callback, pattern="^ivy_check$"))
     app.add_handler(CallbackQueryHandler(_ivy_join_callback, pattern="^ivy_join$"))
+    app.add_handler(CallbackQueryHandler(_sat_enroll_inline_callback, pattern="^sat_enroll_inline$"))
     app.add_handler(CallbackQueryHandler(_ae_program_faq_callback, pattern="^ae_program_faq$"))
     app.add_handler(CallbackQueryHandler(_ae_apply_now_callback, pattern="^ae_apply_now$"))
     app.add_handler(CallbackQueryHandler(_ae_format_callback, pattern="^ae_format:"))

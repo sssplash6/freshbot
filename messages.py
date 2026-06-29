@@ -889,11 +889,9 @@ EG_ADMIN_HELP = (
 )
 
 BROADCAST_KEYBOARD_MESSAGE = (
-    "🎉 <b>We're launching our new Advanced English July cohort!</b>\n\n"
-    "Advanced English is our most challenging English class — built to take your reading, "
-    "writing, and critical thinking to an entirely new level and prepare you for quality "
-    "international education.\n\n"
-    "Tap a button below to learn more about the program or apply 👇"
+    "📚 <b>Online Padawan classes are starting today</b>\n\n"
+    "Our SAT Padawan group is a foundational SAT program for beginners, and it is "
+    "about to kick off. Make sure to register through bot if you are interested."
 )
 BTN_AE_LEARN_MORE = "📖 Learn More"
 BROADCAST_KEYBOARD_MENU_NOTE = "Your menu has been updated \U0001f447"
