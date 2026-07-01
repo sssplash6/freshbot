@@ -889,9 +889,11 @@ EG_ADMIN_HELP = (
 )
 
 BROADCAST_KEYBOARD_MESSAGE = (
-    "📚 <b>Online Padawan classes are starting today</b>\n\n"
-    "Our SAT Padawan group is a foundational SAT program for beginners, and it is "
-    "about to kick off. Make sure to register through bot if you are interested."
+    "🎓 <b>Advanced English</b>\n\n"
+    "Applications for our Advanced English program are closing this week.\n\n"
+    "✅ Apply by <b>July 2</b> to enroll at the <b>discounted price of $149</b>.\n"
+    "⏳ Final deadline to apply: <b>July 4</b>.\n\n"
+    "Don’t miss your spot — tap below to submit your application."
 )
 BTN_AE_LEARN_MORE = "📖 Learn More"
 BROADCAST_KEYBOARD_MENU_NOTE = "Your menu has been updated \U0001f447"

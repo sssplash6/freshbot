@@ -1441,13 +1441,13 @@ async def _broadcast_keyboard_command(
             nonlocal sent, failed, first_error
             async with sem:
                 try:
-                    # SAT Padawan launch promo: enroll in the SAT Program.
+                    # Advanced English enrollment promo: apply before the deadline.
                     await context.bot.send_message(
                         chat_id=cid,
                         text=msg.BROADCAST_KEYBOARD_MESSAGE,
                         parse_mode="HTML",
                         reply_markup=InlineKeyboardMarkup([
-                            [InlineKeyboardButton(msg.BTN_SAT_ENROLL, callback_data="sat_enroll_inline")],
+                            [InlineKeyboardButton(msg.BTN_AE_APPLY_NOW, callback_data="ae_apply_now")],
                         ]),
                     )
                     sent += 1
