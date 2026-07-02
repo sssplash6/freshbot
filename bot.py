@@ -1711,16 +1711,23 @@ GUIDEBOOK_REQUIRED_IDS = [-1001188644050, -1001481432083]
 GUIDEBOOK_REQUIRED_HANDLES = ["@valeranotes", "@freshmanblog"]
 
 
+async def _guidebook_is_member(bot, channel_id: int, chat_id: int) -> bool:
+    """True if chat_id is a member of channel_id. Fails open on API error."""
+    try:
+        member = await bot.get_chat_member(channel_id, chat_id)
+        return member.status in _MEMBER_STATUSES
+    except TelegramError:
+        logger.warning("Cannot check guidebook membership in %s. Failing open.", channel_id)
+        return True
+
+
 async def _guidebook_get_missing(bot, chat_id: int) -> list[str]:
-    missing = []
-    for channel_id, handle in zip(GUIDEBOOK_REQUIRED_IDS, GUIDEBOOK_REQUIRED_HANDLES):
-        try:
-            member = await bot.get_chat_member(channel_id, chat_id)
-            if member.status not in _MEMBER_STATUSES:
-                missing.append(handle)
-        except TelegramError:
-            logger.warning("Cannot check guidebook membership in %s. Failing open.", channel_id)
-    return missing
+    # Check both channels concurrently so the user isn't waiting on two
+    # sequential round-trips (each already queued behind the rate limiter).
+    results = await asyncio.gather(
+        *(_guidebook_is_member(bot, cid, chat_id) for cid in GUIDEBOOK_REQUIRED_IDS)
+    )
+    return [h for h, ok in zip(GUIDEBOOK_REQUIRED_HANDLES, results) if not ok]
 
 
 async def _guidebook_deliver(bot, chat_id: int) -> None:
