@@ -911,11 +911,13 @@ EG_ADMIN_HELP = (
 )
 
 BROADCAST_KEYBOARD_MESSAGE = (
-    "🎓 <b>Advanced English</b>\n\n"
-    "Applications for our Advanced English program are closing this week.\n\n"
-    "✅ Apply by <b>July 2</b> to enroll at the <b>discounted price of $149</b>.\n"
-    "⏳ Final deadline to apply: <b>July 4</b>.\n\n"
-    "Don’t miss your spot — tap below to submit your application."
+    "\U0001f4d5 <b>New: Extracurriculars Guidebook</b>\n\n"
+    "We've put together a free guidebook packed with extracurricular ideas and "
+    "strategies to strengthen your applications.\n\n"
+    "To get your copy, just subscribe to both of these channels:\n"
+    "• @valeranotes\n"
+    "• @freshmanblog\n\n"
+    "Then tap the button below to grab it \U0001f447"
 )
 BTN_AE_LEARN_MORE = "📖 Learn More"
 BROADCAST_KEYBOARD_MENU_NOTE = "Your menu has been updated \U0001f447"

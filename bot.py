@@ -132,10 +132,9 @@ _NAV_BUTTONS: frozenset[str] = frozenset({
 def _main_keyboard() -> ReplyKeyboardMarkup:
     return ReplyKeyboardMarkup(
         [
-            [msg.BTN_IVYMAXXING, msg.BTN_ADV_ENGLISH],
-            [msg.BTN_SAT_ENROLL, msg.BTN_PROGRAMS],
-            [msg.BTN_GET_GUIDEBOOK],
-            [msg.BTN_GENERAL_INQUIRY],
+            [msg.BTN_GET_GUIDEBOOK, msg.BTN_ADV_ENGLISH],
+            [msg.BTN_IVYMAXXING, msg.BTN_SAT_ENROLL],
+            [msg.BTN_PROGRAMS, msg.BTN_GENERAL_INQUIRY],
         ],
         resize_keyboard=True,
         is_persistent=True,
@@ -1458,13 +1457,14 @@ async def _broadcast_keyboard_command(
             nonlocal sent, failed, first_error
             async with sem:
                 try:
-                    # Advanced English enrollment promo: apply before the deadline.
+                    # Extracurriculars Guidebook launch promo.
                     await context.bot.send_message(
                         chat_id=cid,
                         text=msg.BROADCAST_KEYBOARD_MESSAGE,
                         parse_mode="HTML",
+                        disable_web_page_preview=True,
                         reply_markup=InlineKeyboardMarkup([
-                            [InlineKeyboardButton(msg.BTN_AE_APPLY_NOW, callback_data="ae_apply_now")],
+                            [InlineKeyboardButton(msg.BTN_GET_GUIDEBOOK, callback_data="guidebook_get")],
                         ]),
                     )
                     sent += 1
@@ -1708,7 +1708,7 @@ async def _ivy_check_callback(update: Update, context: ContextTypes.DEFAULT_TYPE
 # ---------------------------------------------------------------------------
 
 GUIDEBOOK_REQUIRED_IDS = [-1001188644050, -1001481432083]
-GUIDEBOOK_REQUIRED_HANDLES = ["@valeranores", "@freshmanblog"]
+GUIDEBOOK_REQUIRED_HANDLES = ["@valeranotes", "@freshmanblog"]
 
 
 async def _guidebook_get_missing(bot, chat_id: int) -> list[str]:
@@ -1756,6 +1756,14 @@ async def _guidebook_send_flow(bot, chat_id: int) -> None:
 
 async def _handle_guidebook(update: Update, chat_id: int) -> None:
     await _guidebook_send_flow(update.get_bot(), chat_id)
+
+
+async def _guidebook_get_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    # Inline "Get Extracurriculars Guidebook" button from /broadcastkeyboard —
+    # runs the same gate flow.
+    query = update.callback_query
+    await query.answer()
+    await _guidebook_send_flow(context.bot, update.effective_user.id)
 
 
 async def _guidebook_check_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -2569,6 +2577,7 @@ def build_app() -> Application:
     app.add_handler(CallbackQueryHandler(_podcast_check_callback, pattern="^podcast_check$"))
     app.add_handler(CallbackQueryHandler(_ivy_check_callback, pattern="^ivy_check$"))
     app.add_handler(CallbackQueryHandler(_ivy_join_callback, pattern="^ivy_join$"))
+    app.add_handler(CallbackQueryHandler(_guidebook_get_callback, pattern="^guidebook_get$"))
     app.add_handler(CallbackQueryHandler(_guidebook_check_callback, pattern="^guidebook_check$"))
     app.add_handler(CallbackQueryHandler(_sat_enroll_inline_callback, pattern="^sat_enroll_inline$"))
     app.add_handler(CallbackQueryHandler(_ae_program_faq_callback, pattern="^ae_program_faq$"))
