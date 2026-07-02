@@ -1758,17 +1758,30 @@ async def _handle_guidebook(update: Update, chat_id: int) -> None:
     await _guidebook_send_flow(update.get_bot(), chat_id)
 
 
+async def _safe_answer(query) -> None:
+    """Ack a callback query, ignoring 'query is too old' errors.
+
+    Under a broadcast burst the AIORateLimiter can delay answer_callback_query
+    past Telegram's expiry window; if that ack fails we must still run the flow,
+    so this never propagates.
+    """
+    try:
+        await query.answer()
+    except TelegramError:
+        pass
+
+
 async def _guidebook_get_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     # Inline "Get Extracurriculars Guidebook" button from /broadcastkeyboard —
     # runs the same gate flow.
     query = update.callback_query
-    await query.answer()
+    await _safe_answer(query)
     await _guidebook_send_flow(context.bot, update.effective_user.id)
 
 
 async def _guidebook_check_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     query = update.callback_query
-    await query.answer()
+    await _safe_answer(query)
     chat_id = update.effective_user.id
     missing = await _guidebook_get_missing(context.bot, chat_id)
     if missing:
@@ -2589,4 +2602,11 @@ def build_app() -> Application:
     app.add_handler(CallbackQueryHandler(_ae_reject_callback, pattern="^ae_reject:"))
     app.add_handler(MessageHandler(_private & filters.CONTACT, handle_message))
     app.add_handler(MessageHandler(_private & ~filters.COMMAND, handle_message))
+    app.add_error_handler(_on_error)
     return app
+
+
+async def _on_error(update: object, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Catch-all so handler exceptions are logged as a single line, not a
+    multi-frame traceback. Stale-callback 'query is too old' errors are benign."""
+    logger.warning("Handler error: %s: %s", type(context.error).__name__, context.error)
