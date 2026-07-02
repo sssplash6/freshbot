@@ -113,6 +113,7 @@ _NAV_BUTTONS: frozenset[str] = frozenset({
     msg.BTN_PROGRAMS, msg.BTN_GENERAL_INQUIRY, msg.BTN_PODCAST,
     msg.BTN_HOME, msg.BTN_START, msg.BTN_IVYMAXXING,
     msg.BTN_ADV_ENGLISH, msg.BTN_SAT_ENROLL, msg.BTN_TRIAL_AP,
+    msg.BTN_GET_GUIDEBOOK,
     # Program sub-menu
     msg.BTN_SAT, msg.BTN_ADMISSIONS, msg.BTN_FULL_SUPPORT, msg.BTN_MASTERS,
     msg.BTN_ADV_PLACEMENT, msg.BTN_IMKON, msg.BTN_RESEARCH_INSTITUTE,
@@ -133,6 +134,7 @@ def _main_keyboard() -> ReplyKeyboardMarkup:
         [
             [msg.BTN_IVYMAXXING, msg.BTN_ADV_ENGLISH],
             [msg.BTN_SAT_ENROLL, msg.BTN_PROGRAMS],
+            [msg.BTN_GET_GUIDEBOOK],
             [msg.BTN_GENERAL_INQUIRY],
         ],
         resize_keyboard=True,
@@ -402,6 +404,8 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         await _handle_podcast(update, chat_id)
     elif text == msg.BTN_IVYMAXXING:
         await _handle_ivymaxxing(update, chat_id)
+    elif text == msg.BTN_GET_GUIDEBOOK:
+        await _handle_guidebook(update, chat_id)
     elif text == msg.BTN_SAT:
         await _handle_program(update, chat_id, msg.BTN_SAT)
     elif text == msg.BTN_ADMISSIONS:
@@ -888,6 +892,19 @@ async def _ae_set_terms_command(
         return
     await db.set_setting("ae_terms_file_id", reply.document.file_id)
     await update.message.reply_text(msg.AE_SET_TERMS_SUCCESS)
+
+
+async def _set_guidebook_command(
+    update: Update, context: ContextTypes.DEFAULT_TYPE
+) -> None:
+    if update.effective_chat.id != PERSON_X_CHAT_ID and update.effective_chat.id not in _AE_REVIEWER_IDS:
+        return
+    reply = update.message.reply_to_message
+    if not reply or not reply.document:
+        await update.message.reply_text(msg.GUIDEBOOK_SET_USAGE)
+        return
+    await db.set_setting("guidebook_file_id", reply.document.file_id)
+    await update.message.reply_text(msg.GUIDEBOOK_SET_SUCCESS)
 
 
 async def _clear_adv_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -1687,6 +1704,83 @@ async def _ivy_check_callback(update: Update, context: ContextTypes.DEFAULT_TYPE
 
 
 # ---------------------------------------------------------------------------
+# Extracurriculars Guidebook — subscribe to both channels, then get the file
+# ---------------------------------------------------------------------------
+
+GUIDEBOOK_REQUIRED_IDS = [-1001188644050, -1001481432083]
+GUIDEBOOK_REQUIRED_HANDLES = ["@valeranores", "@freshmanblog"]
+
+
+async def _guidebook_get_missing(bot, chat_id: int) -> list[str]:
+    missing = []
+    for channel_id, handle in zip(GUIDEBOOK_REQUIRED_IDS, GUIDEBOOK_REQUIRED_HANDLES):
+        try:
+            member = await bot.get_chat_member(channel_id, chat_id)
+            if member.status not in _MEMBER_STATUSES:
+                missing.append(handle)
+        except TelegramError:
+            logger.warning("Cannot check guidebook membership in %s. Failing open.", channel_id)
+    return missing
+
+
+async def _guidebook_deliver(bot, chat_id: int) -> None:
+    """Send the guidebook file once requirements are met."""
+    file_id = await db.get_setting("guidebook_file_id")
+    if not file_id:
+        logger.warning("guidebook_file_id is not set; cannot deliver guidebook.")
+        await bot.send_message(chat_id=chat_id, text=msg.GUIDEBOOK_UNAVAILABLE)
+        return
+    await bot.send_document(
+        chat_id=chat_id,
+        document=file_id,
+        caption=msg.GUIDEBOOK_ACCESS_GRANTED,
+        parse_mode="HTML",
+    )
+
+
+async def _guidebook_send_flow(bot, chat_id: int) -> None:
+    missing = await _guidebook_get_missing(bot, chat_id)
+    if missing:
+        channel_list = "\n".join(f"• {h}" for h in missing)
+        await bot.send_message(
+            chat_id=chat_id,
+            text=msg.GUIDEBOOK_MUST_JOIN.format(channel_list=channel_list),
+            parse_mode="HTML",
+            reply_markup=InlineKeyboardMarkup(
+                [[InlineKeyboardButton(msg.BTN_GUIDEBOOK_CHECK, callback_data="guidebook_check")]]
+            ),
+        )
+        return
+    await _guidebook_deliver(bot, chat_id)
+
+
+async def _handle_guidebook(update: Update, chat_id: int) -> None:
+    await _guidebook_send_flow(update.get_bot(), chat_id)
+
+
+async def _guidebook_check_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    query = update.callback_query
+    await query.answer()
+    chat_id = update.effective_user.id
+    missing = await _guidebook_get_missing(context.bot, chat_id)
+    if missing:
+        channel_list = "\n".join(f"• {h}" for h in missing)
+        try:
+            await query.edit_message_text(
+                msg.GUIDEBOOK_MUST_JOIN.format(channel_list=channel_list),
+                parse_mode="HTML",
+                reply_markup=InlineKeyboardMarkup(
+                    [[InlineKeyboardButton(msg.BTN_GUIDEBOOK_CHECK, callback_data="guidebook_check")]]
+                ),
+            )
+        except TelegramError as e:
+            if "not modified" not in str(e).lower():
+                raise
+        return
+    await _guidebook_deliver(context.bot, chat_id)
+
+
+# ---------------------------------------------------------------------------
 # AE payment flow — terms acceptance, payment QR, screenshot review, invite link
 # ---------------------------------------------------------------------------
 
@@ -2456,6 +2550,7 @@ def build_app() -> Application:
     app.add_handler(CommandHandler("unanswered", _q_unanswered_command, filters=_private))
     app.add_handler(CommandHandler("ae_list", _ae_list_command, filters=_private))
     app.add_handler(CommandHandler("ae_set_terms", _ae_set_terms_command, filters=_private))
+    app.add_handler(CommandHandler("set_guidebook", _set_guidebook_command, filters=_private))
     app.add_handler(CommandHandler("ae_set_payment", _ae_set_payment_command, filters=_private))
     app.add_handler(CommandHandler("ae_remind", _ae_remind_command, filters=_private))
     app.add_handler(CommandHandler("ae_stuck", _ae_stuck_command, filters=_private))
@@ -2474,6 +2569,7 @@ def build_app() -> Application:
     app.add_handler(CallbackQueryHandler(_podcast_check_callback, pattern="^podcast_check$"))
     app.add_handler(CallbackQueryHandler(_ivy_check_callback, pattern="^ivy_check$"))
     app.add_handler(CallbackQueryHandler(_ivy_join_callback, pattern="^ivy_join$"))
+    app.add_handler(CallbackQueryHandler(_guidebook_check_callback, pattern="^guidebook_check$"))
     app.add_handler(CallbackQueryHandler(_sat_enroll_inline_callback, pattern="^sat_enroll_inline$"))
     app.add_handler(CallbackQueryHandler(_ae_program_faq_callback, pattern="^ae_program_faq$"))
     app.add_handler(CallbackQueryHandler(_ae_apply_now_callback, pattern="^ae_apply_now$"))

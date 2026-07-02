@@ -614,6 +614,28 @@ IVY_CALENDAR_LINE = (
 
 BTN_IVY_CHECK = "\u2705 I've joined \u2014 check again"
 
+BTN_GET_GUIDEBOOK = "\U0001f4d5 Get Extracurriculars Guidebook"
+
+GUIDEBOOK_MUST_JOIN = (
+    "To get the <b>Extracurriculars Guidebook</b>, please subscribe to both channels first:\n"
+    "{channel_list}\n\n"
+    "Once you've subscribed, tap the button below."
+)
+
+GUIDEBOOK_ACCESS_GRANTED = (
+    "\U0001f4d5 You're all set \u2014 here's your <b>Extracurriculars Guidebook</b>. Enjoy!"
+)
+
+GUIDEBOOK_UNAVAILABLE = (
+    "\U0001f512 The Extracurriculars Guidebook isn't available right now. "
+    "Please check back soon!"
+)
+
+GUIDEBOOK_SET_USAGE = "Reply to the guidebook document with /set_guidebook to save it."
+GUIDEBOOK_SET_SUCCESS = "\u2705 Extracurriculars Guidebook file saved successfully."
+
+BTN_GUIDEBOOK_CHECK = "\u2705 I've subscribed \u2014 check again"
+
 BTN_ADV_ENGLISH = "Special Offer \u2013 Advanced English"
 
 
