@@ -614,7 +614,7 @@ IVY_CALENDAR_LINE = (
 
 BTN_IVY_CHECK = "\u2705 I've joined \u2014 check again"
 
-BTN_GET_GUIDEBOOK = "\U0001f4d5 Get Extracurriculars Guidebook"
+BTN_GET_GUIDEBOOK = "\U0001f4d6 Get the Extracurriculars Guidebook"
 
 GUIDEBOOK_MUST_JOIN = (
     "To get the <b>Extracurriculars Guidebook</b>, please subscribe to both channels first:\n"
