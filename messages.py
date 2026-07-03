@@ -590,29 +590,8 @@ PODCAST_ACCESS_GRANTED = (
 
 BTN_PODCAST_CHECK = "\u2705 I've subscribed \u2014 check again"
 
-BTN_IVYMAXXING = "\U0001f393 Ivymaxxing with Sega Arakelyan"
-
 BTN_ADMISSIONS_APPLY = "\U0001f4dd Learn More & Apply"
 ADMISSIONS_APPLY_URL = "https://freshman.academy/admissions"
-
-IVY_MUST_JOIN = (
-    "To join <b>Ivymaxxing with Sega Arakelyan</b>, please join the following first:\n"
-    "{channel_list}\n\n"
-    "Once you've joined, tap the button below."
-)
-
-IVY_ACCESS_GRANTED = (
-    "\U0001f393 You're all set for <b>Ivymaxxing with Sega Arakelyan</b>!\n\n"
-    "The link to the webinar will be sent to the <b>Freshman Class of 2031</b> group chat "
-    "15 minutes before it starts \u2014 so keep an eye on the chat.{calendar_line}"
-)
-
-IVY_CALENDAR_LINE = (
-    "\n\nPlease tap <a href=\"{calendar_url}\">Add to my Google Calendar</a> "
-    "so you don't miss it. \U0001f5d3\ufe0f"
-)
-
-BTN_IVY_CHECK = "\u2705 I've joined \u2014 check again"
 
 BTN_GET_GUIDEBOOK = "\U0001f4d6 Get the Extracurriculars Guidebook"
 
@@ -635,6 +614,21 @@ GUIDEBOOK_SET_USAGE = "Reply to the guidebook document with /set_guidebook to sa
 GUIDEBOOK_SET_SUCCESS = "\u2705 Extracurriculars Guidebook file saved successfully."
 
 BTN_GUIDEBOOK_CHECK = "\u2705 I've subscribed \u2014 check again"
+
+BTN_GETTING_IN = "\u2728Getting In with Amirbek Baxshilloyev"
+
+GETTING_IN_INTRO = (
+    "\u2728 <b>Getting In with Amirbek Baxshilloyev</b>\n\n"
+    "All the details and updates will be shared in the group chat. "
+    "Tap the button below to join!"
+)
+
+BTN_GETTING_IN_JOIN = "\U0001f517 Join the group chat"
+
+GETTING_IN_LINK = (
+    "Here's the link to the group chat:\n{group_url}\n\n"
+    "See you there! \u2728"
+)
 
 BTN_ADV_ENGLISH = "Special Offer \u2013 Advanced English"
 
