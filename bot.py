@@ -1464,7 +1464,7 @@ async def _broadcast_keyboard_command(
                         parse_mode="HTML",
                         disable_web_page_preview=True,
                         reply_markup=InlineKeyboardMarkup([
-                            [InlineKeyboardButton(msg.BTN_GETTING_IN_JOIN, callback_data="gi_join")],
+                            [InlineKeyboardButton(msg.BTN_GETTING_IN_JOIN, url=GETTING_IN_GROUP_URL)],
                         ]),
                     )
                     sent += 1
@@ -1731,21 +1731,8 @@ async def _handle_getting_in(update: Update, chat_id: int) -> None:
         parse_mode="HTML",
         disable_web_page_preview=True,
         reply_markup=InlineKeyboardMarkup(
-            [[InlineKeyboardButton(msg.BTN_GETTING_IN_JOIN, callback_data="gi_join")]]
+            [[InlineKeyboardButton(msg.BTN_GETTING_IN_JOIN, url=GETTING_IN_GROUP_URL)]]
         ),
-    )
-
-
-async def _getting_in_join_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    query = update.callback_query
-    await _safe_answer(query)
-    chat_id = update.effective_user.id
-    if chat_id not in _bypass_users:
-        await context.bot.send_message(chat_id=chat_id, text=msg.GETTING_IN_COMING_SOON)
-        return
-    await context.bot.send_message(
-        chat_id=chat_id,
-        text=msg.GETTING_IN_LINK.format(group_url=GETTING_IN_GROUP_URL),
     )
 
 
@@ -2538,7 +2525,6 @@ def build_app() -> Application:
     app.add_handler(CallbackQueryHandler(_podcast_check_callback, pattern="^podcast_check$"))
     app.add_handler(CallbackQueryHandler(_guidebook_get_callback, pattern="^guidebook_get$"))
     app.add_handler(CallbackQueryHandler(_guidebook_check_callback, pattern="^guidebook_check$"))
-    app.add_handler(CallbackQueryHandler(_getting_in_join_callback, pattern="^gi_join$"))
     app.add_handler(CallbackQueryHandler(_sat_enroll_inline_callback, pattern="^sat_enroll_inline$"))
     app.add_handler(CallbackQueryHandler(_ae_program_faq_callback, pattern="^ae_program_faq$"))
     app.add_handler(CallbackQueryHandler(_ae_apply_now_callback, pattern="^ae_apply_now$"))

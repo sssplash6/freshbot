@@ -618,11 +618,11 @@ BTN_GUIDEBOOK_CHECK = "\u2705 I've subscribed \u2014 check again"
 BTN_GETTING_IN = "\u2728Getting In with Amirbek Baxshilloyev"
 
 GETTING_IN_INTRO = (
-    "\U0001f44b Welcome to the Freshman Getting In Series!\n\n"
+    "\U0001f44b Welcome to the <b>Freshman Getting In Series</b>!\n\n"
     "We're excited to have you with us and look forward to seeing you at our "
-    "upcoming conversation with Amirbek Baxshilloyev.\n\n"
+    "upcoming conversation with <b>Amirbek Baxshilloyev</b>.\n\n"
     "\U0001f4cdBefore joining the event group, please take a moment to review "
-    "our Community Guidelines:\n\n"
+    "our <b>Community Guidelines</b>:\n\n"
     "1. The group is exclusively for communication related to the Getting In "
     "Series. Please keep discussions relevant to the event.\n\n"
     "2. Promotional content, advertisements, external opportunities, and "
@@ -632,23 +632,17 @@ GETTING_IN_INTRO = (
     "3. Please be respectful, supportive, and engaged. We create these events "
     "not only to help you learn from exceptional speakers, but also to connect "
     "you with ambitious, like-minded people.\n\n"
-    "\U0001f4f2 The Zoom link will be shared in the event group 10 minutes "
-    "before the session on Monday.\n\n"
+    "\U0001f4f2 <b>The Zoom link will be shared in the event group 10 minutes "
+    "before the session on Monday.</b>\n\n"
     "We're looking forward to your questions and hope you'll actively "
     "participate in the discussion!\n\n"
-    "\u27a1\ufe0f Join the event group here:\n"
-    "https://t.me/+ERaa0R7RQqw0ZGE6"
+    "\u27a1\ufe0f <b>Join the event group here:</b>"
 )
 
 BTN_GETTING_IN_JOIN = "\U0001f517 Join the group chat"
 
 GETTING_IN_COMING_SOON = (
     "🚧 Getting In with Amirbek Baxshilloyev is coming soon. Stay tuned!"
-)
-
-GETTING_IN_LINK = (
-    "Here's the link to the group chat:\n{group_url}\n\n"
-    "See you there! \u2728"
 )
 
 BTN_ADV_ENGLISH = "Special Offer \u2013 Advanced English"
