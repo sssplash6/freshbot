@@ -1718,7 +1718,7 @@ async def _guidebook_check_callback(update: Update, context: ContextTypes.DEFAUL
 # Getting In with Amibek Baxshilloyev — group chat invite
 # ---------------------------------------------------------------------------
 
-GETTING_IN_GROUP_URL = "https://t.me/+ERaa0R7RQqw0ZGE6"
+GETTING_IN_GROUP_URL = "https://t.me/+pO5KnOhGEG5lNzBi"
 
 
 async def _handle_getting_in(update: Update, chat_id: int) -> None:
