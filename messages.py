@@ -618,9 +618,22 @@ BTN_GUIDEBOOK_CHECK = "\u2705 I've subscribed \u2014 check again"
 BTN_GETTING_IN = "\u2728Getting In with Amirbek Baxshilloyev"
 
 GETTING_IN_INTRO = (
-    "\u2728 <b>Getting In with Amirbek Baxshilloyev</b>\n\n"
-    "All the details and updates will be shared in the group chat. "
-    "Tap the button below to join!"
+    "\u2728<b>Getting In with Amirbek Baxshilloyev: From 438th/438 to Full Rides "
+    "at Stanford, Caltech, and Brown</b>\n\n"
+    "In our 9th episode of the Getting In Series (2025\u20132026 cycle), we sit down with "
+    "Amirbek Baxshilloyev, an incoming Stanford student from Bukhara, Uzbekistan.\n\n"
+    "In 6th grade, Amirbek finished last in his class \u2014 438th out of 438. From there, "
+    "he built a case few could match: a 1520 SAT, an 8.5 IELTS, self-taught 5s on "
+    "AP Physics, Mechanics, and Calculus, and a nuclear fusion fuels paper published "
+    "at 15 under MIT's Professor Mike Short. He joined Freshman's Full Support in "
+    "March '25 and got in Early to Stanford, with additional full-ride offers from "
+    "Caltech, Brown, Swarthmore, and Washington &amp; Lee.\n\n"
+    "At this event, we'll talk about how Amirbek turned a last-place finish into a case "
+    "Stanford couldn't ignore, including how he landed research opportunities with "
+    "professors at MIT and Dartmouth as a high schooler, and whether a school like "
+    "Stanford or Caltech might be right for you.\n\n"
+    "\U0001f4c5 July 6th, Monday, 7\u20148PM (UTC+5)\n\n"
+    "Tap the button below to join the group chat \U0001f447"
 )
 
 BTN_GETTING_IN_JOIN = "\U0001f517 Join the group chat"
@@ -904,15 +917,6 @@ EG_ADMIN_HELP = (
     "/help \u2014 show this message"
 )
 
-BROADCAST_KEYBOARD_MESSAGE = (
-    "\U0001f4d5 <b>New: Extracurriculars Guidebook</b>\n\n"
-    "We've put together a free guidebook packed with extracurricular ideas and "
-    "strategies to strengthen your applications.\n\n"
-    "To get your copy, just subscribe to both of these channels:\n"
-    "• @valeranotes\n"
-    "• @freshmanblog\n\n"
-    "Then tap the button below to grab it \U0001f447"
-)
 BTN_AE_LEARN_MORE = "📖 Learn More"
 BROADCAST_KEYBOARD_MENU_NOTE = "Your menu has been updated \U0001f447"
 BROADCAST_KEYBOARD_DONE = "Keyboard broadcast: {sent} sent, {failed} failed ({total} total users)."

@@ -1457,14 +1457,14 @@ async def _broadcast_keyboard_command(
             nonlocal sent, failed, first_error
             async with sem:
                 try:
-                    # Extracurriculars Guidebook launch promo.
+                    # "Getting In with Amirbek Baxshilloyev" event promo.
                     await context.bot.send_message(
                         chat_id=cid,
-                        text=msg.BROADCAST_KEYBOARD_MESSAGE,
+                        text=msg.GETTING_IN_INTRO,
                         parse_mode="HTML",
                         disable_web_page_preview=True,
                         reply_markup=InlineKeyboardMarkup([
-                            [InlineKeyboardButton(msg.BTN_GET_GUIDEBOOK, callback_data="guidebook_get")],
+                            [InlineKeyboardButton(msg.BTN_GETTING_IN_JOIN, callback_data="gi_join")],
                         ]),
                     )
                     sent += 1
@@ -1718,7 +1718,7 @@ async def _guidebook_check_callback(update: Update, context: ContextTypes.DEFAUL
 # Getting In with Amibek Baxshilloyev — group chat invite
 # ---------------------------------------------------------------------------
 
-GETTING_IN_GROUP_URL = "https://t.me/+spN3lrP6HIplMzIy"
+GETTING_IN_GROUP_URL = "https://t.me/+ERaa0R7RQqw0ZGE6"
 
 
 async def _handle_getting_in(update: Update, chat_id: int) -> None:
