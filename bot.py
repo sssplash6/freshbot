@@ -1729,6 +1729,7 @@ async def _handle_getting_in(update: Update, chat_id: int) -> None:
         chat_id=chat_id,
         text=msg.GETTING_IN_INTRO,
         parse_mode="HTML",
+        disable_web_page_preview=True,
         reply_markup=InlineKeyboardMarkup(
             [[InlineKeyboardButton(msg.BTN_GETTING_IN_JOIN, callback_data="gi_join")]]
         ),
