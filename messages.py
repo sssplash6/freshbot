@@ -627,6 +627,10 @@ GETTING_IN_INTRO = (
 
 BTN_GETTING_IN_JOIN = "\U0001f517 Join the group chat"
 
+GETTING_IN_COMING_SOON = (
+    "🚧 Getting In with Amirbek Baxshilloyev is coming soon. Stay tuned!"
+)
+
 GETTING_IN_LINK = (
     "Here's the link to the group chat:\n{group_url}\n\n"
     "See you there! \u2728"

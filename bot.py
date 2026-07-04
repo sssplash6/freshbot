@@ -1722,6 +1722,9 @@ GETTING_IN_GROUP_URL = "https://t.me/+ERaa0R7RQqw0ZGE6"
 
 
 async def _handle_getting_in(update: Update, chat_id: int) -> None:
+    if chat_id not in _bypass_users:
+        await update.message.reply_text(msg.GETTING_IN_COMING_SOON)
+        return
     await update.get_bot().send_message(
         chat_id=chat_id,
         text=msg.GETTING_IN_INTRO,
@@ -1735,8 +1738,12 @@ async def _handle_getting_in(update: Update, chat_id: int) -> None:
 async def _getting_in_join_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     query = update.callback_query
     await _safe_answer(query)
+    chat_id = update.effective_user.id
+    if chat_id not in _bypass_users:
+        await context.bot.send_message(chat_id=chat_id, text=msg.GETTING_IN_COMING_SOON)
+        return
     await context.bot.send_message(
-        chat_id=update.effective_user.id,
+        chat_id=chat_id,
         text=msg.GETTING_IN_LINK.format(group_url=GETTING_IN_GROUP_URL),
     )
 
