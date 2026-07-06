@@ -104,6 +104,23 @@ _ae_state: dict[int, dict] = {}
 # Accumulates SAT enrollment answers per chat_id.
 _sat_enroll_state: dict[int, dict] = {}
 
+# Accumulates Economics Olympiad Prep registration answers per chat_id
+# ({"full_name": str, "courses": set[str]}).
+_econ_state: dict[int, dict] = {}
+
+# Olympiad Prep course options — callback key → display label.
+_ECON_COURSES: dict[str, str] = {
+    "macro": msg.BTN_ECON_MACRO,
+    "micro": msg.BTN_ECON_MICRO,
+    "calcbc": msg.BTN_ECON_CALC_BC,
+    "phys1": msg.BTN_ECON_PHYSICS,
+}
+
+# Who gets notified of a new Olympiad Prep registration (deduped).
+_ECON_NOTIFY_IDS: frozenset[int] = frozenset(
+    {PERSON_X_CHAT_ID, *ADV_PLACEMENT_MAN_CHAT_ID}
+)
+
 # Chat IDs with bypass mode active — skips "coming soon" gates to expose real flows.
 _bypass_users: set[int] = set()
 
@@ -185,6 +202,20 @@ def _back_keyboard() -> ReplyKeyboardMarkup:
         resize_keyboard=True,
         one_time_keyboard=True,
     )
+
+
+def _econ_courses_keyboard(selected: set[str]) -> InlineKeyboardMarkup:
+    """Multi-select course picker. Selected courses show a checkmark; a final
+    Done row submits the registration."""
+    rows = [
+        [InlineKeyboardButton(
+            f"{'✅ ' if key in selected else ''}{label}",
+            callback_data=f"econ_course:{key}",
+        )]
+        for key, label in _ECON_COURSES.items()
+    ]
+    rows.append([InlineKeyboardButton(msg.BTN_ECON_DONE, callback_data="econ_done")])
+    return InlineKeyboardMarkup(rows)
 
 
 def _sat_format_keyboard() -> ReplyKeyboardMarkup:
@@ -366,6 +397,15 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             await db.set_status(chat_id, None)
         else:
             await _handle_sat_enroll_step(update, chat_id, text, context)
+            return
+
+    if user and user.get("flow") == "econ":
+        if text in _NAV_BUTTONS:
+            _econ_state.pop(chat_id, None)
+            await db.set_flow(chat_id, None)
+            await db.set_status(chat_id, None)
+        else:
+            await _handle_econ_step(update, chat_id, text, context)
             return
 
     if user and user.get("flow") == "adv_english" and user.get("status") in (
@@ -1274,6 +1314,15 @@ async def _handle_back(update: Update, chat_id: int) -> None:
             reply_markup=_main_keyboard(),
         )
         return
+    if flow == "econ":
+        _econ_state.pop(chat_id, None)
+        await db.set_flow(chat_id, None)
+        await db.set_status(chat_id, None)
+        await update.message.reply_text(
+            msg.WELCOME.format(first_name=first_name),
+            reply_markup=_main_keyboard(),
+        )
+        return
     if flow == "adv_english":
         _ae_state.pop(chat_id, None)
         await db.set_flow(chat_id, None)
@@ -1457,14 +1506,14 @@ async def _broadcast_keyboard_command(
             nonlocal sent, failed, first_error
             async with sem:
                 try:
-                    # "Getting In with Amirbek Baxshilloyev" event promo.
+                    # Free International Economics Olympiad Prep promo.
                     await context.bot.send_message(
                         chat_id=cid,
-                        text=msg.GETTING_IN_INTRO,
+                        text=msg.ECON_OLYMPIAD_INTRO,
                         parse_mode="HTML",
                         disable_web_page_preview=True,
                         reply_markup=InlineKeyboardMarkup([
-                            [InlineKeyboardButton(msg.BTN_GETTING_IN_JOIN, url=GETTING_IN_GROUP_URL)],
+                            [InlineKeyboardButton(msg.BTN_ECON_JOIN, callback_data="econ_join")],
                         ]),
                     )
                     sent += 1
@@ -2025,6 +2074,148 @@ async def _handle_sat_enroll_step(
 
 
 # ---------------------------------------------------------------------------
+# Economics Olympiad Prep — registration flow
+# ---------------------------------------------------------------------------
+
+async def _econ_join_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    # Inline "Join now!" button (from /broadcastkeyboard) — starts registration.
+    query = update.callback_query
+    await query.answer()
+    chat_id = update.effective_user.id
+
+    _econ_state[chat_id] = {"courses": set()}
+    await db.set_flow(chat_id, "econ")
+    await db.set_status(chat_id, "econ_step_name")
+    await context.bot.send_message(
+        chat_id=chat_id,
+        text=msg.ECON_ASK_NAME,
+        reply_markup=_back_keyboard(),
+    )
+
+
+async def _handle_econ_step(
+    update: Update, chat_id: int, text: str, context: ContextTypes.DEFAULT_TYPE
+) -> None:
+    user = await db.get_user(chat_id)
+    status = user.get("status") if user else None
+
+    if status == "econ_step_name":
+        if not text.strip():
+            await update.message.reply_text(msg.ECON_ASK_NAME, reply_markup=_back_keyboard())
+            return
+        _econ_state.setdefault(chat_id, {"courses": set()})["full_name"] = text.strip()
+        await db.set_status(chat_id, "econ_step_courses")
+        await update.message.reply_text(
+            msg.ECON_ASK_COURSES,
+            reply_markup=_econ_courses_keyboard(_econ_state[chat_id]["courses"]),
+        )
+
+    elif status == "econ_step_courses":
+        # User is expected to tap inline buttons here — re-prompt on stray text.
+        await update.message.reply_text(
+            msg.ECON_ASK_COURSES,
+            reply_markup=_econ_courses_keyboard(
+                _econ_state.get(chat_id, {}).get("courses", set())
+            ),
+        )
+
+
+async def _econ_course_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    query = update.callback_query
+    await query.answer()
+    chat_id = update.effective_user.id
+
+    state = _econ_state.setdefault(chat_id, {"courses": set()})
+    selected: set[str] = state.setdefault("courses", set())
+    key = query.data[len("econ_course:"):]
+    if key not in _ECON_COURSES:
+        return
+    if key in selected:
+        selected.discard(key)
+    else:
+        selected.add(key)
+    try:
+        await query.edit_message_reply_markup(reply_markup=_econ_courses_keyboard(selected))
+    except Exception:
+        # Benign if the markup is unchanged or the message is too old.
+        pass
+
+
+async def _econ_done_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    query = update.callback_query
+    await query.answer()
+    chat_id = update.effective_user.id
+
+    state = _econ_state.get(chat_id, {})
+    selected: set[str] = state.get("courses", set())
+    if not selected:
+        await context.bot.send_message(chat_id=chat_id, text=msg.ECON_NO_COURSES)
+        return
+
+    _econ_state.pop(chat_id, None)
+    full_name = state.get("full_name", "")
+    # Preserve the fixed course order for a stable, readable record.
+    course_labels = [label for key, label in _ECON_COURSES.items() if key in selected]
+    courses = ", ".join(course_labels)
+
+    u = await db.get_user(chat_id)
+    first_name = u["first_name"] if u else "Unknown"
+    username = u["username"] if u else None
+
+    await db.econ_enroll_save(chat_id, username, first_name, full_name, courses)
+    await db.set_flow(chat_id, None)
+    await db.set_status(chat_id, None)
+
+    # Freeze the picker so it can't be re-tapped, then confirm.
+    try:
+        await query.edit_message_reply_markup(reply_markup=None)
+    except Exception:
+        pass
+    await context.bot.send_message(
+        chat_id=chat_id,
+        text=msg.ECON_SUBMITTED,
+        reply_markup=_main_keyboard(),
+    )
+
+    username_part = f" (@{username})" if username else ""
+    notify_text = msg.ECON_EXPERT_ENTRY.format(
+        first_name=first_name,
+        username_part=username_part,
+        chat_id=chat_id,
+        full_name=full_name,
+        courses=courses,
+    )
+    for notify_id in _ECON_NOTIFY_IDS:
+        try:
+            await context.bot.send_message(
+                chat_id=notify_id,
+                text=notify_text,
+                parse_mode="HTML",
+            )
+        except Exception:
+            logger.exception("Failed to notify %d of Olympiad Prep registration", notify_id)
+
+
+async def _econ_list_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    if update.effective_user.id not in _ECON_NOTIFY_IDS:
+        return
+    rows = await db.econ_enroll_get_all()
+    if not rows:
+        await update.message.reply_text("No Olympiad Prep registrations yet.")
+        return
+    lines = [f"\U0001f3c6 <b>Olympiad Prep registrations ({len(rows)})</b>", ""]
+    for r in rows:
+        username_part = f" (@{r['username']})" if r.get("username") else ""
+        lines.append(
+            f"• <a href=\"tg://user?id={r['chat_id']}\">{r['full_name']}</a>"
+            f"{username_part} — {r['courses']}"
+        )
+    await update.message.reply_text(
+        "\n".join(lines), parse_mode="HTML", disable_web_page_preview=True
+    )
+
+
+# ---------------------------------------------------------------------------
 # SAT enrollments — admin list view
 # ---------------------------------------------------------------------------
 
@@ -2505,6 +2696,7 @@ def build_app() -> Application:
     app.add_handler(CommandHandler("clear_adv", _clear_adv_command, filters=_private))
     app.add_handler(CommandHandler("unanswered", _q_unanswered_command, filters=_private))
     app.add_handler(CommandHandler("ae_list", _ae_list_command, filters=_private))
+    app.add_handler(CommandHandler("econ_list", _econ_list_command, filters=_private))
     app.add_handler(CommandHandler("ae_set_terms", _ae_set_terms_command, filters=_private))
     app.add_handler(CommandHandler("set_guidebook", _set_guidebook_command, filters=_private))
     app.add_handler(CommandHandler("ae_set_payment", _ae_set_payment_command, filters=_private))
@@ -2526,6 +2718,9 @@ def build_app() -> Application:
     app.add_handler(CallbackQueryHandler(_guidebook_get_callback, pattern="^guidebook_get$"))
     app.add_handler(CallbackQueryHandler(_guidebook_check_callback, pattern="^guidebook_check$"))
     app.add_handler(CallbackQueryHandler(_sat_enroll_inline_callback, pattern="^sat_enroll_inline$"))
+    app.add_handler(CallbackQueryHandler(_econ_join_callback, pattern="^econ_join$"))
+    app.add_handler(CallbackQueryHandler(_econ_course_callback, pattern="^econ_course:"))
+    app.add_handler(CallbackQueryHandler(_econ_done_callback, pattern="^econ_done$"))
     app.add_handler(CallbackQueryHandler(_ae_program_faq_callback, pattern="^ae_program_faq$"))
     app.add_handler(CallbackQueryHandler(_ae_apply_now_callback, pattern="^ae_apply_now$"))
     app.add_handler(CallbackQueryHandler(_ae_format_callback, pattern="^ae_format:"))

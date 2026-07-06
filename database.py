@@ -111,6 +111,17 @@ async def init_db() -> None:
                 enrolled_at  TEXT NOT NULL
             )
         """)
+        await db.execute("""
+            CREATE TABLE IF NOT EXISTS econ_enrollments (
+                id           INTEGER PRIMARY KEY AUTOINCREMENT,
+                chat_id      INTEGER NOT NULL UNIQUE,
+                username     TEXT,
+                first_name   TEXT NOT NULL,
+                full_name    TEXT NOT NULL,
+                courses      TEXT NOT NULL,
+                enrolled_at  TEXT NOT NULL
+            )
+        """)
         for _col in [
             "ALTER TABLE adv_english_applications ADD COLUMN video_file_id TEXT",
             "ALTER TABLE adv_english_applications ADD COLUMN video_type TEXT",
@@ -777,6 +788,40 @@ async def sat_enroll_save(
             (chat_id, username, first_name, full_name, sat_history, test_date, now),
         )
         await db.commit()
+
+
+async def econ_enroll_save(
+    chat_id: int,
+    username: str | None,
+    first_name: str,
+    full_name: str,
+    courses: str,
+) -> None:
+    now = datetime.now(timezone.utc).isoformat()
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute(
+            """INSERT INTO econ_enrollments
+               (chat_id, username, first_name, full_name, courses, enrolled_at)
+               VALUES (?, ?, ?, ?, ?, ?)
+               ON CONFLICT(chat_id) DO UPDATE SET
+                   username = excluded.username,
+                   first_name = excluded.first_name,
+                   full_name = excluded.full_name,
+                   courses = excluded.courses,
+                   enrolled_at = excluded.enrolled_at""",
+            (chat_id, username, first_name, full_name, courses, now),
+        )
+        await db.commit()
+
+
+async def econ_enroll_get_all() -> list[dict]:
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute(
+            "SELECT * FROM econ_enrollments ORDER BY enrolled_at"
+        ) as cursor:
+            rows = await cursor.fetchall()
+            return [dict(r) for r in rows]
 
 
 async def get_ae_stuck_users() -> list[dict]:

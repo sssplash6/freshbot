@@ -855,6 +855,38 @@ SAT_ENROLL_EXPERT_ENTRY = (
 )
 
 # ---------------------------------------------------------------------------
+# Economics Olympiad Prep — broadcast + registration flow
+# ---------------------------------------------------------------------------
+ECON_OLYMPIAD_INTRO = (
+    "\U0001f3c6 <b>Free International Economics Olympiad Prep</b>\n\n"
+    "Now, you can get a chance to prepare for the <b>International Economics Olympiad</b> "
+    "in our <b>Olympiad Prep Program</b> at <b>completely no cost</b> by registering for our "
+    "AP Micro and/or Macroeconomics courses.\n\n"
+    "Don’t miss the chance to make your Honors section shine even brighter. "
+    "To register, tap the button below \U0001f447"
+)
+BTN_ECON_JOIN = "\U0001f3c6 Join now!"
+
+ECON_ASK_NAME = "What’s your full name?"
+ECON_ASK_COURSES = (
+    "Which course(s) would you like to register for?\n\n"
+    "Tap to select — you can choose more than one — then tap ✅ Done."
+)
+BTN_ECON_MACRO = "AP Macroeconomics"
+BTN_ECON_MICRO = "AP Microeconomics"
+BTN_ECON_CALC_BC = "AP Calculus BC"
+BTN_ECON_PHYSICS = "AP Physics I"
+BTN_ECON_DONE = "✅ Done"
+ECON_NO_COURSES = "Please select at least one course before tapping ✅ Done."
+ECON_SUBMITTED = "✅ Thank you! Freshman Team will reach out to you soon!"
+ECON_EXPERT_ENTRY = (
+    "\U0001f3c6 New Olympiad Prep registration\n"
+    "From: <a href=\"tg://user?id={chat_id}\">{first_name}</a>{username_part}\n\n"
+    "<b>Name:</b> {full_name}\n"
+    "<b>Courses:</b> {courses}"
+)
+
+# ---------------------------------------------------------------------------
 # Event gate \u2014 student flow
 # ---------------------------------------------------------------------------
 EG_NOT_MEMBER = (
