@@ -123,6 +123,7 @@ async def init_db() -> None:
             )
         """)
         for _col in [
+            "ALTER TABLE users ADD COLUMN guidebook_sent_at TEXT",
             "ALTER TABLE adv_english_applications ADD COLUMN video_file_id TEXT",
             "ALTER TABLE adv_english_applications ADD COLUMN video_type TEXT",
             "ALTER TABLE adv_english_applications ADD COLUMN sat_score TEXT",
@@ -691,6 +692,32 @@ async def set_setting(key: str, value: str) -> None:
             (key, value),
         )
         await db.commit()
+
+
+# ---------------------------------------------------------------------------
+# Extracurriculars Guidebook
+# ---------------------------------------------------------------------------
+
+async def mark_guidebook_sent(chat_id: int) -> None:
+    """Record that this user received the guidebook (keeps the first delivery time)."""
+    now = datetime.now(timezone.utc).isoformat()
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute(
+            "UPDATE users SET guidebook_sent_at = COALESCE(guidebook_sent_at, ?)"
+            " WHERE chat_id = ?",
+            (now, chat_id),
+        )
+        await db.commit()
+
+
+async def count_guidebook_recipients() -> int:
+    """Number of unique users who have received the guidebook at least once."""
+    async with aiosqlite.connect(DB_PATH) as db:
+        async with db.execute(
+            "SELECT COUNT(*) FROM users WHERE guidebook_sent_at IS NOT NULL"
+        ) as cursor:
+            row = await cursor.fetchone()
+            return row[0] if row else 0
 
 
 # ---------------------------------------------------------------------------

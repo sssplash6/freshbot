@@ -946,6 +946,17 @@ async def _set_guidebook_command(
     await update.message.reply_text(msg.GUIDEBOOK_SET_SUCCESS)
 
 
+async def _guidebook_count_command(
+    update: Update, context: ContextTypes.DEFAULT_TYPE
+) -> None:
+    if update.effective_chat.id != PERSON_X_CHAT_ID and update.effective_chat.id not in _AE_REVIEWER_IDS:
+        return
+    count = await db.count_guidebook_recipients()
+    await update.message.reply_text(
+        f"📖 Guidebook delivered to {count} unique user(s)."
+    )
+
+
 async def _clear_adv_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if update.effective_chat.id != PERSON_X_CHAT_ID:
         return
@@ -1698,6 +1709,8 @@ async def _guidebook_deliver(bot, chat_id: int) -> None:
         caption=msg.GUIDEBOOK_ACCESS_GRANTED,
         parse_mode="HTML",
     )
+    await db.mark_guidebook_sent(chat_id)
+    logger.info("Guidebook delivered to chat_id=%d", chat_id)
 
 
 async def _guidebook_send_flow(bot, chat_id: int) -> None:
@@ -2699,6 +2712,7 @@ def build_app() -> Application:
     app.add_handler(CommandHandler("econ_list", _econ_list_command, filters=_private))
     app.add_handler(CommandHandler("ae_set_terms", _ae_set_terms_command, filters=_private))
     app.add_handler(CommandHandler("set_guidebook", _set_guidebook_command, filters=_private))
+    app.add_handler(CommandHandler("guidebook_count", _guidebook_count_command, filters=_private))
     app.add_handler(CommandHandler("ae_set_payment", _ae_set_payment_command, filters=_private))
     app.add_handler(CommandHandler("ae_remind", _ae_remind_command, filters=_private))
     app.add_handler(CommandHandler("ae_stuck", _ae_stuck_command, filters=_private))
