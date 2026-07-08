@@ -615,13 +615,17 @@ GUIDEBOOK_SET_SUCCESS = "\u2705 Extracurriculars Guidebook file saved successful
 
 BTN_GUIDEBOOK_CHECK = "\u2705 I've subscribed \u2014 check again"
 
-BTN_GETTING_IN = "\u2728Getting In with Amirbek Baxshilloyev"
+BTN_GETTING_IN = "\u2728Getting In with Jasmina Baktiyarova"
 
 GETTING_IN_INTRO = (
-    "\U0001f44b Welcome to the <b>Freshman Getting In Series</b>!\n\n"
-    "We're excited to have you with us and look forward to seeing you at our "
-    "upcoming conversation with <b>Amirbek Baxshilloyev</b>.\n\n"
-    "\U0001f4cdBefore joining the event group, please take a moment to review "
+    "\U0001f44b Welcome to the <b>Freshman Getting In Series, Episode X</b>!\n\n"
+    "We're excited to have you with us for our upcoming conversation with "
+    "<b>Jasmina Baktiyarova</b>, an incoming Amherst College student from "
+    "Uzbekistan.\n\n"
+    "Together, we'll explore how she built an application around the "
+    "intersection of music, history, and law, and discuss how to choose the "
+    "right major and create a coherent application narrative.\n\n"
+    "\U0001f4cd Before joining the event group, please take a moment to review "
     "our <b>Community Guidelines</b>:\n\n"
     "1. The group is exclusively for communication related to the Getting In "
     "Series. Please keep discussions relevant to the event.\n\n"
@@ -633,7 +637,7 @@ GETTING_IN_INTRO = (
     "not only to help you learn from exceptional speakers, but also to connect "
     "you with ambitious, like-minded people.\n\n"
     "\U0001f4f2 <b>The Zoom link will be shared in the event group 10 minutes "
-    "before the session on Monday.</b>\n\n"
+    "before the session.</b>\n\n"
     "We're looking forward to your questions and hope you'll actively "
     "participate in the discussion!\n\n"
     "\u27a1\ufe0f <b>Join the event group here:</b>"
@@ -642,7 +646,7 @@ GETTING_IN_INTRO = (
 BTN_GETTING_IN_JOIN = "\U0001f517 Join the group chat"
 
 GETTING_IN_COMING_SOON = (
-    "🚧 Getting In with Amirbek Baxshilloyev is coming soon. Stay tuned!"
+    "🚧 Getting In with Jasmina Baktiyarova is coming soon. Stay tuned!"
 )
 
 BTN_ADV_ENGLISH = "Special Offer \u2013 Advanced English"
