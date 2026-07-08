@@ -1517,14 +1517,14 @@ async def _broadcast_keyboard_command(
             nonlocal sent, failed, first_error
             async with sem:
                 try:
-                    # Free International Economics Olympiad Prep promo.
+                    # "Getting In with Jasmina Baktiyarova" event promo.
                     await context.bot.send_message(
                         chat_id=cid,
-                        text=msg.ECON_OLYMPIAD_INTRO,
+                        text=msg.GETTING_IN_INTRO,
                         parse_mode="HTML",
                         disable_web_page_preview=True,
                         reply_markup=InlineKeyboardMarkup([
-                            [InlineKeyboardButton(msg.BTN_ECON_JOIN, callback_data="econ_join")],
+                            [InlineKeyboardButton(msg.BTN_GETTING_IN_JOIN, url=GETTING_IN_GROUP_URL)],
                         ]),
                     )
                     sent += 1
