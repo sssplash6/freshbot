@@ -1509,33 +1509,35 @@ async def _broadcast_keyboard_command(
     async def _run() -> None:
         sent = failed = 0
         first_error: str | None = None
-        # Cap broadcast concurrency so it can never starve the connection pool
-        # or Telegram send budget that live user replies depend on.
-        sem = asyncio.Semaphore(15)
+        # Send in fixed-size batches with a pause in between so the broadcast
+        # stays under Telegram's ~30 msg/s flood limit and never starves the
+        # connection pool or send budget that live user replies depend on.
+        batch_size = 20
+        batch_pause = 1.5
 
         async def _send_one(cid: int) -> None:
             nonlocal sent, failed, first_error
-            async with sem:
-                try:
-                    # "Getting In with Jasmina Baktiyarova" event promo.
-                    await context.bot.send_message(
-                        chat_id=cid,
-                        text=msg.GETTING_IN_INTRO,
-                        parse_mode="HTML",
-                        disable_web_page_preview=True,
-                        reply_markup=InlineKeyboardMarkup([
-                            [InlineKeyboardButton(msg.BTN_GETTING_IN_JOIN, url=GETTING_IN_GROUP_URL)],
-                        ]),
-                    )
-                    sent += 1
-                except Exception as e:
-                    if first_error is None:
-                        first_error = f"{type(e).__name__}: {e}"
-                    logger.warning("Broadcast failed for chat_id=%d: %s: %s", cid, type(e).__name__, e)
-                    failed += 1
-                await asyncio.sleep(0.05)
+            try:
+                # "Getting In with Jasmina Bakhtiyorova" event promo.
+                await context.bot.send_message(
+                    chat_id=cid,
+                    text=msg.GETTING_IN_INTRO,
+                    parse_mode="HTML",
+                    disable_web_page_preview=True,
+                    reply_markup=InlineKeyboardMarkup([
+                        [InlineKeyboardButton(msg.BTN_GETTING_IN_JOIN, url=GETTING_IN_GROUP_URL)],
+                    ]),
+                )
+                sent += 1
+            except Exception as e:
+                if first_error is None:
+                    first_error = f"{type(e).__name__}: {e}"
+                logger.warning("Broadcast failed for chat_id=%d: %s: %s", cid, type(e).__name__, e)
+                failed += 1
 
-        await asyncio.gather(*(_send_one(cid) for cid in chat_ids))
+        for start in range(0, len(chat_ids), batch_size):
+            await asyncio.gather(*(_send_one(cid) for cid in chat_ids[start:start + batch_size]))
+            await asyncio.sleep(batch_pause)
         result = msg.BROADCAST_KEYBOARD_DONE.format(sent=sent, failed=failed, total=len(chat_ids))
         if first_error:
             result += f"\n\nFirst error: {first_error}"
@@ -1777,10 +1779,10 @@ async def _guidebook_check_callback(update: Update, context: ContextTypes.DEFAUL
 
 
 # ---------------------------------------------------------------------------
-# Getting In with Jasmina Baktiyarova — group chat invite
+# Getting In with Jasmina Bakhtiyorova — group chat invite
 # ---------------------------------------------------------------------------
 
-GETTING_IN_GROUP_URL = "https://t.me/+ERaa0R7RQqw0ZGE6"
+GETTING_IN_GROUP_URL = "https://t.me/+XZP_h2Mz2Wk5YmNi"
 
 
 async def _handle_getting_in(update: Update, chat_id: int) -> None:

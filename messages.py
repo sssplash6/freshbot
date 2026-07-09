@@ -615,12 +615,12 @@ GUIDEBOOK_SET_SUCCESS = "\u2705 Extracurriculars Guidebook file saved successful
 
 BTN_GUIDEBOOK_CHECK = "\u2705 I've subscribed \u2014 check again"
 
-BTN_GETTING_IN = "\u2728Getting In with Jasmina Baktiyarova"
+BTN_GETTING_IN = "\u2728Getting In with Jasmina Bakhtiyorova"
 
 GETTING_IN_INTRO = (
     "\U0001f44b Welcome to the <b>Freshman Getting In Series, Episode X</b>!\n\n"
     "We're excited to have you with us for our upcoming conversation with "
-    "<b>Jasmina Baktiyarova</b>, an incoming Amherst College student from "
+    "<b>Jasmina Bakhtiyorova</b>, an incoming Amherst College student from "
     "Uzbekistan.\n\n"
     "Together, we'll explore how she built an application around the "
     "intersection of music, history, and law, and discuss how to choose the "
@@ -646,7 +646,7 @@ GETTING_IN_INTRO = (
 BTN_GETTING_IN_JOIN = "\U0001f517 Join the group chat"
 
 GETTING_IN_COMING_SOON = (
-    "🚧 Getting In with Jasmina Baktiyarova is coming soon. Stay tuned!"
+    "🚧 Getting In with Jasmina Bakhtiyorova is coming soon. Stay tuned!"
 )
 
 BTN_ADV_ENGLISH = "Special Offer \u2013 Advanced English"
