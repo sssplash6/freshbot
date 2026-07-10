@@ -1611,6 +1611,38 @@ async def _video_admin_message_handler(
     await update.message.reply_text(msg.SETVIDEO_SAVED.format(program=program))
 
 
+async def _delete_video_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    if update.effective_user.id != PERSON_X_CHAT_ID:
+        return
+    programs = await db.get_programs_with_videos()
+    if not programs:
+        await update.message.reply_text(msg.DELETEVIDEO_NONE_SET)
+        return
+    keyboard = [
+        [InlineKeyboardButton(p, callback_data=f"deletevideo_{p}")]
+        for p in programs
+    ]
+    await update.message.reply_text(
+        msg.DELETEVIDEO_CHOOSE_PROGRAM,
+        reply_markup=InlineKeyboardMarkup(keyboard),
+    )
+
+
+async def _delete_video_program_callback(
+    update: Update, context: ContextTypes.DEFAULT_TYPE
+) -> None:
+    query = update.callback_query
+    await query.answer()
+    if update.effective_user.id != PERSON_X_CHAT_ID:
+        return
+    program = query.data[len("deletevideo_"):]
+    deleted = await db.delete_program_video(program)
+    if deleted:
+        await query.edit_message_text(msg.DELETEVIDEO_DELETED.format(program=program))
+    else:
+        await query.edit_message_text(msg.DELETEVIDEO_NOT_SET.format(program=program))
+
+
 async def _ping_experts_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if update.effective_user.id != PERSON_X_CHAT_ID:
         return
@@ -2771,6 +2803,7 @@ def build_app() -> Application:
     app.add_handler(CommandHandler("stats", _stats_command, filters=_private))
     app.add_handler(CommandHandler("export_db", _export_db_command, filters=_private))
     app.add_handler(CommandHandler("setvideo", _video_admin_command, filters=_private))
+    app.add_handler(CommandHandler("deletevideo", _delete_video_command, filters=_private))
     app.add_handler(CommandHandler("pingexperts", _ping_experts_command, filters=_private))
     app.add_handler(CommandHandler("followup", followup_command, filters=_private))
     app.add_handler(CommandHandler("santix", _santix_command, filters=_private))
@@ -2795,6 +2828,7 @@ def build_app() -> Application:
     app.add_handler(CallbackQueryHandler(_tap_approve_callback, pattern="^tap_approve:"))
     app.add_handler(CallbackQueryHandler(_tap_reject_callback, pattern="^tap_reject:"))
     app.add_handler(CallbackQueryHandler(_video_admin_program_callback, pattern="^setvideo_"))
+    app.add_handler(CallbackQueryHandler(_delete_video_program_callback, pattern="^deletevideo_"))
     app.add_handler(CallbackQueryHandler(_q_program_callback, pattern="^qp:"))
     app.add_handler(CallbackQueryHandler(_q_date_callback, pattern="^qd:"))
     app.add_handler(CallbackQueryHandler(_q_answer_callback, pattern="^qa:"))

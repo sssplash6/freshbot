@@ -957,6 +957,11 @@ SETVIDEO_SEND_VIDEO = "Got it! Now send the video for *{program}*."
 SETVIDEO_SAVED = "✅ Intro video saved for {program}."
 SETVIDEO_NOT_VIDEO = "That doesn't look like a video file. Please send a video."
 
+DELETEVIDEO_CHOOSE_PROGRAM = "Which program's intro video do you want to delete?"
+DELETEVIDEO_DELETED = "🗑 Intro video deleted for {program}."
+DELETEVIDEO_NOT_SET = "No intro video is set for {program}."
+DELETEVIDEO_NONE_SET = "No intro videos are set right now."
+
 EG_ADMIN_HELP = (
     "Event gate admin commands:\n"
     "/event \u2014 set up a new event (will ask for group ID then post)\n"

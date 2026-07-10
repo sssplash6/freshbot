@@ -496,6 +496,21 @@ async def upsert_program_video(program: str, file_id: str) -> None:
         await db.commit()
 
 
+async def delete_program_video(program: str) -> bool:
+    async with aiosqlite.connect(DB_PATH) as db:
+        cursor = await db.execute(
+            "DELETE FROM program_videos WHERE program = ?", (program,)
+        )
+        await db.commit()
+        return cursor.rowcount > 0
+
+
+async def get_programs_with_videos() -> list[str]:
+    async with aiosqlite.connect(DB_PATH) as db:
+        async with db.execute("SELECT program FROM program_videos") as cursor:
+            return [row[0] for row in await cursor.fetchall()]
+
+
 async def get_program_video(program: str) -> str | None:
     async with aiosqlite.connect(DB_PATH) as db:
         async with db.execute(
