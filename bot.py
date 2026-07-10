@@ -293,6 +293,23 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         return
     _last_message_time[chat_id] = now
 
+    # Q-admins who aren't experts: if they swipe-reply to a question re-issued
+    # via the /unanswered "Answer" button, route it like an expert reply. Only
+    # intercepts when the replied-to message matches a tracked question, so
+    # all other admin/user behavior is untouched.
+    if (
+        chat_id in _Q_ADMIN_IDS
+        and chat_id not in _EXPERT_CHAT_IDS
+        and text
+        and update.message.reply_to_message is not None
+    ):
+        question = await db.get_question_by_expert_message_any_status(
+            chat_id, update.message.reply_to_message.message_id
+        )
+        if question:
+            await _handle_expert_message(update, chat_id, text)
+            return
+
     # Admin routing for PERSON_X.
     # If mid-video-setup, route to the video admin handler. Otherwise, if PERSON_X
     # is an expert replying to a question, fall through to the expert handler;
@@ -2624,6 +2641,19 @@ async def _q_show_results(
     if len(text) > 4000:
         text = text[:4000] + "\n…"
 
+    rows = []
+    if status == "pending":
+        answer_row = []
+        for q in questions:
+            answer_row.append(
+                InlineKeyboardButton(f"✍️ Answer #{q['id']}", callback_data=f"qa:{q['id']}")
+            )
+            if len(answer_row) == 2:
+                rows.append(answer_row)
+                answer_row = []
+        if answer_row:
+            rows.append(answer_row)
+
     nav = []
     if offset > 0:
         nav.append(InlineKeyboardButton(
@@ -2633,7 +2663,9 @@ async def _q_show_results(
         nav.append(InlineKeyboardButton(
             "Next →", callback_data=f"qd:{status}:{prog_code}:{days_key}:{offset + _Q_PAGE_SIZE}"
         ))
-    markup = InlineKeyboardMarkup([nav]) if nav else None
+    if nav:
+        rows.append(nav)
+    markup = InlineKeyboardMarkup(rows) if rows else None
     await query.edit_message_text(text, reply_markup=markup)
 
 
@@ -2675,6 +2707,41 @@ async def _q_date_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         return
     _, status, prog_code, days_key, offset_str = query.data.split(":", 4)
     await _q_show_results(query, status, prog_code, days_key, int(offset_str))
+
+
+async def _q_answer_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Re-send a pending question as a fresh tracked message so it can be
+    answered with a normal swipe-reply, even if the original expert message
+    is old or was never registered in the DB."""
+    query = update.callback_query
+    if update.effective_user.id not in _Q_ADMIN_IDS:
+        await query.answer()
+        return
+
+    question_id = int(query.data.split(":", 1)[1])
+    question = await db.get_question_by_id(question_id)
+
+    if not question:
+        await query.answer(msg.Q_ANSWER_GONE, show_alert=True)
+        return
+    if question["status"] != "pending":
+        await query.answer(msg.EXPERT_ALREADY_ANSWERED, show_alert=True)
+        return
+
+    username = question.get("username")
+    expert_text = msg.EXPERT_QUESTION_REISSUED.format(
+        question_id=question_id,
+        first_name=question.get("first_name") or "Unknown",
+        username_part=f" (@{username})" if username else "",
+        program=question.get("program") or "N/A",
+        date=(question.get("created_at") or "")[:10] or "unknown",
+        question=question.get("question_text") or "",
+    )
+
+    chat_id = update.effective_chat.id
+    sent = await context.bot.send_message(chat_id=chat_id, text=expert_text)
+    await db.set_question_expert_message(question_id, chat_id, sent.message_id)
+    await query.answer(msg.Q_ANSWER_RESENT)
 
 
 def build_app() -> Application:
@@ -2730,6 +2797,7 @@ def build_app() -> Application:
     app.add_handler(CallbackQueryHandler(_video_admin_program_callback, pattern="^setvideo_"))
     app.add_handler(CallbackQueryHandler(_q_program_callback, pattern="^qp:"))
     app.add_handler(CallbackQueryHandler(_q_date_callback, pattern="^qd:"))
+    app.add_handler(CallbackQueryHandler(_q_answer_callback, pattern="^qa:"))
     app.add_handler(CallbackQueryHandler(_podcast_check_callback, pattern="^podcast_check$"))
     app.add_handler(CallbackQueryHandler(_guidebook_get_callback, pattern="^guidebook_get$"))
     app.add_handler(CallbackQueryHandler(_guidebook_check_callback, pattern="^guidebook_check$"))

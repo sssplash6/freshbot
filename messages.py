@@ -436,6 +436,17 @@ EXPERT_QUESTION = (
     "Reply to this message to send your answer to the student."
 )
 
+EXPERT_QUESTION_REISSUED = (
+    "❓ Question #{question_id} from {first_name}{username_part} "
+    "(Program: {program}, asked {date}):\n\n"
+    "{question}\n\n"
+    "Reply to this message to send your answer to the student."
+)
+
+Q_ANSWER_RESENT = "Question sent below — reply to that message to answer."
+
+Q_ANSWER_GONE = "This question no longer exists in the database."
+
 ANSWER_FROM_EXPERT = "💬 Our team answered your question:\n\n❓ {question}\n\n{answer}"
 
 EXPERT_REPLY_SENT = "✅ Your answer has been sent to the student."

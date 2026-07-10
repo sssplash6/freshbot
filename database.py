@@ -364,6 +364,20 @@ async def get_question_by_expert_message_any_status(
             return dict(row) if row else None
 
 
+async def get_question_by_id(question_id: int) -> dict | None:
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute(
+            """SELECT q.*, u.first_name, u.username
+               FROM questions q
+               LEFT JOIN users u ON q.user_chat_id = u.chat_id
+               WHERE q.id = ?""",
+            (question_id,),
+        ) as cursor:
+            row = await cursor.fetchone()
+            return dict(row) if row else None
+
+
 async def append_clarification(question_id: int, clarification: str) -> None:
     async with aiosqlite.connect(DB_PATH) as db:
         async with db.execute(
