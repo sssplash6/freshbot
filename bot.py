@@ -1488,9 +1488,11 @@ async def _stats_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 
     if s["questions_by_program"]:
         lines = "\n".join(
-            f"    {program}: {count}" for program, count in s["questions_by_program"]
+            f"    {program} — {total} total\n"
+            f"      ✅ {answered or 0} answered  •  ⏳ {pending or 0} pending"
+            for program, total, answered, pending in s["questions_by_program"]
         )
-        by_program = f"  By program:\n{lines}\n"
+        by_program = f"\n  \U0001f4cb By program:\n{lines}\n"
     else:
         by_program = ""
 

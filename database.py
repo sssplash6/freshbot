@@ -544,7 +544,11 @@ async def get_stats() -> dict:
         answered_questions = await scalar("SELECT COUNT(*) FROM questions WHERE status = 'answered'")
 
         questions_by_program = await rows(
-            "SELECT program, COUNT(*) FROM questions GROUP BY program ORDER BY COUNT(*) DESC"
+            "SELECT program, "
+            "COUNT(*), "
+            "SUM(CASE WHEN status = 'answered' THEN 1 ELSE 0 END), "
+            "SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END) "
+            "FROM questions GROUP BY program ORDER BY COUNT(*) DESC"
         )
 
         pending_jobs      = await scalar("SELECT COUNT(*) FROM scheduled_jobs WHERE sent = 0")
