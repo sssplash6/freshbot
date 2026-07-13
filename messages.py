@@ -626,25 +626,22 @@ GUIDEBOOK_SET_SUCCESS = "\u2705 Extracurriculars Guidebook file saved successful
 
 BTN_GUIDEBOOK_CHECK = "\u2705 I've subscribed \u2014 check again"
 
-BTN_GETTING_IN = "\u2728Getting In with Jasmina Bakhtiyorova"
+BTN_GETTING_IN = "\u2728Getting In with Alpamis Makhmutov"
 
 GETTING_IN_INTRO = (
-    "\U0001f44b Welcome to the <b>Freshman Getting In Series, Episode X</b>!\n\n"
+    "\U0001f44b Welcome to the <b>Freshman Getting In Series, Episode XI</b>!\n\n"
     "We're excited to have you with us for our upcoming conversation with "
-    "<b>Jasmina Bakhtiyorova</b>, an incoming Amherst College student from "
-    "Uzbekistan.\n\n"
-    "Together, we'll explore how she built an application around the "
-    "intersection of music, history, and law, and discuss how to choose the "
-    "right major and create a coherent application narrative.\n\n"
+    "<b>Alpamis Makhmutov</b>, an incoming student at Cornell University's "
+    "Dyson School of Applied Economics and Management.\n\n"
     "\U0001f4cd Before joining the event group, please take a moment to review "
     "our <b>Community Guidelines</b>:\n\n"
-    "1. The group is exclusively for communication related to the Getting In "
+    "(1) The group is exclusively for communication related to the Getting In "
     "Series. Please keep discussions relevant to the event.\n\n"
-    "2. Promotional content, advertisements, external opportunities, and "
+    "(2) Promotional content, advertisements, external opportunities, and "
     "personal projects may only be shared with prior approval from the "
     "Freshman team. If you'd like to share something, please contact "
     "@ValeriyaNizhnikova, the host of the event.\n\n"
-    "3. Please be respectful, supportive, and engaged. We create these events "
+    "(3) Please be respectful, supportive, and engaged. We create these events "
     "not only to help you learn from exceptional speakers, but also to connect "
     "you with ambitious, like-minded people.\n\n"
     "\U0001f4f2 <b>The Zoom link will be shared in the event group 10 minutes "
@@ -657,7 +654,7 @@ GETTING_IN_INTRO = (
 BTN_GETTING_IN_JOIN = "\U0001f517 Join the group chat"
 
 GETTING_IN_COMING_SOON = (
-    "🚧 Getting In with Jasmina Bakhtiyorova is coming soon. Stay tuned!"
+    "🚧 Getting In with Alpamis Makhmutov is coming soon. Stay tuned!"
 )
 
 BTN_ADV_ENGLISH = "Special Offer \u2013 Advanced English"

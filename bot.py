@@ -1537,7 +1537,7 @@ async def _broadcast_keyboard_command(
         async def _send_one(cid: int) -> None:
             nonlocal sent, failed, first_error
             try:
-                # "Getting In with Jasmina Bakhtiyorova" event promo.
+                # "Getting In with Alpamis Makhmutov" event promo.
                 await context.bot.send_message(
                     chat_id=cid,
                     text=msg.GETTING_IN_INTRO,
@@ -1830,10 +1830,10 @@ async def _guidebook_check_callback(update: Update, context: ContextTypes.DEFAUL
 
 
 # ---------------------------------------------------------------------------
-# Getting In with Jasmina Bakhtiyorova — group chat invite
+# Getting In with Alpamis Makhmutov — group chat invite
 # ---------------------------------------------------------------------------
 
-GETTING_IN_GROUP_URL = "https://t.me/+XZP_h2Mz2Wk5YmNi"
+GETTING_IN_GROUP_URL = "https://t.me/+fBfOvLi0ib42Y2Yy"
 
 
 async def _handle_getting_in(update: Update, chat_id: int) -> None:
