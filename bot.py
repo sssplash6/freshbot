@@ -2584,6 +2584,7 @@ _Q_PROG_CODES: dict[str, str | None] = {
     "AP":  "AP Classes",
     "RI":  "Research Institute",
     "IK":  "Imkon",
+    "AE":  "Advanced English",
     "GI":  "General Inquiry",
 }
 
@@ -2596,8 +2597,46 @@ _Q_PROG_LABELS: dict[str, str] = {
     "AP":  "AP",
     "RI":  "Research Inst.",
     "IK":  "Imkon",
+    "AE":  "Adv. English",
     "GI":  "General Inquiry",
 }
+
+# Reverse map: expert chat_id → set of program strings they receive questions for.
+_EXPERT_PROGRAMS: dict[int, set[str]] = {}
+for _prog, _ids in _PROGRAM_EXPERT.items():
+    for _eid in _ids:
+        _EXPERT_PROGRAMS.setdefault(_eid, set()).add(_prog)
+
+
+def _q_allowed_prog_codes(user_id: int) -> set[str] | None:
+    """Program codes a user may view in /answered & /unanswered.
+
+    Returns None for full-access admins (all programs, incl. "ALL"), or the set
+    of codes a department expert is scoped to. Empty set = no access.
+    """
+    if user_id in _Q_ADMIN_IDS:
+        return None
+    programs = _EXPERT_PROGRAMS.get(user_id, set())
+    return {code for code, prog in _Q_PROG_CODES.items() if prog and prog in programs}
+
+
+def _q_can_view(user_id: int) -> bool:
+    return user_id in _Q_ADMIN_IDS or bool(_EXPERT_PROGRAMS.get(user_id))
+
+
+def _q_prog_allowed(user_id: int, prog_code: str) -> bool:
+    """Whether a user may query a given program code ("ALL" is admin-only)."""
+    allowed = _q_allowed_prog_codes(user_id)
+    if allowed is None:
+        return True
+    return prog_code in allowed
+
+
+def _q_question_allowed(user_id: int, program: str | None) -> bool:
+    """Whether a user may act on a single question belonging to `program`."""
+    if user_id in _Q_ADMIN_IDS:
+        return True
+    return bool(program) and program in _EXPERT_PROGRAMS.get(user_id, set())
 
 _Q_DATE_OPTIONS = [
     ("0",  None, "All time"),
@@ -2607,14 +2646,17 @@ _Q_DATE_OPTIONS = [
 ]
 
 
-def _q_program_keyboard(status: str) -> InlineKeyboardMarkup:
-    all_btn = [InlineKeyboardButton("All Programs", callback_data=f"qp:{status}:ALL")]
+def _q_program_keyboard(status: str, allowed: set[str] | None = None) -> InlineKeyboardMarkup:
+    rows = []
+    if allowed is None:
+        rows.append([InlineKeyboardButton("All Programs", callback_data=f"qp:{status}:ALL")])
+        codes = [code for code in _Q_PROG_CODES if code != "ALL"]
+    else:
+        codes = [code for code in _Q_PROG_CODES if code != "ALL" and code in allowed]
     prog_btns = [
         InlineKeyboardButton(_Q_PROG_LABELS[code], callback_data=f"qp:{status}:{code}")
-        for code in _Q_PROG_CODES
-        if code != "ALL"
+        for code in codes
     ]
-    rows = [all_btn]
     for i in range(0, len(prog_btns), 2):
         rows.append(prog_btns[i : i + 2])
     return InlineKeyboardMarkup(rows)
@@ -2703,30 +2745,42 @@ async def _q_show_results(
     await query.edit_message_text(text, reply_markup=markup)
 
 
-async def _q_answered_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    if update.effective_user.id not in _Q_ADMIN_IDS:
+async def _q_launch(update: Update, status: str, noun: str) -> None:
+    user_id = update.effective_user.id
+    if not _q_can_view(user_id):
         return
+    allowed = _q_allowed_prog_codes(user_id)
+
+    # Department expert scoped to exactly one program → skip the program picker.
+    if allowed is not None and len(allowed) == 1:
+        prog_code = next(iter(allowed))
+        prog_label = _Q_PROG_LABELS.get(prog_code, prog_code)
+        await update.message.reply_text(
+            f"Filter {noun} questions — {prog_label}\nChoose a date range:",
+            reply_markup=_q_date_keyboard(status, prog_code),
+        )
+        return
+
     await update.message.reply_text(
-        "Filter answered questions — choose a program:",
-        reply_markup=_q_program_keyboard("answered"),
+        f"Filter {noun} questions — choose a program:",
+        reply_markup=_q_program_keyboard(status, allowed),
     )
+
+
+async def _q_answered_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    await _q_launch(update, "answered", "answered")
 
 
 async def _q_unanswered_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    if update.effective_user.id not in _Q_ADMIN_IDS:
-        return
-    await update.message.reply_text(
-        "Filter unanswered questions — choose a program:",
-        reply_markup=_q_program_keyboard("pending"),
-    )
+    await _q_launch(update, "pending", "unanswered")
 
 
 async def _q_program_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     query = update.callback_query
     await query.answer()
-    if update.effective_user.id not in _Q_ADMIN_IDS:
-        return
     _, status, prog_code = query.data.split(":", 2)
+    if not _q_prog_allowed(update.effective_user.id, prog_code):
+        return
     prog_label = _Q_PROG_LABELS.get(prog_code, prog_code)
     await query.edit_message_text(
         f"Program: {prog_label}\nNow choose a date range:",
@@ -2737,9 +2791,9 @@ async def _q_program_callback(update: Update, context: ContextTypes.DEFAULT_TYPE
 async def _q_date_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     query = update.callback_query
     await query.answer()
-    if update.effective_user.id not in _Q_ADMIN_IDS:
-        return
     _, status, prog_code, days_key, offset_str = query.data.split(":", 4)
+    if not _q_prog_allowed(update.effective_user.id, prog_code):
+        return
     await _q_show_results(query, status, prog_code, days_key, int(offset_str))
 
 
@@ -2748,7 +2802,7 @@ async def _q_answer_callback(update: Update, context: ContextTypes.DEFAULT_TYPE)
     answered with a normal swipe-reply, even if the original expert message
     is old or was never registered in the DB."""
     query = update.callback_query
-    if update.effective_user.id not in _Q_ADMIN_IDS:
+    if not _q_can_view(update.effective_user.id):
         await query.answer()
         return
 
@@ -2757,6 +2811,9 @@ async def _q_answer_callback(update: Update, context: ContextTypes.DEFAULT_TYPE)
 
     if not question:
         await query.answer(msg.Q_ANSWER_GONE, show_alert=True)
+        return
+    if not _q_question_allowed(update.effective_user.id, question.get("program")):
+        await query.answer()
         return
     if question["status"] != "pending":
         await query.answer(msg.EXPERT_ALREADY_ANSWERED, show_alert=True)
