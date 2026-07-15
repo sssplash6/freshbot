@@ -58,9 +58,18 @@ async def init_db() -> None:
             CREATE TABLE IF NOT EXISTS program_videos (
                 program    TEXT PRIMARY KEY,
                 file_id    TEXT NOT NULL,
+                video_type TEXT NOT NULL DEFAULT 'video',
                 created_at TEXT NOT NULL
             )
         """)
+        # Add video_type column to existing deployments that predate round-video support
+        try:
+            await db.execute(
+                "ALTER TABLE program_videos ADD COLUMN video_type TEXT NOT NULL DEFAULT 'video'"
+            )
+            await db.commit()
+        except Exception:
+            pass
         await db.execute("""
             CREATE TABLE IF NOT EXISTS adv_english_applications (
                 id                  INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -483,16 +492,17 @@ async def mark_sibling_questions_answered(user_chat_id: int, question_text: str)
 # ---------------------------------------------------------------------------
 
 
-async def upsert_program_video(program: str, file_id: str) -> None:
+async def upsert_program_video(program: str, file_id: str, video_type: str = "video") -> None:
     now = datetime.now(timezone.utc).isoformat()
     async with aiosqlite.connect(DB_PATH) as db:
         await db.execute("""
-            INSERT INTO program_videos (program, file_id, created_at)
-            VALUES (?, ?, ?)
+            INSERT INTO program_videos (program, file_id, video_type, created_at)
+            VALUES (?, ?, ?, ?)
             ON CONFLICT(program) DO UPDATE SET
                 file_id    = excluded.file_id,
+                video_type = excluded.video_type,
                 created_at = excluded.created_at
-        """, (program, file_id, now))
+        """, (program, file_id, video_type, now))
         await db.commit()
 
 
@@ -511,13 +521,14 @@ async def get_programs_with_videos() -> list[str]:
             return [row[0] for row in await cursor.fetchall()]
 
 
-async def get_program_video(program: str) -> str | None:
+async def get_program_video(program: str) -> tuple[str, str] | None:
+    """Returns (file_id, video_type) or None. video_type is 'video' or 'video_note'."""
     async with aiosqlite.connect(DB_PATH) as db:
         async with db.execute(
-            "SELECT file_id FROM program_videos WHERE program = ?", (program,)
+            "SELECT file_id, video_type FROM program_videos WHERE program = ?", (program,)
         ) as cursor:
             row = await cursor.fetchone()
-            return row[0] if row else None
+            return (row[0], row[1]) if row else None
 
 
 async def get_stats() -> dict:

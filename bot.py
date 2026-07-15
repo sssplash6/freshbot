@@ -529,11 +529,15 @@ async def _handle_programs(update: Update, chat_id: int) -> None:
 async def _handle_program(update: Update, chat_id: int, program: str) -> None:
     await db.set_program(chat_id, program)
     description = msg.PROGRAM_DESCRIPTIONS.get(program, "")
-    file_id = await db.get_program_video(program)
+    video = await db.get_program_video(program)
 
-    if file_id:
+    if video:
+        file_id, video_type = video
         await update.message.reply_text(msg.PROGRAM_CHOSEN.format(description=description))
-        await update.message.reply_video(file_id, reply_markup=_action_keyboard())
+        if video_type == "video_note":
+            await update.message.reply_video_note(file_id, reply_markup=_action_keyboard())
+        else:
+            await update.message.reply_video(file_id, reply_markup=_action_keyboard())
     else:
         await update.message.reply_text(
             msg.PROGRAM_CHOSEN.format(description=description),
@@ -548,6 +552,13 @@ async def _handle_program(update: Update, chat_id: int, program: str) -> None:
 async def _handle_general_inquiry(update: Update, chat_id: int) -> None:
     await db.set_flow(chat_id, "general_inquiry")
     await db.set_status(chat_id, "awaiting_question_text")
+    video = await db.get_program_video("General Inquiry")
+    if video:
+        file_id, video_type = video
+        if video_type == "video_note":
+            await update.message.reply_video_note(file_id)
+        else:
+            await update.message.reply_video(file_id)
     await update.message.reply_text(msg.FAQ_TYPE_QUESTION, reply_markup=_back_keyboard())
 
 
@@ -1576,7 +1587,7 @@ async def _video_admin_command(update: Update, context: ContextTypes.DEFAULT_TYP
     _video_admin_state["program"] = None
     keyboard = [
         [InlineKeyboardButton(p, callback_data=f"setvideo_{p}")]
-        for p in msg.PROGRAM_DESCRIPTIONS.keys()
+        for p in (*msg.PROGRAM_DESCRIPTIONS.keys(), "General Inquiry")
     ]
     await update.message.reply_text(
         msg.SETVIDEO_CHOOSE_PROGRAM,
@@ -1603,11 +1614,14 @@ async def _video_admin_message_handler(
     if _video_admin_state.get("step") != "awaiting_video":
         return
     video = update.message.video
-    if not video:
+    video_note = update.message.video_note
+    if not (video or video_note):
         await update.message.reply_text(msg.SETVIDEO_NOT_VIDEO)
         return
+    file_id = (video or video_note).file_id
+    video_type = "video_note" if video_note else "video"
     program = _video_admin_state["program"]
-    await db.upsert_program_video(program, video.file_id)
+    await db.upsert_program_video(program, file_id, video_type)
     _video_admin_state["step"] = None
     _video_admin_state["program"] = None
     await update.message.reply_text(msg.SETVIDEO_SAVED.format(program=program))

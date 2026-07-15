@@ -950,9 +950,9 @@ EG_ADMIN_STATUS_TEMPLATE = (
 EG_ADMIN_EVENT_CLEARED = "Event cleared. Students will see 'no active event'."
 
 SETVIDEO_CHOOSE_PROGRAM = "Which program do you want to set the intro video for?"
-SETVIDEO_SEND_VIDEO = "Got it! Now send the video for *{program}*."
+SETVIDEO_SEND_VIDEO = "Got it! Now send the video for *{program}* — a normal video or a round video message both work."
 SETVIDEO_SAVED = "✅ Intro video saved for {program}."
-SETVIDEO_NOT_VIDEO = "That doesn't look like a video file. Please send a video."
+SETVIDEO_NOT_VIDEO = "That doesn't look like a video. Please send a normal video or a round video message."
 
 DELETEVIDEO_CHOOSE_PROGRAM = "Which program's intro video do you want to delete?"
 DELETEVIDEO_DELETED = "🗑 Intro video deleted for {program}."
