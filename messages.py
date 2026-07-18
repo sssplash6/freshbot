@@ -871,8 +871,19 @@ SAT_ENROLL_EXPERT_ENTRY = (
 # ---------------------------------------------------------------------------
 
 BTN_MASTERS_WEBINAR = "\U0001f393 Master's Webinar (Offline)"
+BTN_MW_REGISTER = "📝 Register"
 
 MW_COMING_SOON = "🚧 The offline Master’s Webinar is coming soon. Stay tuned!"
+
+MW_ANNOUNCE = (
+    "\U0001f393 <b>Master’s Webinar — Offline</b>\n\n"
+    "Thinking about a Master’s abroad? Join us in person for a focused session on "
+    "Master’s admissions — scholarships, timelines, and how Freshman Academy can support you.\n\n"
+    "\U0001f4c5 <b>24 July 2026 · 18:30</b>\n"
+    "\U0001f4cd <a href=\"https://yandex.uz/maps/org/freshman_academy/84400460446/prices/"
+    "?ll=69.251835%2C41.312072&amp;z=16\">Freshman Academy — open in Yandex Maps</a>\n\n"
+    "Tap <b>Register</b> below to save your spot."
+)
 
 MW_INTRO = (
     "\U0001f393 <b>Master’s Webinar — Offline</b>\n\n"

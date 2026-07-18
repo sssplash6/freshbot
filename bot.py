@@ -1571,14 +1571,15 @@ async def _broadcast_keyboard_command(
         async def _send_one(cid: int) -> None:
             nonlocal sent, failed, first_error
             try:
-                # "Getting In with Alpamis Makhmutov" event promo.
+                # Offline Master's Webinar announcement - inline "Register" button
+                # opens the registration form directly (see _masters_webinar_inline_callback).
                 await context.bot.send_message(
                     chat_id=cid,
-                    text=msg.GETTING_IN_INTRO,
+                    text=msg.MW_ANNOUNCE,
                     parse_mode="HTML",
                     disable_web_page_preview=True,
                     reply_markup=InlineKeyboardMarkup([
-                        [InlineKeyboardButton(msg.BTN_GETTING_IN_JOIN, url=GETTING_IN_GROUP_URL)],
+                        [InlineKeyboardButton(msg.BTN_MW_REGISTER, callback_data="mw_register")],
                     ]),
                 )
                 sent += 1
@@ -2191,6 +2192,26 @@ async def _handle_masters_webinar(
     await db.set_flow(chat_id, "masters_webinar")
     await db.set_status(chat_id, "mw_step_name")
     await update.message.reply_text(msg.MW_ASK_NAME, reply_markup=_back_keyboard())
+
+
+async def _masters_webinar_inline_callback(
+    update: Update, context: ContextTypes.DEFAULT_TYPE
+) -> None:
+    # Inline "Register" button from the /broadcastkeyboard announcement — starts
+    # the registration flow directly (the announcement is the deliberate entry
+    # point, so this bypasses the coming-soon menu gate).
+    query = update.callback_query
+    await query.answer()
+    chat_id = update.effective_chat.id
+
+    _masters_webinar_state[chat_id] = {}
+    await db.set_flow(chat_id, "masters_webinar")
+    await db.set_status(chat_id, "mw_step_name")
+    await context.bot.send_message(
+        chat_id=chat_id,
+        text=msg.MW_ASK_NAME,
+        reply_markup=_back_keyboard(),
+    )
 
 
 async def _handle_masters_webinar_step(
@@ -3008,6 +3029,7 @@ def build_app() -> Application:
     app.add_handler(CallbackQueryHandler(_guidebook_get_callback, pattern="^guidebook_get$"))
     app.add_handler(CallbackQueryHandler(_guidebook_check_callback, pattern="^guidebook_check$"))
     app.add_handler(CallbackQueryHandler(_sat_enroll_inline_callback, pattern="^sat_enroll_inline$"))
+    app.add_handler(CallbackQueryHandler(_masters_webinar_inline_callback, pattern="^mw_register$"))
     app.add_handler(CallbackQueryHandler(_econ_join_callback, pattern="^econ_join$"))
     app.add_handler(CallbackQueryHandler(_econ_course_callback, pattern="^econ_course:"))
     app.add_handler(CallbackQueryHandler(_econ_done_callback, pattern="^econ_done$"))
