@@ -867,6 +867,33 @@ SAT_ENROLL_EXPERT_ENTRY = (
 )
 
 # ---------------------------------------------------------------------------
+# Master's Webinar (offline) — registration flow
+# ---------------------------------------------------------------------------
+
+BTN_MASTERS_WEBINAR = "\U0001f393 Master's Webinar (Offline)"
+
+MW_COMING_SOON = "🚧 The offline Master’s Webinar is coming soon. Stay tuned!"
+
+MW_INTRO = (
+    "\U0001f393 <b>Master’s Webinar — Offline</b>\n\n"
+    "Join us in person for a session on applying to Master’s programs abroad — "
+    "scholarships, timelines, and how Freshman Academy can support you.\n\n"
+    "\U0001f4c5 <b>24 July 2026 · 18:30</b>\n\n"
+    "Register with the short form below to save your spot."
+)
+MW_ASK_NAME = "What’s your full name?"
+MW_ASK_STUDY = "Where do you currently study? (your school or university)"
+MW_SUBMITTED = (
+    "✅ You’re registered for the offline Master’s webinar!\n\n"
+    "\U0001f4c5 <b>24 July 2026 · 18:30</b>\n"
+    "\U0001f4cd <b>Freshman Academy</b>\n"
+    "<a href=\"https://yandex.uz/maps/org/freshman_academy/84400460446/prices/"
+    "?ll=69.251835%2C41.312072&amp;z=16\">Open location in Yandex Maps →</a>\n\n"
+    "See you there!"
+)
+MW_LIST_EMPTY = "No Master’s webinar registrations yet."
+
+# ---------------------------------------------------------------------------
 # Economics Olympiad Prep — broadcast + registration flow
 # ---------------------------------------------------------------------------
 ECON_OLYMPIAD_INTRO = (
