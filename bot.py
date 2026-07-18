@@ -104,6 +104,9 @@ _ae_state: dict[int, dict] = {}
 # Accumulates SAT enrollment answers per chat_id.
 _sat_enroll_state: dict[int, dict] = {}
 
+# Accumulates Master's Webinar (offline) registration answers per chat_id.
+_masters_webinar_state: dict[int, dict] = {}
+
 # Accumulates Economics Olympiad Prep registration answers per chat_id
 # ({"full_name": str, "courses": set[str]}).
 _econ_state: dict[int, dict] = {}
@@ -130,7 +133,7 @@ _NAV_BUTTONS: frozenset[str] = frozenset({
     msg.BTN_PROGRAMS, msg.BTN_GENERAL_INQUIRY, msg.BTN_PODCAST,
     msg.BTN_HOME, msg.BTN_START,
     msg.BTN_ADV_ENGLISH, msg.BTN_SAT_ENROLL, msg.BTN_TRIAL_AP,
-    msg.BTN_GET_GUIDEBOOK, msg.BTN_GETTING_IN,
+    msg.BTN_GET_GUIDEBOOK, msg.BTN_GETTING_IN, msg.BTN_MASTERS_WEBINAR,
     # Program sub-menu
     msg.BTN_SAT, msg.BTN_ADMISSIONS, msg.BTN_FULL_SUPPORT, msg.BTN_MASTERS,
     msg.BTN_ADV_PLACEMENT, msg.BTN_IMKON, msg.BTN_RESEARCH_INSTITUTE,
@@ -149,7 +152,7 @@ _NAV_BUTTONS: frozenset[str] = frozenset({
 def _main_keyboard() -> ReplyKeyboardMarkup:
     return ReplyKeyboardMarkup(
         [
-            [msg.BTN_GET_GUIDEBOOK, msg.BTN_GETTING_IN],
+            [msg.BTN_GET_GUIDEBOOK, msg.BTN_MASTERS_WEBINAR],
             [msg.BTN_ADV_ENGLISH, msg.BTN_SAT_ENROLL],
             [msg.BTN_PROGRAMS, msg.BTN_GENERAL_INQUIRY],
         ],
@@ -416,6 +419,15 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             await _handle_sat_enroll_step(update, chat_id, text, context)
             return
 
+    if user and user.get("flow") == "masters_webinar":
+        if text in _NAV_BUTTONS:
+            _masters_webinar_state.pop(chat_id, None)
+            await db.set_flow(chat_id, None)
+            await db.set_status(chat_id, None)
+        else:
+            await _handle_masters_webinar_step(update, chat_id, text, context)
+            return
+
     if user and user.get("flow") == "econ":
         if text in _NAV_BUTTONS:
             _econ_state.pop(chat_id, None)
@@ -454,6 +466,8 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         await _handle_trial_ap(update, chat_id, context)
     elif text == msg.BTN_SAT_ENROLL:
         await _handle_sat_enroll(update, chat_id, context)
+    elif text == msg.BTN_MASTERS_WEBINAR:
+        await _handle_masters_webinar(update, chat_id, context)
     elif text == msg.BTN_GENERAL_INQUIRY:
         await _handle_general_inquiry(update, chat_id)
     elif text == msg.BTN_PODCAST:
@@ -1353,6 +1367,15 @@ async def _handle_back(update: Update, chat_id: int) -> None:
             reply_markup=_main_keyboard(),
         )
         return
+    if flow == "masters_webinar":
+        _masters_webinar_state.pop(chat_id, None)
+        await db.set_flow(chat_id, None)
+        await db.set_status(chat_id, None)
+        await update.message.reply_text(
+            msg.WELCOME.format(first_name=first_name),
+            reply_markup=_main_keyboard(),
+        )
+        return
     if flow == "econ":
         _econ_state.pop(chat_id, None)
         await db.set_flow(chat_id, None)
@@ -2154,6 +2177,81 @@ async def _handle_sat_enroll_step(
 
 
 # ---------------------------------------------------------------------------
+# Master's Webinar (offline) — registration flow
+# ---------------------------------------------------------------------------
+
+async def _handle_masters_webinar(
+    update: Update, chat_id: int, context: ContextTypes.DEFAULT_TYPE
+) -> None:
+    if chat_id not in _bypass_users:
+        await update.message.reply_text(msg.MW_COMING_SOON)
+        return
+    await update.message.reply_text(msg.MW_INTRO, parse_mode="HTML")
+    _masters_webinar_state[chat_id] = {}
+    await db.set_flow(chat_id, "masters_webinar")
+    await db.set_status(chat_id, "mw_step_name")
+    await update.message.reply_text(msg.MW_ASK_NAME, reply_markup=_back_keyboard())
+
+
+async def _handle_masters_webinar_step(
+    update: Update, chat_id: int, text: str, context: ContextTypes.DEFAULT_TYPE
+) -> None:
+    user = await db.get_user(chat_id)
+    status = user.get("status") if user else None
+
+    if status == "mw_step_name":
+        if not text.strip():
+            await update.message.reply_text(msg.MW_ASK_NAME, reply_markup=_back_keyboard())
+            return
+        _masters_webinar_state.setdefault(chat_id, {})["full_name"] = text.strip()
+        await db.set_status(chat_id, "mw_step_study")
+        await update.message.reply_text(msg.MW_ASK_STUDY, reply_markup=_back_keyboard())
+
+    elif status == "mw_step_study":
+        if not text.strip():
+            await update.message.reply_text(msg.MW_ASK_STUDY, reply_markup=_back_keyboard())
+            return
+        state = _masters_webinar_state.pop(chat_id, {})
+        full_name = state.get("full_name", "")
+        place_of_study = text.strip()
+
+        u = await db.get_user(chat_id)
+        first_name = u["first_name"] if u else "Unknown"
+        username = u["username"] if u else None
+
+        await db.masters_webinar_save(chat_id, username, first_name, full_name, place_of_study)
+        await db.set_flow(chat_id, None)
+        await db.set_status(chat_id, None)
+        await update.message.reply_text(
+            msg.MW_SUBMITTED, reply_markup=_main_keyboard(), parse_mode="HTML"
+        )
+
+
+_MASTERS_LIST_IDS: frozenset[int] = frozenset({PERSON_X_CHAT_ID, *MS_MAN_CHAT_ID})
+
+
+async def _masters_webinar_list_command(
+    update: Update, context: ContextTypes.DEFAULT_TYPE
+) -> None:
+    if update.effective_user.id not in _MASTERS_LIST_IDS:
+        return
+    rows = await db.masters_webinar_get_all()
+    if not rows:
+        await update.message.reply_text(msg.MW_LIST_EMPTY)
+        return
+    lines = [f"\U0001f393 <b>Master’s Webinar registrations ({len(rows)})</b>", ""]
+    for r in rows:
+        username_part = f" (@{r['username']})" if r.get("username") else ""
+        lines.append(
+            f"• <a href=\"tg://user?id={r['chat_id']}\">{r['full_name']}</a>"
+            f"{username_part} — {r['place_of_study']}"
+        )
+    await update.message.reply_text(
+        "\n".join(lines), parse_mode="HTML", disable_web_page_preview=True
+    )
+
+
+# ---------------------------------------------------------------------------
 # Economics Olympiad Prep — registration flow
 # ---------------------------------------------------------------------------
 
@@ -2885,6 +2983,7 @@ def build_app() -> Application:
     app.add_handler(CommandHandler("unanswered", _q_unanswered_command, filters=_private))
     app.add_handler(CommandHandler("ae_list", _ae_list_command, filters=_private))
     app.add_handler(CommandHandler("econ_list", _econ_list_command, filters=_private))
+    app.add_handler(CommandHandler("masters_list", _masters_webinar_list_command, filters=_private))
     app.add_handler(CommandHandler("ae_set_terms", _ae_set_terms_command, filters=_private))
     app.add_handler(CommandHandler("set_guidebook", _set_guidebook_command, filters=_private))
     app.add_handler(CommandHandler("guidebook_count", _guidebook_count_command, filters=_private))
