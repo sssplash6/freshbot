@@ -131,6 +131,17 @@ async def init_db() -> None:
                 enrolled_at  TEXT NOT NULL
             )
         """)
+        await db.execute("""
+            CREATE TABLE IF NOT EXISTS masters_webinar_registrations (
+                id              INTEGER PRIMARY KEY AUTOINCREMENT,
+                chat_id         INTEGER NOT NULL UNIQUE,
+                username        TEXT,
+                first_name      TEXT NOT NULL,
+                full_name       TEXT NOT NULL,
+                place_of_study  TEXT NOT NULL,
+                registered_at   TEXT NOT NULL
+            )
+        """)
         for _col in [
             "ALTER TABLE users ADD COLUMN guidebook_sent_at TEXT",
             "ALTER TABLE adv_english_applications ADD COLUMN video_file_id TEXT",
@@ -910,6 +921,40 @@ async def sat_enroll_get_all() -> list[dict]:
         db.row_factory = aiosqlite.Row
         async with db.execute(
             "SELECT * FROM sat_enrollments ORDER BY enrolled_at"
+        ) as cursor:
+            rows = await cursor.fetchall()
+            return [dict(r) for r in rows]
+
+
+async def masters_webinar_save(
+    chat_id: int,
+    username: str | None,
+    first_name: str,
+    full_name: str,
+    place_of_study: str,
+) -> None:
+    now = datetime.now(timezone.utc).isoformat()
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute(
+            """INSERT INTO masters_webinar_registrations
+               (chat_id, username, first_name, full_name, place_of_study, registered_at)
+               VALUES (?, ?, ?, ?, ?, ?)
+               ON CONFLICT(chat_id) DO UPDATE SET
+                   username = excluded.username,
+                   first_name = excluded.first_name,
+                   full_name = excluded.full_name,
+                   place_of_study = excluded.place_of_study,
+                   registered_at = excluded.registered_at""",
+            (chat_id, username, first_name, full_name, place_of_study, now),
+        )
+        await db.commit()
+
+
+async def masters_webinar_get_all() -> list[dict]:
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute(
+            "SELECT * FROM masters_webinar_registrations ORDER BY registered_at"
         ) as cursor:
             rows = await cursor.fetchall()
             return [dict(r) for r in rows]
