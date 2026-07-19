@@ -2186,6 +2186,10 @@ async def _handle_sat_enroll_step(
 MASTERS_REQUIRED_IDS = [-1003861690278, -1001481432083]
 MASTERS_REQUIRED_HANDLES = ["@freshmanmasters", "@freshmanblog"]
 
+# Gate switch. False = gate is OPEN: registration proceeds without requiring
+# the channel follow. Flip to True to re-enforce the mandatory follow.
+MASTERS_GATE_ENABLED = False
+
 
 async def _masters_is_member(bot, channel_id: int, chat_id: int) -> bool:
     """True if chat_id is a member of channel_id. Fails open on API error."""
@@ -2198,6 +2202,10 @@ async def _masters_is_member(bot, channel_id: int, chat_id: int) -> bool:
 
 
 async def _masters_get_missing(bot, chat_id: int) -> list[str]:
+    # Gate is open — treat everyone as already following, so the flow finalizes
+    # without a channel check.
+    if not MASTERS_GATE_ENABLED:
+        return []
     # Check both channels concurrently so the user isn't waiting on two
     # sequential round-trips (each already queued behind the rate limiter).
     results = await asyncio.gather(
