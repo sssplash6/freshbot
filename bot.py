@@ -2186,9 +2186,9 @@ async def _handle_sat_enroll_step(
 MASTERS_REQUIRED_IDS = [-1003861690278, -1001481432083]
 MASTERS_REQUIRED_HANDLES = ["@freshmanmasters", "@freshmanblog"]
 
-# Gate switch. False = gate is OPEN: registration proceeds without requiring
-# the channel follow. Flip to True to re-enforce the mandatory follow.
-MASTERS_GATE_ENABLED = False
+# Gate switch. True = mandatory follow enforced. Flip to False to OPEN the
+# gate so registration proceeds without the channel check.
+MASTERS_GATE_ENABLED = True
 
 
 async def _masters_is_member(bot, channel_id: int, chat_id: int) -> bool:
@@ -2234,9 +2234,8 @@ async def _masters_webinar_begin(bot, chat_id: int) -> None:
 async def _handle_masters_webinar(
     update: Update, chat_id: int, context: ContextTypes.DEFAULT_TYPE
 ) -> None:
-    if chat_id not in _bypass_users:
-        await update.message.reply_text(msg.MW_COMING_SOON)
-        return
+    # Coming-soon gate is open — the webinar is live, so every user who taps the
+    # menu button goes straight into registration.
     await _masters_webinar_begin(context.bot, chat_id)
 
 
