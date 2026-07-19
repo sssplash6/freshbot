@@ -2181,17 +2181,55 @@ async def _handle_sat_enroll_step(
 # Master's Webinar (offline) — registration flow
 # ---------------------------------------------------------------------------
 
+# Channels a user must follow before registering for the offline webinar. The
+# bot is an admin in both, so get_chat_member works.
+MASTERS_REQUIRED_IDS = [-1003861690278, -1001481432083]
+MASTERS_REQUIRED_HANDLES = ["@freshmanmasters", "@freshmanblog"]
+
+
+async def _masters_is_member(bot, channel_id: int, chat_id: int) -> bool:
+    """True if chat_id is a member of channel_id. Fails open on API error."""
+    try:
+        member = await bot.get_chat_member(channel_id, chat_id)
+        return member.status in _MEMBER_STATUSES
+    except TelegramError:
+        logger.warning("Cannot check masters membership in %s. Failing open.", channel_id)
+        return True
+
+
+async def _masters_get_missing(bot, chat_id: int) -> list[str]:
+    # Check both channels concurrently so the user isn't waiting on two
+    # sequential round-trips (each already queued behind the rate limiter).
+    results = await asyncio.gather(
+        *(_masters_is_member(bot, cid, chat_id) for cid in MASTERS_REQUIRED_IDS)
+    )
+    return [h for h, ok in zip(MASTERS_REQUIRED_HANDLES, results) if not ok]
+
+
+def _masters_gate_markup() -> "InlineKeyboardMarkup":
+    return InlineKeyboardMarkup(
+        [[InlineKeyboardButton(msg.BTN_MW_JOIN_CHECK, callback_data="mw_join_check")]]
+    )
+
+
+async def _masters_webinar_begin(bot, chat_id: int) -> None:
+    """Send the intro and start collecting registration details."""
+    await bot.send_message(chat_id=chat_id, text=msg.MW_INTRO, parse_mode="HTML")
+    _masters_webinar_state[chat_id] = {}
+    await db.set_flow(chat_id, "masters_webinar")
+    await db.set_status(chat_id, "mw_step_name")
+    await bot.send_message(
+        chat_id=chat_id, text=msg.MW_ASK_NAME, reply_markup=_back_keyboard()
+    )
+
+
 async def _handle_masters_webinar(
     update: Update, chat_id: int, context: ContextTypes.DEFAULT_TYPE
 ) -> None:
     if chat_id not in _bypass_users:
         await update.message.reply_text(msg.MW_COMING_SOON)
         return
-    await update.message.reply_text(msg.MW_INTRO, parse_mode="HTML")
-    _masters_webinar_state[chat_id] = {}
-    await db.set_flow(chat_id, "masters_webinar")
-    await db.set_status(chat_id, "mw_step_name")
-    await update.message.reply_text(msg.MW_ASK_NAME, reply_markup=_back_keyboard())
+    await _masters_webinar_begin(context.bot, chat_id)
 
 
 async def _masters_webinar_inline_callback(
@@ -2202,16 +2240,75 @@ async def _masters_webinar_inline_callback(
     # point, so this bypasses the coming-soon menu gate).
     query = update.callback_query
     await query.answer()
-    chat_id = update.effective_chat.id
+    await _masters_webinar_begin(context.bot, update.effective_chat.id)
 
-    _masters_webinar_state[chat_id] = {}
-    await db.set_flow(chat_id, "masters_webinar")
-    await db.set_status(chat_id, "mw_step_name")
-    await context.bot.send_message(
+
+async def _masters_webinar_finalize_or_gate(bot, chat_id: int) -> None:
+    """Last step of registration: only save once the user follows every
+    required channel. Otherwise hold their answers and prompt them to join."""
+    missing = await _masters_get_missing(bot, chat_id)
+    if missing:
+        channel_list = "\n".join(f"• {h}" for h in missing)
+        await db.set_status(chat_id, "mw_awaiting_join")
+        await bot.send_message(
+            chat_id=chat_id,
+            text=msg.MW_MUST_JOIN.format(channel_list=channel_list),
+            parse_mode="HTML",
+            reply_markup=_masters_gate_markup(),
+        )
+        return
+    await _masters_webinar_finalize(bot, chat_id)
+
+
+async def _masters_webinar_finalize(bot, chat_id: int) -> None:
+    """Persist the registration and reset the user's flow."""
+    state = _masters_webinar_state.get(chat_id) or {}
+    full_name = state.get("full_name", "")
+    place_of_study = state.get("place_of_study", "")
+    if not full_name or not place_of_study:
+        # In-memory answers were lost (e.g. a restart during the join gate).
+        # Restart the short form so we never save a blank registration.
+        await _masters_webinar_begin(bot, chat_id)
+        return
+    _masters_webinar_state.pop(chat_id, None)
+
+    u = await db.get_user(chat_id)
+    first_name = u["first_name"] if u else "Unknown"
+    username = u["username"] if u else None
+
+    await db.masters_webinar_save(chat_id, username, first_name, full_name, place_of_study)
+    await db.set_flow(chat_id, None)
+    await db.set_status(chat_id, None)
+    await bot.send_message(
         chat_id=chat_id,
-        text=msg.MW_ASK_NAME,
-        reply_markup=_back_keyboard(),
+        text=msg.MW_SUBMITTED,
+        reply_markup=_main_keyboard(),
+        parse_mode="HTML",
     )
+
+
+async def _masters_webinar_join_check_callback(
+    update: Update, context: ContextTypes.DEFAULT_TYPE
+) -> None:
+    # "I've joined — check again" button from the mandatory-follow gate. Runs
+    # after the form is filled, so a successful check finalizes registration.
+    query = update.callback_query
+    await _safe_answer(query)
+    chat_id = update.effective_user.id
+    missing = await _masters_get_missing(context.bot, chat_id)
+    if missing:
+        channel_list = "\n".join(f"• {h}" for h in missing)
+        try:
+            await query.edit_message_text(
+                msg.MW_MUST_JOIN.format(channel_list=channel_list),
+                parse_mode="HTML",
+                reply_markup=_masters_gate_markup(),
+            )
+        except TelegramError as e:
+            if "not modified" not in str(e).lower():
+                raise
+        return
+    await _masters_webinar_finalize(context.bot, chat_id)
 
 
 async def _handle_masters_webinar_step(
@@ -2232,20 +2329,14 @@ async def _handle_masters_webinar_step(
         if not text.strip():
             await update.message.reply_text(msg.MW_ASK_STUDY, reply_markup=_back_keyboard())
             return
-        state = _masters_webinar_state.pop(chat_id, {})
-        full_name = state.get("full_name", "")
-        place_of_study = text.strip()
+        _masters_webinar_state.setdefault(chat_id, {})["place_of_study"] = text.strip()
+        # Verify the required-channel follow at the very last step, before saving.
+        await _masters_webinar_finalize_or_gate(context.bot, chat_id)
 
-        u = await db.get_user(chat_id)
-        first_name = u["first_name"] if u else "Unknown"
-        username = u["username"] if u else None
-
-        await db.masters_webinar_save(chat_id, username, first_name, full_name, place_of_study)
-        await db.set_flow(chat_id, None)
-        await db.set_status(chat_id, None)
-        await update.message.reply_text(
-            msg.MW_SUBMITTED, reply_markup=_main_keyboard(), parse_mode="HTML"
-        )
+    elif status == "mw_awaiting_join":
+        # User is at the follow gate but typed instead of tapping the button
+        # (e.g. the inline callback expired) — re-check membership.
+        await _masters_webinar_finalize_or_gate(context.bot, chat_id)
 
 
 _MASTERS_LIST_IDS: frozenset[int] = frozenset({PERSON_X_CHAT_ID, *MS_MAN_CHAT_ID})
@@ -3030,6 +3121,7 @@ def build_app() -> Application:
     app.add_handler(CallbackQueryHandler(_guidebook_check_callback, pattern="^guidebook_check$"))
     app.add_handler(CallbackQueryHandler(_sat_enroll_inline_callback, pattern="^sat_enroll_inline$"))
     app.add_handler(CallbackQueryHandler(_masters_webinar_inline_callback, pattern="^mw_register$"))
+    app.add_handler(CallbackQueryHandler(_masters_webinar_join_check_callback, pattern="^mw_join_check$"))
     app.add_handler(CallbackQueryHandler(_econ_join_callback, pattern="^econ_join$"))
     app.add_handler(CallbackQueryHandler(_econ_course_callback, pattern="^econ_course:"))
     app.add_handler(CallbackQueryHandler(_econ_done_callback, pattern="^econ_done$"))

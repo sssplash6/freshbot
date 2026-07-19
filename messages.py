@@ -875,6 +875,17 @@ BTN_MW_REGISTER = "📝 Register"
 
 MW_COMING_SOON = "🚧 The offline Master’s Webinar is coming soon. Stay tuned!"
 
+# Mandatory-follow gate shown before registration if the user hasn't joined
+# the required channels yet. {channel_list} is a bullet list of the channels
+# still missing.
+MW_MUST_JOIN = (
+    "\U0001f393 To register for the offline <b>Master’s Webinar</b>, "
+    "please follow our channels first:\n\n"
+    "{channel_list}\n\n"
+    "Once you’ve joined, tap the button below."
+)
+BTN_MW_JOIN_CHECK = "✅ I've joined — check again"
+
 MW_ANNOUNCE = (
     "\U0001f393 <b>Master’s Webinar — Offline</b>\n\n"
     "Thinking about a Master’s abroad? Join us in person for a focused session on "
