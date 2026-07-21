@@ -153,6 +153,7 @@ def _main_keyboard() -> ReplyKeyboardMarkup:
     return ReplyKeyboardMarkup(
         [
             [msg.BTN_MASTERS_WEBINAR, msg.BTN_GET_GUIDEBOOK],
+            [msg.BTN_GETTING_IN],
             [msg.BTN_ADV_ENGLISH, msg.BTN_SAT_ENROLL],
             [msg.BTN_PROGRAMS, msg.BTN_GENERAL_INQUIRY],
         ],
@@ -1873,9 +1874,13 @@ async def _guidebook_check_callback(update: Update, context: ContextTypes.DEFAUL
 
 GETTING_IN_GROUP_URL = "https://t.me/+fBfOvLi0ib42Y2Yy"
 
+# Coming-soon gate. True = series is live for everyone. False = only /santix
+# bypass users see it (everyone else gets GETTING_IN_COMING_SOON).
+GETTING_IN_LIVE = True
+
 
 async def _handle_getting_in(update: Update, chat_id: int) -> None:
-    if chat_id not in _bypass_users:
+    if not GETTING_IN_LIVE and chat_id not in _bypass_users:
         await update.message.reply_text(msg.GETTING_IN_COMING_SOON)
         return
     await update.get_bot().send_message(
