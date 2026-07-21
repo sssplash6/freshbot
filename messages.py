@@ -867,19 +867,19 @@ SAT_ENROLL_EXPERT_ENTRY = (
 )
 
 # ---------------------------------------------------------------------------
-# Master's Webinar (offline) — registration flow
+# Master's Seminar (offline) — registration flow
 # ---------------------------------------------------------------------------
 
-BTN_MASTERS_WEBINAR = "\U0001f393 Master's Webinar (Offline)"
+BTN_MASTERS_WEBINAR = "\U0001f393 Master's Seminar (Offline)"
 BTN_MW_REGISTER = "📝 Register"
 
-MW_COMING_SOON = "🚧 The offline Master’s Webinar is coming soon. Stay tuned!"
+MW_COMING_SOON = "🚧 The offline Master’s Seminar is coming soon. Stay tuned!"
 
 # Mandatory-follow gate shown before registration if the user hasn't joined
 # the required channels yet. {channel_list} is a bullet list of the channels
 # still missing.
 MW_MUST_JOIN = (
-    "\U0001f393 To register for the offline <b>Master’s Webinar</b>, "
+    "\U0001f393 To register for the offline <b>Master’s Seminar</b>, "
     "please follow our channels first:\n\n"
     "{channel_list}\n\n"
     "Once you’ve joined, tap the button below."
@@ -887,33 +887,30 @@ MW_MUST_JOIN = (
 BTN_MW_JOIN_CHECK = "✅ I've joined — check again"
 
 MW_ANNOUNCE = (
-    "\U0001f393 <b>Master’s Webinar — Offline</b>\n\n"
+    "\U0001f393 <b>Master’s Seminar — Offline</b>\n\n"
     "Thinking about a Master’s abroad? Join us in person for a focused session on "
     "Master’s admissions — scholarships, timelines, and how Freshman Academy can support you.\n\n"
-    "\U0001f4c5 <b>24 July 2026 · 18:30</b>\n"
-    "\U0001f4cd <a href=\"https://yandex.uz/maps/org/freshman_academy/84400460446/prices/"
-    "?ll=69.251835%2C41.312072&amp;z=16\">Freshman Academy — open in Yandex Maps</a>\n\n"
+    "\U0001f4c5 <b>24 July 2026, 6:30 PM</b>\n"
+    "\U0001f4cd <a href=\"https://maps.app.goo.gl/YZRGrhNwbjwyfB3U7\">Freshman Nest One Office, Tashkent</a>\n\n"
     "Tap <b>Register</b> below to save your spot."
 )
 
 MW_INTRO = (
-    "\U0001f393 <b>Master’s Webinar — Offline</b>\n\n"
-    "Join us in person for a session on applying to Master’s programs abroad — "
-    "scholarships, timelines, and how Freshman Academy can support you.\n\n"
-    "\U0001f4c5 <b>24 July 2026 · 18:30</b>\n\n"
+    "\U0001f393 <b>Master’s Seminar</b>\n\n"
+    "Join us in person for a session on applying to Master’s programs abroad.\n\n"
+    "\U0001f4c5 <b>24 July 2026, 6:30 PM</b>\n"
+    "\U0001f4cd <a href=\"https://maps.app.goo.gl/YZRGrhNwbjwyfB3U7\">Freshman Nest One Office, Tashkent</a>\n\n"
     "Register with the short form below to save your spot."
 )
 MW_ASK_NAME = "What’s your full name?"
 MW_ASK_STUDY = "Where do you currently study? (your school or university)"
 MW_SUBMITTED = (
-    "✅ You’re registered for the offline Master’s webinar!\n\n"
-    "\U0001f4c5 <b>24 July 2026 · 18:30</b>\n"
-    "\U0001f4cd <b>Freshman Academy</b>\n"
-    "<a href=\"https://yandex.uz/maps/org/freshman_academy/84400460446/prices/"
-    "?ll=69.251835%2C41.312072&amp;z=16\">Open location in Yandex Maps →</a>\n\n"
+    "✅ You’re registered for the offline Master’s Seminar!\n\n"
+    "\U0001f4c5 <b>24 July 2026, 6:30 PM</b>\n"
+    "\U0001f4cd <a href=\"https://maps.app.goo.gl/YZRGrhNwbjwyfB3U7\">Freshman Nest One Office, Tashkent</a>\n\n"
     "See you there!"
 )
-MW_LIST_EMPTY = "No Master’s webinar registrations yet."
+MW_LIST_EMPTY = "No Master’s Seminar registrations yet."
 
 # ---------------------------------------------------------------------------
 # Economics Olympiad Prep — broadcast + registration flow

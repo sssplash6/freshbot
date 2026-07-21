@@ -152,7 +152,7 @@ _NAV_BUTTONS: frozenset[str] = frozenset({
 def _main_keyboard() -> ReplyKeyboardMarkup:
     return ReplyKeyboardMarkup(
         [
-            [msg.BTN_GET_GUIDEBOOK, msg.BTN_MASTERS_WEBINAR],
+            [msg.BTN_MASTERS_WEBINAR, msg.BTN_GET_GUIDEBOOK],
             [msg.BTN_ADV_ENGLISH, msg.BTN_SAT_ENROLL],
             [msg.BTN_PROGRAMS, msg.BTN_GENERAL_INQUIRY],
         ],
@@ -2358,7 +2358,7 @@ async def _masters_webinar_list_command(
     if not rows:
         await update.message.reply_text(msg.MW_LIST_EMPTY)
         return
-    lines = [f"\U0001f393 <b>Master’s Webinar registrations ({len(rows)})</b>", ""]
+    lines = [f"\U0001f393 <b>Master’s Seminar registrations ({len(rows)})</b>", ""]
     for r in rows:
         username_part = f" (@{r['username']})" if r.get("username") else ""
         lines.append(
