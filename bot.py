@@ -2370,9 +2370,23 @@ async def _masters_webinar_list_command(
             f"• <a href=\"tg://user?id={r['chat_id']}\">{r['full_name']}</a>"
             f"{username_part} — {r['place_of_study']}"
         )
-    await update.message.reply_text(
-        "\n".join(lines), parse_mode="HTML", disable_web_page_preview=True
-    )
+    # Telegram caps a message at 4096 chars. A long list overflows and
+    # reply_text raises (silently, from the user's view), so send the list in
+    # chunks of whole lines — never splitting a registration mid-line.
+    chunk: list[str] = []
+    length = 0
+    for line in lines:
+        if chunk and length + len(line) + 1 > 3900:
+            await update.message.reply_text(
+                "\n".join(chunk), parse_mode="HTML", disable_web_page_preview=True
+            )
+            chunk, length = [], 0
+        chunk.append(line)
+        length += len(line) + 1
+    if chunk:
+        await update.message.reply_text(
+            "\n".join(chunk), parse_mode="HTML", disable_web_page_preview=True
+        )
 
 
 # ---------------------------------------------------------------------------
