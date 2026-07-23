@@ -2389,6 +2389,37 @@ async def _masters_webinar_list_command(
         )
 
 
+async def _masters_webinar_remind_command(
+    update: Update, context: ContextTypes.DEFAULT_TYPE
+) -> None:
+    """DM everyone registered for the Master's Seminar the exact time + venue."""
+    if update.effective_user.id not in _MASTERS_LIST_IDS:
+        return
+    rows = await db.masters_webinar_get_all()
+    if not rows:
+        await update.message.reply_text(msg.MW_LIST_EMPTY)
+        return
+    sent = failed = 0
+    for r in rows:
+        try:
+            await context.bot.send_message(
+                chat_id=r["chat_id"],
+                text=msg.MW_REMINDER,
+                parse_mode="HTML",
+                disable_web_page_preview=True,
+            )
+            sent += 1
+        except Exception:
+            logger.warning(
+                "Master's Seminar remind failed for chat_id=%d", r["chat_id"]
+            )
+            failed += 1
+        await asyncio.sleep(0.05)
+    await update.message.reply_text(
+        msg.MW_REMIND_DONE.format(sent=sent, failed=failed, total=len(rows))
+    )
+
+
 # ---------------------------------------------------------------------------
 # Economics Olympiad Prep — registration flow
 # ---------------------------------------------------------------------------
@@ -3122,6 +3153,7 @@ def build_app() -> Application:
     app.add_handler(CommandHandler("ae_list", _ae_list_command, filters=_private))
     app.add_handler(CommandHandler("econ_list", _econ_list_command, filters=_private))
     app.add_handler(CommandHandler("masters_list", _masters_webinar_list_command, filters=_private))
+    app.add_handler(CommandHandler("masters_remind", _masters_webinar_remind_command, filters=_private))
     app.add_handler(CommandHandler("ae_set_terms", _ae_set_terms_command, filters=_private))
     app.add_handler(CommandHandler("set_guidebook", _set_guidebook_command, filters=_private))
     app.add_handler(CommandHandler("guidebook_count", _guidebook_count_command, filters=_private))
