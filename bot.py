@@ -2392,7 +2392,7 @@ async def _masters_webinar_list_command(
 async def _masters_webinar_remind_command(
     update: Update, context: ContextTypes.DEFAULT_TYPE
 ) -> None:
-    """DM everyone registered for the Master's Seminar the exact time + venue."""
+    """DM everyone registered for the Master's Seminar the @freshmanmasterschat group-chat invite."""
     if update.effective_user.id not in _MASTERS_LIST_IDS:
         return
     rows = await db.masters_webinar_get_all()

@@ -912,18 +912,20 @@ MW_SUBMITTED = (
 )
 MW_LIST_EMPTY = "No Master’s Seminar registrations yet."
 
-# Reminder sent to everyone who registered — restates the exact time + venue.
-# NOTE: the Yandex URL's "&" params are written as "&amp;" so Telegram's HTML
-# parser doesn't choke on them ("can't parse entities").
+# Sent to everyone who registered — introduces the Master's community group
+# chat and invites them to join it.
 MW_REMINDER = (
-    "\U0001f514 <b>Reminder — Master’s Seminar</b>\n\n"
-    "You’re registered! This is an <b>offline, in-person</b> event. "
-    "Here’s the exact time and place so you don’t miss it:\n\n"
-    "\U0001f4c5 <b>24 July 2026, 6:30 PM</b>\n"
-    "\U0001f4cd <a href=\"https://yandex.uz/maps/org/freshman_academy/84400460446/?ll=69.251835%2C41.312072&amp;utm_source=share&amp;z=16\">NestOne, Block C, Floor 15, Office 117, Tashkent</a>\n\n"
-    "See you there!"
+    "\U0001f393 <b>Master’s Seminar — Join the Group Chat</b>\n\n"
+    "Thanks for registering! We’ve set up a group chat for everyone in the "
+    "Master’s community — "
+    "<a href=\"https://t.me/freshmanmasterschat\">@freshmanmasterschat</a>.\n\n"
+    "It’s where we’ll share updates, resources, and answer your questions about "
+    "Master’s admissions, scholarships, and timelines.\n\n"
+    "\U0001f449 Join here: "
+    "<a href=\"https://t.me/freshmanmasterschat\">@freshmanmasterschat</a>\n\n"
+    "See you inside!"
 )
-MW_REMIND_DONE = "Master’s Seminar reminder sent: {sent} delivered, {failed} failed ({total} total)."
+MW_REMIND_DONE = "Master’s Seminar group-chat invite sent: {sent} delivered, {failed} failed ({total} total)."
 
 # ---------------------------------------------------------------------------
 # Economics Olympiad Prep — broadcast + registration flow
