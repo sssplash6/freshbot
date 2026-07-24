@@ -1,4 +1,5 @@
 import asyncio
+import html
 import logging
 import time
 from datetime import datetime, timedelta, timezone
@@ -2402,9 +2403,14 @@ async def _masters_webinar_remind_command(
     sent = failed = 0
     for r in rows:
         try:
+            # Greet by the first name they registered with; fall back to their
+            # Telegram first name, then a neutral "there". Escape it since the
+            # message is sent as HTML.
+            raw_name = (r["full_name"] or "").strip() or (r["first_name"] or "").strip()
+            first_name = raw_name.split()[0] if raw_name else "there"
             await context.bot.send_message(
                 chat_id=r["chat_id"],
-                text=msg.MW_REMINDER,
+                text=msg.MW_REMINDER.format(name=html.escape(first_name)),
                 parse_mode="HTML",
                 disable_web_page_preview=True,
             )

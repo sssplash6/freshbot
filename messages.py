@@ -916,8 +916,8 @@ MW_LIST_EMPTY = "No Master’s Seminar registrations yet."
 # chat and invites them to join it.
 MW_REMINDER = (
     "\U0001f393 <b>Master’s Seminar — Join the Group Chat</b>\n\n"
-    "Thanks for registering! We’ve set up a group chat for everyone in the "
-    "Master’s community.\n\n"
+    "Hi {name}! Thanks for registering. We’ve set up a group chat for everyone "
+    "in the Master’s community.\n\n"
     "It’s where we’ll share updates, resources, and answer your questions about "
     "Master’s admissions, scholarships, and timelines.\n\n"
     "\U0001f449 Join here: "
