@@ -1067,6 +1067,14 @@ async def _handle_faq_no(update: Update, chat_id: int) -> None:
 # Capture free-text question, forward to appropriate expert
 # ---------------------------------------------------------------------------
 
+def _q_skip_keyboard(question_id: int) -> InlineKeyboardMarkup:
+    """Skip button attached to a question sent to an expert — dismisses a duplicate
+    or spam question without sending the student anything."""
+    return InlineKeyboardMarkup(
+        [[InlineKeyboardButton(msg.BTN_Q_SKIP, callback_data=f"qs:{question_id}")]]
+    )
+
+
 async def _handle_question_text(
     update: Update, chat_id: int, text: str | None, context: ContextTypes.DEFAULT_TYPE
 ) -> None:
@@ -1102,9 +1110,15 @@ async def _handle_question_text(
     )
 
     for expert_chat_id in expert_chat_ids:
+        # Saved before sending so the Skip button can carry the question id, and so
+        # a failed send still leaves the question visible in /unanswered.
+        question_id = await db.save_question(chat_id, program or "", text)
         try:
-            sent = await context.bot.send_message(chat_id=expert_chat_id, text=expert_text)
-            question_id = await db.save_question(chat_id, program or "", text)
+            sent = await context.bot.send_message(
+                chat_id=expert_chat_id,
+                text=expert_text,
+                reply_markup=_q_skip_keyboard(question_id),
+            )
             await db.set_question_expert_message(question_id, expert_chat_id, sent.message_id)
         except Exception:
             logger.exception(
@@ -1220,6 +1234,10 @@ async def _handle_expert_message(
 
     if not question:
         await update.message.reply_text(msg.EXPERT_REPLY_NOT_FOUND)
+        return
+
+    if question["status"] == "skipped":
+        await update.message.reply_text(msg.EXPERT_ALREADY_SKIPPED)
         return
 
     if question["status"] != "pending":
@@ -2852,7 +2870,7 @@ async def _santix_command(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
 # ---------------------------------------------------------------------------
 
 # ---------------------------------------------------------------------------
-# /answered and /unanswered — admin question viewer
+# /answered, /unanswered and /skipped — admin question viewer
 # ---------------------------------------------------------------------------
 
 _Q_ADMIN_IDS: frozenset[int] = frozenset(
@@ -2960,6 +2978,13 @@ def _q_date_keyboard(status: str, prog_code: str) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(rows)
 
 
+_Q_STATUS_LABELS: dict[str, str] = {
+    "answered": "✅ Answered",
+    "pending": "⏳ Unanswered",
+    "skipped": "⏭ Skipped",
+}
+
+
 def _q_format_entry(q: dict, status: str) -> str:
     date = (q.get("created_at") or "")[:10]
     program = q.get("program") or "—"
@@ -2974,6 +2999,15 @@ def _q_format_entry(q: dict, status: str) -> str:
     return "\n".join(lines)
 
 
+async def _q_edit(query, text: str, markup: InlineKeyboardMarkup | None = None) -> None:
+    """edit_message_text that tolerates an unchanged re-render (Telegram 400)."""
+    try:
+        await query.edit_message_text(text, reply_markup=markup)
+    except TelegramError as exc:
+        if "not modified" not in str(exc).lower():
+            raise
+
+
 async def _q_show_results(
     query,
     status: str,
@@ -2985,18 +3019,26 @@ async def _q_show_results(
     days_val = next((d for k, d, _ in _Q_DATE_OPTIONS if k == days_key), None)
     days_label = next((l for k, _, l in _Q_DATE_OPTIONS if k == days_key), "All time")
     prog_label = _Q_PROG_LABELS.get(prog_code, prog_code)
-    status_label = "✅ Answered" if status == "answered" else "⏳ Unanswered"
+    status_label = _Q_STATUS_LABELS.get(status, status)
 
     questions, total = await db.get_questions_filtered(
         status=status, program=program, days=days_val,
         offset=offset, limit=_Q_PAGE_SIZE,
     )
 
+    if not questions and offset > 0:
+        # This page emptied out (e.g. everything on it was skipped) — step back to
+        # the last page that still has entries instead of showing a dead end.
+        last_page = ((total - 1) // _Q_PAGE_SIZE) * _Q_PAGE_SIZE if total else 0
+        if last_page < offset:
+            await _q_show_results(query, status, prog_code, days_key, last_page)
+            return
+
     end = min(offset + _Q_PAGE_SIZE, total)
     header = f"{status_label} | {prog_label} | {days_label}\nShowing {offset + 1}–{end} of {total}\n\n"
 
     if not questions:
-        await query.edit_message_text(header.strip() + "\n\nNo questions found.")
+        await _q_edit(query, header.strip() + "\n\nNo questions found.")
         return
 
     body = "\n──────────\n".join(_q_format_entry(q, status) for q in questions)
@@ -3004,18 +3046,28 @@ async def _q_show_results(
     if len(text) > 4000:
         text = text[:4000] + "\n…"
 
+    # Filter context is appended to the action callbacks so the list can re-render
+    # itself in place after a question is skipped or restored.
+    ctx = f"{status}:{prog_code}:{days_key}:{offset}"
+
     rows = []
     if status == "pending":
-        answer_row = []
         for q in questions:
-            answer_row.append(
-                InlineKeyboardButton(f"✍️ Answer #{q['id']}", callback_data=f"qa:{q['id']}")
+            rows.append([
+                InlineKeyboardButton(f"✍️ Answer #{q['id']}", callback_data=f"qa:{q['id']}"),
+                InlineKeyboardButton(f"⏭ Skip #{q['id']}", callback_data=f"qs:{q['id']}:{ctx}"),
+            ])
+    elif status == "skipped":
+        restore_row = []
+        for q in questions:
+            restore_row.append(
+                InlineKeyboardButton(f"↩️ Restore #{q['id']}", callback_data=f"qr:{q['id']}:{ctx}")
             )
-            if len(answer_row) == 2:
-                rows.append(answer_row)
-                answer_row = []
-        if answer_row:
-            rows.append(answer_row)
+            if len(restore_row) == 2:
+                rows.append(restore_row)
+                restore_row = []
+        if restore_row:
+            rows.append(restore_row)
 
     nav = []
     if offset > 0:
@@ -3029,7 +3081,7 @@ async def _q_show_results(
     if nav:
         rows.append(nav)
     markup = InlineKeyboardMarkup(rows) if rows else None
-    await query.edit_message_text(text, reply_markup=markup)
+    await _q_edit(query, text, markup)
 
 
 async def _q_launch(update: Update, status: str, noun: str) -> None:
@@ -3060,6 +3112,10 @@ async def _q_answered_command(update: Update, context: ContextTypes.DEFAULT_TYPE
 
 async def _q_unanswered_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     await _q_launch(update, "pending", "unanswered")
+
+
+async def _q_skipped_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    await _q_launch(update, "skipped", "skipped")
 
 
 async def _q_program_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -3117,9 +3173,84 @@ async def _q_answer_callback(update: Update, context: ContextTypes.DEFAULT_TYPE)
     )
 
     chat_id = update.effective_chat.id
-    sent = await context.bot.send_message(chat_id=chat_id, text=expert_text)
+    sent = await context.bot.send_message(
+        chat_id=chat_id, text=expert_text, reply_markup=_q_skip_keyboard(question_id)
+    )
     await db.set_question_expert_message(question_id, chat_id, sent.message_id)
     await query.answer(msg.Q_ANSWER_RESENT)
+
+
+async def _q_load_for_action(query, question_id: int) -> dict | None:
+    """Fetch a question for a skip/restore tap, answering the query if not permitted."""
+    user_id = query.from_user.id
+    if not _q_can_view(user_id):
+        await query.answer()
+        return None
+
+    question = await db.get_question_by_id(question_id)
+    if not question:
+        await query.answer(msg.Q_ANSWER_GONE, show_alert=True)
+        return None
+    if not _q_question_allowed(user_id, question.get("program")):
+        await query.answer()
+        return None
+    return question
+
+
+async def _q_skip_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Dismiss a question without answering it — for duplicates and spam. The
+    student is never notified, and their pending follow-up ping is cancelled."""
+    query = update.callback_query
+    parts = query.data.split(":")
+    question_id = int(parts[1])
+
+    question = await _q_load_for_action(query, question_id)
+    if question is None:
+        return
+    if question["status"] == "answered":
+        await query.answer(msg.EXPERT_ALREADY_ANSWERED, show_alert=True)
+        return
+
+    if question["status"] == "pending":
+        user_chat_id = question["user_chat_id"]
+        await db.mark_question_skipped(question_id)
+        await db.mark_sibling_questions_skipped(user_chat_id, question["question_text"])
+        # Only silence the follow-up if nothing else of theirs is still waiting.
+        if await db.count_pending_questions(user_chat_id) == 0:
+            from scheduler import cancel_followups
+            await cancel_followups(user_chat_id)
+
+    await query.answer(msg.Q_SKIP_DONE)
+
+    if len(parts) > 2:
+        # Tapped in an /unanswered list — refresh it so the skipped entry drops off.
+        _, _, status, prog_code, days_key, offset_str = parts
+        await _q_show_results(query, status, prog_code, days_key, int(offset_str))
+        return
+
+    # Tapped on the forwarded question itself — mark it up and drop the button.
+    try:
+        await query.edit_message_text((query.message.text or "") + msg.Q_SKIP_NOTE)
+    except Exception:
+        logger.exception("Failed to annotate skipped question message #%d", question_id)
+
+
+async def _q_restore_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Put a skipped question back into the unanswered queue."""
+    query = update.callback_query
+    parts = query.data.split(":")
+    question_id = int(parts[1])
+
+    question = await _q_load_for_action(query, question_id)
+    if question is None:
+        return
+
+    restored = await db.restore_skipped_question(question_id)
+    await query.answer(msg.Q_SKIP_RESTORED if restored else msg.Q_SKIP_NOT_SKIPPED)
+
+    if len(parts) > 2:
+        _, _, status, prog_code, days_key, offset_str = parts
+        await _q_show_results(query, status, prog_code, days_key, int(offset_str))
 
 
 def build_app() -> Application:
@@ -3156,6 +3287,7 @@ def build_app() -> Application:
     app.add_handler(CommandHandler("answered", _q_answered_command, filters=_private))
     app.add_handler(CommandHandler("clear_adv", _clear_adv_command, filters=_private))
     app.add_handler(CommandHandler("unanswered", _q_unanswered_command, filters=_private))
+    app.add_handler(CommandHandler("skipped", _q_skipped_command, filters=_private))
     app.add_handler(CommandHandler("ae_list", _ae_list_command, filters=_private))
     app.add_handler(CommandHandler("econ_list", _econ_list_command, filters=_private))
     app.add_handler(CommandHandler("masters_list", _masters_webinar_list_command, filters=_private))
@@ -3180,6 +3312,8 @@ def build_app() -> Application:
     app.add_handler(CallbackQueryHandler(_q_program_callback, pattern="^qp:"))
     app.add_handler(CallbackQueryHandler(_q_date_callback, pattern="^qd:"))
     app.add_handler(CallbackQueryHandler(_q_answer_callback, pattern="^qa:"))
+    app.add_handler(CallbackQueryHandler(_q_skip_callback, pattern="^qs:"))
+    app.add_handler(CallbackQueryHandler(_q_restore_callback, pattern="^qr:"))
     app.add_handler(CallbackQueryHandler(_podcast_check_callback, pattern="^podcast_check$"))
     app.add_handler(CallbackQueryHandler(_guidebook_get_callback, pattern="^guidebook_get$"))
     app.add_handler(CallbackQueryHandler(_guidebook_check_callback, pattern="^guidebook_check$"))

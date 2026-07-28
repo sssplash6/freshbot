@@ -447,11 +447,26 @@ Q_ANSWER_RESENT = "Question sent below — reply to that message to answer."
 
 Q_ANSWER_GONE = "This question no longer exists in the database."
 
+# Skip — dismiss a duplicate or spam question without replying to the student
+BTN_Q_SKIP = "⏭ Skip"
+
+Q_SKIP_NOTE = "\n\n⏭ Skipped — no answer was sent to the student."
+
+Q_SKIP_DONE = "Skipped. The student was not notified."
+
+Q_SKIP_RESTORED = "Restored to unanswered."
+
+Q_SKIP_NOT_SKIPPED = "This question is not skipped — nothing to restore."
+
 ANSWER_FROM_EXPERT = "💬 Our team answered your question:\n\n❓ {question}\n\n{answer}"
 
 EXPERT_REPLY_SENT = "✅ Your answer has been sent to the student."
 
 EXPERT_ALREADY_ANSWERED = "ℹ️ This question has already been answered by another person."
+
+EXPERT_ALREADY_SKIPPED = (
+    "ℹ️ This question was skipped. Use /skipped to restore it if you want to answer after all."
+)
 
 EXPERT_REPLY_NOT_FOUND = (
     "Could not find the question you are replying to. It may have already been answered."

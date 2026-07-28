@@ -311,6 +311,23 @@ async def get_pending_jobs() -> list[dict]:
             return [dict(r) for r in rows]
 
 
+async def cancel_pending_jobs(chat_id: int, job_type: str) -> list[int]:
+    """Mark this user's unsent jobs of a type as sent. Returns the cancelled job ids."""
+    async with aiosqlite.connect(DB_PATH) as db:
+        async with db.execute(
+            "SELECT id FROM scheduled_jobs WHERE chat_id = ? AND job_type = ? AND sent = 0",
+            (chat_id, job_type),
+        ) as cursor:
+            job_ids = [row[0] for row in await cursor.fetchall()]
+        if job_ids:
+            await db.execute(
+                f"UPDATE scheduled_jobs SET sent = 1 WHERE id IN ({','.join('?' * len(job_ids))})",
+                job_ids,
+            )
+            await db.commit()
+        return job_ids
+
+
 # ---------------------------------------------------------------------------
 # Question operations
 # ---------------------------------------------------------------------------
@@ -420,6 +437,47 @@ async def mark_question_answered(question_id: int, answer_text: str | None = Non
             (answer_text, question_id),
         )
         await db.commit()
+
+
+async def mark_question_skipped(question_id: int) -> None:
+    """Dismiss a question without answering it (duplicate / spam)."""
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute(
+            "UPDATE questions SET status = 'skipped' WHERE id = ? AND status = 'pending'",
+            (question_id,),
+        )
+        await db.commit()
+
+
+async def mark_sibling_questions_skipped(user_chat_id: int, question_text: str) -> None:
+    """Skip all other pending copies of the same question (sent to multiple experts)."""
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute(
+            """UPDATE questions SET status = 'skipped'
+               WHERE user_chat_id = ? AND question_text = ? AND status = 'pending'""",
+            (user_chat_id, question_text),
+        )
+        await db.commit()
+
+
+async def restore_skipped_question(question_id: int) -> bool:
+    """Put a skipped question back in the pending queue. False if it wasn't skipped."""
+    async with aiosqlite.connect(DB_PATH) as db:
+        cursor = await db.execute(
+            "UPDATE questions SET status = 'pending' WHERE id = ? AND status = 'skipped'",
+            (question_id,),
+        )
+        await db.commit()
+        return cursor.rowcount > 0
+
+
+async def count_pending_questions(user_chat_id: int) -> int:
+    async with aiosqlite.connect(DB_PATH) as db:
+        async with db.execute(
+            "SELECT COUNT(*) FROM questions WHERE user_chat_id = ? AND status = 'pending'",
+            (user_chat_id,),
+        ) as cursor:
+            return (await cursor.fetchone())[0]
 
 
 async def get_last_question(user_chat_id: int) -> dict | None:

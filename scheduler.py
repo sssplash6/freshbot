@@ -77,6 +77,22 @@ async def schedule_followup(
     logger.info("Scheduled followup_10h job %d for chat_id=%d at %s", job_id, chat_id, run_at)
 
 
+async def cancel_followups(chat_id: int) -> int:
+    """Drop this user's pending 10h follow-ups. Used when their question is skipped."""
+    job_ids = await db.cancel_pending_jobs(chat_id, "followup_10h")
+    scheduler = get_scheduler()
+    for job_id in job_ids:
+        try:
+            scheduler.remove_job(f"followup_{job_id}")
+        except Exception:
+            # Job already fired or was never registered in this process — DB row is
+            # already marked sent, so nothing else to do.
+            pass
+    if job_ids:
+        logger.info("Cancelled %d follow-up job(s) for chat_id=%d", len(job_ids), chat_id)
+    return len(job_ids)
+
+
 
 # ---------------------------------------------------------------------------
 # Job functions
