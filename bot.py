@@ -2205,23 +2205,25 @@ async def _handle_sat_enroll_step(
 # ---------------------------------------------------------------------------
 
 # Channels a user must follow before registering for the offline seminar. The
-# bot is an admin in both, so get_chat_member works.
-MASTERS_REQUIRED_IDS = [-1003861690278, -1001481432083]
-MASTERS_REQUIRED_HANDLES = ["@freshmanmasters", "@freshmanblog"]
+# handles double as the API chat_id — get_chat_member resolves a public
+# @username directly, so there is no numeric ID to keep in sync with the list
+# shown to the user. The bot must be an admin in each channel; if it isn't, the
+# check errors and fails open (see _masters_is_member), silently letting
+# everyone through.
+MASTERS_REQUIRED_HANDLES = ["@freshmanglobal", "@freshmanblog"]
 
 # Gate switch. True = mandatory follow enforced. Flip to False to OPEN the
-# gate so registration proceeds without the channel check. Open for the
-# Admissions Seminar — registration is free and frictionless.
-MASTERS_GATE_ENABLED = False
+# gate so registration proceeds without the channel check.
+MASTERS_GATE_ENABLED = True
 
 
-async def _masters_is_member(bot, channel_id: int, chat_id: int) -> bool:
-    """True if chat_id is a member of channel_id. Fails open on API error."""
+async def _masters_is_member(bot, channel: int | str, chat_id: int) -> bool:
+    """True if chat_id is a member of channel. Fails open on API error."""
     try:
-        member = await bot.get_chat_member(channel_id, chat_id)
+        member = await bot.get_chat_member(channel, chat_id)
         return member.status in _MEMBER_STATUSES
     except TelegramError:
-        logger.warning("Cannot check masters membership in %s. Failing open.", channel_id)
+        logger.warning("Cannot check masters membership in %s. Failing open.", channel)
         return True
 
 
@@ -2233,7 +2235,7 @@ async def _masters_get_missing(bot, chat_id: int) -> list[str]:
     # Check both channels concurrently so the user isn't waiting on two
     # sequential round-trips (each already queued behind the rate limiter).
     results = await asyncio.gather(
-        *(_masters_is_member(bot, cid, chat_id) for cid in MASTERS_REQUIRED_IDS)
+        *(_masters_is_member(bot, h, chat_id) for h in MASTERS_REQUIRED_HANDLES)
     )
     return [h for h, ok in zip(MASTERS_REQUIRED_HANDLES, results) if not ok]
 
