@@ -1,5 +1,4 @@
 import asyncio
-import html
 import logging
 import time
 from datetime import datetime, timedelta, timezone
@@ -105,7 +104,7 @@ _ae_state: dict[int, dict] = {}
 # Accumulates SAT enrollment answers per chat_id.
 _sat_enroll_state: dict[int, dict] = {}
 
-# Accumulates Master's Webinar (offline) registration answers per chat_id.
+# Accumulates Free Admissions Seminar (offline) registration answers per chat_id.
 _masters_webinar_state: dict[int, dict] = {}
 
 # Accumulates Economics Olympiad Prep registration answers per chat_id
@@ -1591,7 +1590,7 @@ async def _broadcast_keyboard_command(
         async def _send_one(cid: int) -> None:
             nonlocal sent, failed, first_error
             try:
-                # Offline Master's Webinar announcement - inline "Register" button
+                # Free Admissions Seminar announcement - inline "Register" button
                 # opens the registration form directly (see _masters_webinar_inline_callback).
                 await context.bot.send_message(
                     chat_id=cid,
@@ -2202,17 +2201,18 @@ async def _handle_sat_enroll_step(
 
 
 # ---------------------------------------------------------------------------
-# Master's Webinar (offline) — registration flow
+# Free Admissions Seminar (offline, Bocconi) — registration flow
 # ---------------------------------------------------------------------------
 
-# Channels a user must follow before registering for the offline webinar. The
+# Channels a user must follow before registering for the offline seminar. The
 # bot is an admin in both, so get_chat_member works.
 MASTERS_REQUIRED_IDS = [-1003861690278, -1001481432083]
 MASTERS_REQUIRED_HANDLES = ["@freshmanmasters", "@freshmanblog"]
 
 # Gate switch. True = mandatory follow enforced. Flip to False to OPEN the
-# gate so registration proceeds without the channel check.
-MASTERS_GATE_ENABLED = True
+# gate so registration proceeds without the channel check. Open for the
+# Admissions Seminar — registration is free and frictionless.
+MASTERS_GATE_ENABLED = False
 
 
 async def _masters_is_member(bot, channel_id: int, chat_id: int) -> bool:
@@ -2382,7 +2382,7 @@ async def _masters_webinar_list_command(
     if not rows:
         await update.message.reply_text(msg.MW_LIST_EMPTY)
         return
-    lines = [f"\U0001f393 <b>Master’s Seminar registrations ({len(rows)})</b>", ""]
+    lines = [f"\U0001f393 <b>Admissions Seminar registrations ({len(rows)})</b>", ""]
     for r in rows:
         username_part = f" (@{r['username']})" if r.get("username") else ""
         lines.append(
@@ -2406,42 +2406,6 @@ async def _masters_webinar_list_command(
         await update.message.reply_text(
             "\n".join(chunk), parse_mode="HTML", disable_web_page_preview=True
         )
-
-
-async def _masters_webinar_remind_command(
-    update: Update, context: ContextTypes.DEFAULT_TYPE
-) -> None:
-    """DM everyone registered for the Master's Seminar the @freshmanmasterschat group-chat invite."""
-    if update.effective_user.id not in _MASTERS_LIST_IDS:
-        return
-    rows = await db.masters_webinar_get_all()
-    if not rows:
-        await update.message.reply_text(msg.MW_LIST_EMPTY)
-        return
-    sent = failed = 0
-    for r in rows:
-        try:
-            # Greet by the first name they registered with; fall back to their
-            # Telegram first name, then a neutral "there". Escape it since the
-            # message is sent as HTML.
-            raw_name = (r["full_name"] or "").strip() or (r["first_name"] or "").strip()
-            first_name = raw_name.split()[0] if raw_name else "there"
-            await context.bot.send_message(
-                chat_id=r["chat_id"],
-                text=msg.MW_REMINDER.format(name=html.escape(first_name)),
-                parse_mode="HTML",
-                disable_web_page_preview=True,
-            )
-            sent += 1
-        except Exception:
-            logger.warning(
-                "Master's Seminar remind failed for chat_id=%d", r["chat_id"]
-            )
-            failed += 1
-        await asyncio.sleep(0.05)
-    await update.message.reply_text(
-        msg.MW_REMIND_DONE.format(sent=sent, failed=failed, total=len(rows))
-    )
 
 
 # ---------------------------------------------------------------------------
@@ -3291,7 +3255,6 @@ def build_app() -> Application:
     app.add_handler(CommandHandler("ae_list", _ae_list_command, filters=_private))
     app.add_handler(CommandHandler("econ_list", _econ_list_command, filters=_private))
     app.add_handler(CommandHandler("masters_list", _masters_webinar_list_command, filters=_private))
-    app.add_handler(CommandHandler("masters_remind", _masters_webinar_remind_command, filters=_private))
     app.add_handler(CommandHandler("ae_set_terms", _ae_set_terms_command, filters=_private))
     app.add_handler(CommandHandler("set_guidebook", _set_guidebook_command, filters=_private))
     app.add_handler(CommandHandler("guidebook_count", _guidebook_count_command, filters=_private))

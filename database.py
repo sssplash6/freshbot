@@ -168,6 +168,14 @@ async def init_db() -> None:
             "tap_posts",
         ]:
             await db.execute(f"DROP TABLE IF EXISTS {_tbl}")
+        # The seminar registration table is reused per event. Clear out the
+        # finished 24 July 2026 Master's Seminar so /masters_list shows only
+        # Free Admissions Seminar (2 Aug 2026) signups. Scoped by timestamp
+        # rather than a bare DELETE so a restart never wipes live registrations.
+        await db.execute(
+            "DELETE FROM masters_webinar_registrations WHERE registered_at < ?",
+            ("2026-07-29",),
+        )
         await db.commit()
 
 

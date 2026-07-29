@@ -882,19 +882,19 @@ SAT_ENROLL_EXPERT_ENTRY = (
 )
 
 # ---------------------------------------------------------------------------
-# Master's Seminar (offline) — registration flow
+# Free Admissions Seminar (offline, Bocconi) — registration flow
 # ---------------------------------------------------------------------------
 
-BTN_MASTERS_WEBINAR = "\U0001f393 Master's Seminar (Offline)"
+BTN_MASTERS_WEBINAR = "\U0001f393 Free Admissions Seminar"
 BTN_MW_REGISTER = "📝 Register"
 
-MW_COMING_SOON = "🚧 The offline Master’s Seminar is coming soon. Stay tuned!"
+MW_COMING_SOON = "🚧 The Free Admissions Seminar is coming soon. Stay tuned!"
 
 # Mandatory-follow gate shown before registration if the user hasn't joined
 # the required channels yet. {channel_list} is a bullet list of the channels
-# still missing.
+# still missing. Only reachable when MASTERS_GATE_ENABLED is flipped back on.
 MW_MUST_JOIN = (
-    "\U0001f393 To register for the offline <b>Master’s Seminar</b>, "
+    "\U0001f393 To register for the <b>Free Admissions Seminar</b>, "
     "please follow our channels first:\n\n"
     "{channel_list}\n\n"
     "Once you’ve joined, tap the button below."
@@ -902,43 +902,39 @@ MW_MUST_JOIN = (
 BTN_MW_JOIN_CHECK = "✅ I've joined — check again"
 
 MW_ANNOUNCE = (
-    "\U0001f393 <b>Master’s Seminar — Offline</b>\n\n"
-    "Thinking about a Master’s abroad? Join us in person for a focused session on "
-    "Master’s admissions — scholarships, timelines, and how Freshman Academy can support you.\n\n"
-    "\U0001f4c5 <b>24 July 2026, 6:30 PM</b>\n"
-    "\U0001f4cd <a href=\"https://maps.app.goo.gl/YZRGrhNwbjwyfB3U7\">Freshman Nest One Office, Tashkent</a>\n\n"
-    "Tap <b>Register</b> below to save your spot."
+    "\U0001f393 <b>Free Admissions Seminar with an Incoming Bocconi Student!</b>\n\n"
+    "Jahongir, an Economics &amp; Finance student at <b>Bocconi University</b> in Italy, is "
+    "hosting an offline Admissions Seminar at Freshman Academy’s Tashkent office at Nest One.\n\n"
+    "Throughout this meeting, Jahongir will share information about his admissions journey to "
+    "Bocconi, life in Italy, how to leverage your university’s resources, and career options "
+    "for economics, finance, and business students.\n\n"
+    "\U0001f4cd <a href=\"https://maps.app.goo.gl/YZRGrhNwbjwyfB3U7\">Freshman Academy, Nest One</a>\n"
+    "\U0001f4c5 <b>August 2nd</b>\n"
+    "\U0001f561 <b>6:30 PM—8:00 PM</b>\n\n"
+    "Tap <b>Register</b> below — it’s completely free."
 )
 
 MW_INTRO = (
-    "\U0001f393 <b>Master’s Seminar</b>\n\n"
-    "Join us in person for a session on applying to Master’s programs abroad.\n\n"
-    "\U0001f4c5 <b>24 July 2026, 6:30 PM</b>\n"
-    "\U0001f4cd <a href=\"https://maps.app.goo.gl/YZRGrhNwbjwyfB3U7\">Freshman Nest One Office, Tashkent</a>\n\n"
+    "\U0001f393 <b>Free Admissions Seminar with an Incoming Bocconi Student!</b>\n\n"
+    "Jahongir, an Economics &amp; Finance student at <b>Bocconi University</b> in Italy, is "
+    "hosting an offline Admissions Seminar at Freshman Academy’s Tashkent office at Nest One.\n\n"
+    "He’ll share his admissions journey to Bocconi, life in Italy, how to leverage your "
+    "university’s resources, and career options for economics, finance, and business students.\n\n"
+    "\U0001f4cd <a href=\"https://maps.app.goo.gl/YZRGrhNwbjwyfB3U7\">Freshman Academy, Nest One</a>\n"
+    "\U0001f4c5 <b>August 2nd</b>\n"
+    "\U0001f561 <b>6:30 PM—8:00 PM</b>\n\n"
     "Register with the short form below to save your spot."
 )
 MW_ASK_NAME = "What’s your full name?"
 MW_ASK_STUDY = "Where do you currently study? (your school or university)"
 MW_SUBMITTED = (
-    "✅ You’re registered for the offline Master’s Seminar!\n\n"
-    "\U0001f4c5 <b>24 July 2026, 6:30 PM</b>\n"
-    "\U0001f4cd <a href=\"https://maps.app.goo.gl/YZRGrhNwbjwyfB3U7\">Freshman Nest One Office, Tashkent</a>\n\n"
+    "✅ You’re registered for the Free Admissions Seminar!\n\n"
+    "\U0001f4cd <a href=\"https://maps.app.goo.gl/YZRGrhNwbjwyfB3U7\">Freshman Academy, Nest One</a>\n"
+    "\U0001f4c5 <b>August 2nd</b>\n"
+    "\U0001f561 <b>6:30 PM—8:00 PM</b>\n\n"
     "See you there!"
 )
-MW_LIST_EMPTY = "No Master’s Seminar registrations yet."
-
-# Sent to everyone who registered — introduces the Master's community group
-# chat and invites them to join it.
-MW_REMINDER = (
-    "\U0001f393 <b>Master’s Seminar — Join the Group Chat</b>\n\n"
-    "Hi {name}! Thanks for registering. We’ve set up a group chat for everyone "
-    "in the Master’s community.\n\n"
-    "It’s where we’ll share updates, resources, and answer your questions about "
-    "Master’s admissions, scholarships, and timelines.\n\n"
-    "\U0001f449 Join here: "
-    "<a href=\"https://t.me/freshmanmasterschat\">@freshmanmasterschat</a>"
-)
-MW_REMIND_DONE = "Master’s Seminar group-chat invite sent: {sent} delivered, {failed} failed ({total} total)."
+MW_LIST_EMPTY = "No Free Admissions Seminar registrations yet."
 
 # ---------------------------------------------------------------------------
 # Economics Olympiad Prep — broadcast + registration flow
