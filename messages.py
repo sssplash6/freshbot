@@ -936,6 +936,52 @@ MW_SUBMITTED = (
 )
 MW_LIST_EMPTY = "No Free Admissions Seminar registrations yet."
 
+# --- "Will you attend?" confirmation poll (sent to registrants only) --------
+BTN_MW_ATTEND_YES = "✅ Yes, I will attend"
+BTN_MW_ATTEND_NO = "❌ No, I can't make it"
+
+MW_POLL_ASK = (
+    "\U0001f393 <b>Free Admissions Seminar — will you attend?</b>\n\n"
+    "Hi {first_name}! You registered for the offline Admissions Seminar with "
+    "Jahongir, an incoming Bocconi student.\n\n"
+    "\U0001f4cd <a href=\"https://maps.app.goo.gl/YZRGrhNwbjwyfB3U7\">Freshman Academy, Nest One</a>\n"
+    "\U0001f4c5 <b>August 2nd</b>\n"
+    "\U0001f561 <b>6:30 PM—8:00 PM</b>\n\n"
+    "Seats are limited, so please confirm below — it helps us plan the room."
+)
+MW_POLL_YES_ACK = (
+    "✅ Thank you for confirming — see you on <b>August 2nd at 6:30 PM</b> at "
+    "<a href=\"https://maps.app.goo.gl/YZRGrhNwbjwyfB3U7\">Freshman Academy, Nest One</a>!"
+)
+MW_POLL_NO_ACK = (
+    "Got it — thank you for letting us know. We'll free up your seat for someone "
+    "else, and we hope to see you at our next event!"
+)
+MW_POLL_STALE = "You're not on the Admissions Seminar registration list."
+MW_POLL_STARTED = "\U0001f4e2 Sending the attendance poll to {total} registrants…"
+MW_POLL_DONE = (
+    "\U0001f4e2 Attendance poll finished.\n\n"
+    "✅ Sent: {sent}\n❌ Failed: {failed}\n\U0001f465 Total: {total}"
+)
+
+# --- Attendance check-in (during the event) --------------------------------
+MW_ATTENDANCE_HEADER = (
+    "\U0001f4cb <b>Admissions Seminar — attendance</b>\n\n"
+    "\U0001f465 Registered: <b>{total}</b>\n"
+    "✅ Said yes: <b>{yes}</b>  •  ❌ Said no: <b>{no}</b>  •  \U0001f515 No reply: <b>{noreply}</b>\n"
+    "\U0001f6aa Checked in: <b>{checked_in}/{total}</b>\n\n"
+    "Tap a name to check them in or undo. Page {page}/{pages}."
+)
+MW_ATTENDANCE_EMPTY = "No registrations yet — nothing to check in."
+MW_EXPORT_CAPTION = (
+    "\U0001f4c4 <b>Admissions Seminar registrations</b>\n\n"
+    "\U0001f465 Registered: <b>{total}</b>\n"
+    "✅ Said yes: <b>{yes}</b>  •  ❌ Said no: <b>{no}</b>  •  \U0001f515 No reply: <b>{noreply}</b>\n"
+    "\U0001f6aa Checked in: <b>{checked_in}</b>\n\n"
+    "Open in Google Sheets: <i>File → Import → upload this file</i>. "
+    "Times are Tashkent (UTC+5)."
+)
+
 # ---------------------------------------------------------------------------
 # Economics Olympiad Prep — broadcast + registration flow
 # ---------------------------------------------------------------------------

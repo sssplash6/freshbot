@@ -1,4 +1,6 @@
 import asyncio
+import csv
+import io
 import logging
 import time
 from datetime import datetime, timedelta, timezone
@@ -2411,6 +2413,259 @@ async def _masters_webinar_list_command(
 
 
 # ---------------------------------------------------------------------------
+# Admissions Seminar — CSV export, attendance poll, on-the-day check-in
+# ---------------------------------------------------------------------------
+
+# The seminar is offline in Tashkent, so every timestamp shown to an organiser
+# is rendered in local time rather than the UTC the DB stores.
+_MW_TZ = timezone(timedelta(hours=5))
+
+# Registrants per page of the /masters_attendance keyboard. One button per row
+# keeps full names readable on a phone; the nav row makes it 9 rows total.
+_MW_ATTENDANCE_PAGE_SIZE = 8
+
+
+def _mw_local(ts: str | None) -> str:
+    """Format a stored UTC ISO timestamp as Tashkent local time."""
+    if not ts:
+        return ""
+    try:
+        return datetime.fromisoformat(ts).astimezone(_MW_TZ).strftime("%Y-%m-%d %H:%M")
+    except ValueError:
+        return ts
+
+
+def _mw_counts(rows: list[dict]) -> dict[str, int]:
+    yes = sum(1 for r in rows if r.get("attending") == "yes")
+    no = sum(1 for r in rows if r.get("attending") == "no")
+    return {
+        "total": len(rows),
+        "yes": yes,
+        "no": no,
+        "noreply": len(rows) - yes - no,
+        "checked_in": sum(1 for r in rows if r.get("attended")),
+    }
+
+
+async def _masters_webinar_export_command(
+    update: Update, context: ContextTypes.DEFAULT_TYPE
+) -> None:
+    """Send the full registration list as a CSV that opens as a spreadsheet."""
+    if update.effective_user.id not in _MASTERS_LIST_IDS:
+        return
+    rows = await db.masters_webinar_get_all()
+    if not rows:
+        await update.message.reply_text(msg.MW_LIST_EMPTY)
+        return
+
+    buf = io.StringIO()
+    writer = csv.writer(buf)
+    writer.writerow([
+        "#", "Full name", "Telegram name", "Username", "Telegram ID",
+        "Place of study", "Registered at", "Will attend", "Confirmed at",
+        "Checked in", "Checked in at",
+    ])
+    _ANSWER_LABEL = {"yes": "Yes", "no": "No"}
+    for i, r in enumerate(rows, start=1):
+        writer.writerow([
+            i,
+            r["full_name"],
+            r["first_name"],
+            f"@{r['username']}" if r.get("username") else "",
+            r["chat_id"],
+            r["place_of_study"],
+            _mw_local(r["registered_at"]),
+            _ANSWER_LABEL.get(r.get("attending"), "No reply"),
+            _mw_local(r.get("attending_at")),
+            "Yes" if r.get("attended") else "No",
+            _mw_local(r.get("attended_at")),
+        ])
+
+    # Excel and Google Sheets both need the BOM to read UTF-8 (Cyrillic and
+    # Uzbek Latin names) instead of falling back to a legacy codepage.
+    data = io.BytesIO(buf.getvalue().encode("utf-8-sig"))
+    today = datetime.now(_MW_TZ).strftime("%Y-%m-%d")
+    await update.message.reply_document(
+        document=data,
+        filename=f"admissions_seminar_registrations_{today}.csv",
+        caption=msg.MW_EXPORT_CAPTION.format(**_mw_counts(rows)),
+        parse_mode="HTML",
+    )
+
+
+async def _masters_webinar_poll_command(
+    update: Update, context: ContextTypes.DEFAULT_TYPE
+) -> None:
+    """Ask every registrant to confirm attendance with a Yes/No inline poll."""
+    if update.effective_user.id not in _MASTERS_LIST_IDS:
+        return
+    rows = await db.masters_webinar_get_all()
+    if not rows:
+        await update.message.reply_text(msg.MW_LIST_EMPTY)
+        return
+
+    await update.message.reply_text(msg.MW_POLL_STARTED.format(total=len(rows)))
+    keyboard = InlineKeyboardMarkup([
+        [InlineKeyboardButton(msg.BTN_MW_ATTEND_YES, callback_data="mw_att:yes")],
+        [InlineKeyboardButton(msg.BTN_MW_ATTEND_NO, callback_data="mw_att:no")],
+    ])
+
+    async def _run() -> None:
+        sent = failed = 0
+        first_error: str | None = None
+
+        # Same batching as the broadcast: stay under Telegram's ~30 msg/s flood
+        # limit and leave send budget for live replies.
+        async def _send_one(r: dict) -> None:
+            nonlocal sent, failed, first_error
+            try:
+                await context.bot.send_message(
+                    chat_id=r["chat_id"],
+                    text=msg.MW_POLL_ASK.format(
+                        first_name=r["full_name"].split()[0] if r["full_name"] else r["first_name"]
+                    ),
+                    parse_mode="HTML",
+                    disable_web_page_preview=True,
+                    reply_markup=keyboard,
+                )
+                sent += 1
+            except Exception as e:
+                if first_error is None:
+                    first_error = f"{type(e).__name__}: {e}"
+                logger.warning(
+                    "Seminar poll failed for chat_id=%d: %s: %s",
+                    r["chat_id"], type(e).__name__, e,
+                )
+                failed += 1
+
+        batch_size = 20
+        for start in range(0, len(rows), batch_size):
+            await asyncio.gather(*(_send_one(r) for r in rows[start:start + batch_size]))
+            await asyncio.sleep(1.5)
+        result = msg.MW_POLL_DONE.format(sent=sent, failed=failed, total=len(rows))
+        if first_error:
+            result += f"\n\nFirst error: {first_error}"
+        await update.message.reply_text(result)
+
+    asyncio.create_task(_run())
+
+
+async def _masters_webinar_attend_callback(
+    update: Update, context: ContextTypes.DEFAULT_TYPE
+) -> None:
+    """Registrant tapped Yes/No on the attendance poll."""
+    query = update.callback_query
+    answer = query.data.split(":")[1]
+    saved = await db.masters_webinar_set_attending(update.effective_user.id, answer)
+    if not saved:
+        await query.answer(msg.MW_POLL_STALE, show_alert=True)
+        return
+    await _safe_answer(query)
+    text = msg.MW_POLL_YES_ACK if answer == "yes" else msg.MW_POLL_NO_ACK
+    try:
+        # Replace the question with the acknowledgement so the buttons can't be
+        # tapped again out of context; the answer stays changeable via a new poll.
+        await query.edit_message_text(
+            text, parse_mode="HTML", disable_web_page_preview=True
+        )
+    except TelegramError as e:
+        if "not modified" not in str(e).lower():
+            raise
+
+
+def _mw_attendance_view(rows: list[dict], page: int) -> tuple[str, "InlineKeyboardMarkup"]:
+    """Build the check-in message + keyboard for one page of registrants."""
+    pages = max(1, -(-len(rows) // _MW_ATTENDANCE_PAGE_SIZE))
+    page = max(0, min(page, pages - 1))
+    start = page * _MW_ATTENDANCE_PAGE_SIZE
+    window = rows[start:start + _MW_ATTENDANCE_PAGE_SIZE]
+
+    _MARK = {"yes": "✅", "no": "❌"}
+    buttons: list[list[InlineKeyboardButton]] = []
+    for offset, r in enumerate(window, start=start + 1):
+        box = "☑️" if r.get("attended") else "⬜"
+        rsvp = _MARK.get(r.get("attending"), "")
+        label = f"{box} {offset}. {r['full_name']}"
+        if rsvp:
+            label += f" {rsvp}"
+        # Telegram truncates long button labels mid-word — cap it ourselves so
+        # the name stays readable and the trailing RSVP mark survives.
+        if len(label) > 60:
+            label = label[:57] + "…"
+        buttons.append([
+            InlineKeyboardButton(label, callback_data=f"mwa:t:{r['chat_id']}:{page}")
+        ])
+
+    nav: list[InlineKeyboardButton] = []
+    if pages > 1:
+        prev_page = (page - 1) % pages
+        next_page = (page + 1) % pages
+        nav = [
+            InlineKeyboardButton("◀️", callback_data=f"mwa:p:{prev_page}"),
+            InlineKeyboardButton(f"{page + 1}/{pages}", callback_data=f"mwa:p:{page}"),
+            InlineKeyboardButton("▶️", callback_data=f"mwa:p:{next_page}"),
+        ]
+    else:
+        nav = [InlineKeyboardButton("🔄 Refresh", callback_data=f"mwa:p:{page}")]
+    buttons.append(nav)
+
+    header = msg.MW_ATTENDANCE_HEADER.format(
+        **_mw_counts(rows), page=page + 1, pages=pages
+    )
+    return header, InlineKeyboardMarkup(buttons)
+
+
+async def _masters_webinar_attendance_command(
+    update: Update, context: ContextTypes.DEFAULT_TYPE
+) -> None:
+    """Live check-in sheet: one tappable button per registrant."""
+    if update.effective_user.id not in _MASTERS_LIST_IDS:
+        return
+    rows = await db.masters_webinar_get_all()
+    if not rows:
+        await update.message.reply_text(msg.MW_ATTENDANCE_EMPTY)
+        return
+    text, keyboard = _mw_attendance_view(rows, 0)
+    await update.message.reply_text(text, parse_mode="HTML", reply_markup=keyboard)
+
+
+async def _masters_webinar_attendance_callback(
+    update: Update, context: ContextTypes.DEFAULT_TYPE
+) -> None:
+    """Toggle a check-in or page through the attendance list."""
+    query = update.callback_query
+    if update.effective_user.id not in _MASTERS_LIST_IDS:
+        await query.answer()
+        return
+
+    parts = query.data.split(":")
+    action, page = parts[1], int(parts[-1])
+
+    if action == "t":
+        target = int(parts[2])
+        state = await db.masters_webinar_toggle_attended(target)
+        if state is None:
+            await query.answer("That registration no longer exists.", show_alert=True)
+            return
+        await query.answer("✅ Checked in" if state else "↩️ Check-in undone")
+    else:
+        await _safe_answer(query)
+
+    rows = await db.masters_webinar_get_all()
+    if not rows:
+        await query.edit_message_text(msg.MW_ATTENDANCE_EMPTY)
+        return
+    text, keyboard = _mw_attendance_view(rows, page)
+    try:
+        await query.edit_message_text(text, parse_mode="HTML", reply_markup=keyboard)
+    except TelegramError as e:
+        # Tapping the page-number button (a deliberate no-op refresh) re-sends
+        # identical content — Telegram rejects that, and it isn't an error.
+        if "not modified" not in str(e).lower():
+            raise
+
+
+# ---------------------------------------------------------------------------
 # Economics Olympiad Prep — registration flow
 # ---------------------------------------------------------------------------
 
@@ -3257,6 +3512,9 @@ def build_app() -> Application:
     app.add_handler(CommandHandler("ae_list", _ae_list_command, filters=_private))
     app.add_handler(CommandHandler("econ_list", _econ_list_command, filters=_private))
     app.add_handler(CommandHandler("masters_list", _masters_webinar_list_command, filters=_private))
+    app.add_handler(CommandHandler("masters_export", _masters_webinar_export_command, filters=_private))
+    app.add_handler(CommandHandler("masters_poll", _masters_webinar_poll_command, filters=_private))
+    app.add_handler(CommandHandler("masters_attendance", _masters_webinar_attendance_command, filters=_private))
     app.add_handler(CommandHandler("ae_set_terms", _ae_set_terms_command, filters=_private))
     app.add_handler(CommandHandler("set_guidebook", _set_guidebook_command, filters=_private))
     app.add_handler(CommandHandler("guidebook_count", _guidebook_count_command, filters=_private))
@@ -3285,6 +3543,8 @@ def build_app() -> Application:
     app.add_handler(CallbackQueryHandler(_sat_enroll_inline_callback, pattern="^sat_enroll_inline$"))
     app.add_handler(CallbackQueryHandler(_masters_webinar_inline_callback, pattern="^mw_register$"))
     app.add_handler(CallbackQueryHandler(_masters_webinar_join_check_callback, pattern="^mw_join_check$"))
+    app.add_handler(CallbackQueryHandler(_masters_webinar_attend_callback, pattern="^mw_att:"))
+    app.add_handler(CallbackQueryHandler(_masters_webinar_attendance_callback, pattern="^mwa:"))
     app.add_handler(CallbackQueryHandler(_econ_join_callback, pattern="^econ_join$"))
     app.add_handler(CallbackQueryHandler(_econ_course_callback, pattern="^econ_course:"))
     app.add_handler(CallbackQueryHandler(_econ_done_callback, pattern="^econ_done$"))

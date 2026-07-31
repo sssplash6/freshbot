@@ -25,6 +25,7 @@ Telegram bot for Freshman Academy. python-telegram-bot (PTB) v21, async, **polli
 - `ae_` — Advanced English applications (terms → payment → review flow)
 - `sat_enroll` — SAT Program enrollment (full name → SAT history → test date)
 - `tap_` — Trial AP Lesson (join → pre-set post → repost screenshot → reviewer confirm → group invite)
+- `mw_`/`mwa:` — Free Admissions Seminar (offline, Bocconi). Registration (name → place of study → channel gate) into `masters_webinar_registrations`, reused per event. Organiser commands (`PERSON_X_CHAT_ID` + `MS_MAN_CHAT_ID`): `/masters_list`, `/masters_export` (CSV for Sheets), `/masters_poll` (fan-out "will you attend?" Yes/No → `attending`), `/masters_attendance` (paginated live check-in keyboard → `attended`).
 - `q`/`qp:`/`qd:`/`qa:`/`qs:`/`qr:` — ask-a-question → expert Q&A threads. Experts answer by swipe-reply; `qs:` skips a duplicate/spam question (silent, cancels the 10h follow-up), `qr:` restores it. Viewers: `/answered`, `/unanswered`, `/skipped`.
 
 Retired (removed in Phase 2, tables dropped on startup): `eg_` event giveaway, `se_` special events/rolls, `sat_` giveaway, `hku_` HKU event, `apw_` AP webinar, `rs_` research seminar.

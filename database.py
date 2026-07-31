@@ -151,6 +151,13 @@ async def init_db() -> None:
             "ALTER TABLE adv_english_applications ADD COLUMN payment_screenshot_file_id TEXT",
             "ALTER TABLE adv_english_applications ADD COLUMN payment_screenshot_file_type TEXT",
             "ALTER TABLE adv_english_applications ADD COLUMN format_type TEXT",
+            # Attendance tracking for the offline seminar: `attending` holds the
+            # registrant's answer to the "will you attend?" poll ('yes'/'no'),
+            # `attended` is the on-the-day check-in toggled by /masters_attendance.
+            "ALTER TABLE masters_webinar_registrations ADD COLUMN attending TEXT",
+            "ALTER TABLE masters_webinar_registrations ADD COLUMN attending_at TEXT",
+            "ALTER TABLE masters_webinar_registrations ADD COLUMN attended INTEGER NOT NULL DEFAULT 0",
+            "ALTER TABLE masters_webinar_registrations ADD COLUMN attended_at TEXT",
         ]:
             try:
                 await db.execute(_col)
@@ -1024,3 +1031,53 @@ async def masters_webinar_get_all() -> list[dict]:
         ) as cursor:
             rows = await cursor.fetchall()
             return [dict(r) for r in rows]
+
+
+async def masters_webinar_get(chat_id: int) -> dict | None:
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute(
+            "SELECT * FROM masters_webinar_registrations WHERE chat_id = ?", (chat_id,)
+        ) as cursor:
+            row = await cursor.fetchone()
+            return dict(row) if row else None
+
+
+async def masters_webinar_set_attending(chat_id: int, answer: str) -> bool:
+    """Record the registrant's 'will you attend?' poll answer ('yes'/'no').
+
+    Returns False if the chat_id isn't a registrant, so the caller can tell a
+    stale button tap apart from a real answer.
+    """
+    now = datetime.now(timezone.utc).isoformat()
+    async with aiosqlite.connect(DB_PATH) as db:
+        cursor = await db.execute(
+            """UPDATE masters_webinar_registrations
+               SET attending = ?, attending_at = ?
+               WHERE chat_id = ?""",
+            (answer, now, chat_id),
+        )
+        await db.commit()
+        return cursor.rowcount > 0
+
+
+async def masters_webinar_toggle_attended(chat_id: int) -> bool | None:
+    """Flip the on-the-day check-in flag. Returns the new state, or None if the
+    chat_id isn't a registrant."""
+    async with aiosqlite.connect(DB_PATH) as db:
+        async with db.execute(
+            "SELECT attended FROM masters_webinar_registrations WHERE chat_id = ?",
+            (chat_id,),
+        ) as cursor:
+            row = await cursor.fetchone()
+        if row is None:
+            return None
+        new_state = 0 if row[0] else 1
+        await db.execute(
+            """UPDATE masters_webinar_registrations
+               SET attended = ?, attended_at = ?
+               WHERE chat_id = ?""",
+            (new_state, datetime.now(timezone.utc).isoformat() if new_state else None, chat_id),
+        )
+        await db.commit()
+        return bool(new_state)
