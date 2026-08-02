@@ -947,9 +947,6 @@ MW_REMINDER = (
     "\U0001f561 <b>6:30 PM—8:00 PM</b>\n"
     "\U0001f4cd <a href=\"https://maps.app.goo.gl/YZRGrhNwbjwyfB3U7\">Freshman Academy, Nest One</a> "
     "— Block C, Floor 15, Office 117\n\n"
-    "Please arrive <b>10—15 minutes early</b> so we can start on time — "
-    "you'll need your ID at the Nest One entrance.\n\n"
-    "Can't make it after all? Just reply here and let us know so we can free up your seat.\n\n"
     "See you tonight!"
 )
 MW_REMIND_STARTED = "\U0001f514 Sending the day-of reminder to {total} registrants…"
