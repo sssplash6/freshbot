@@ -1,5 +1,6 @@
 import asyncio
 import csv
+import html
 import io
 import logging
 import time
@@ -2573,6 +2574,77 @@ async def _masters_webinar_attend_callback(
             raise
 
 
+async def _masters_webinar_remind_command(
+    update: Update, context: ContextTypes.DEFAULT_TYPE
+) -> None:
+    """DM registrants the day-of reminder: exact time, venue, arrival guidance.
+
+    Audience defaults to everyone who didn't decline the /masters_poll — there
+    is no point nagging someone who already said they can't make it.
+    `/masters_remind all` messages every registrant, `/masters_remind yes`
+    only the confirmed ones.
+    """
+    if update.effective_user.id not in _MASTERS_LIST_IDS:
+        return
+    rows = await db.masters_webinar_get_all()
+    if not rows:
+        await update.message.reply_text(msg.MW_LIST_EMPTY)
+        return
+
+    audience = (context.args[0].lower() if context.args else "pending")
+    if audience == "all":
+        targets = rows
+    elif audience == "yes":
+        targets = [r for r in rows if r.get("attending") == "yes"]
+    else:
+        targets = [r for r in rows if r.get("attending") != "no"]
+    if not targets:
+        await update.message.reply_text(msg.MW_REMIND_NOBODY, parse_mode="HTML")
+        return
+
+    await update.message.reply_text(msg.MW_REMIND_STARTED.format(total=len(targets)))
+
+    async def _run() -> None:
+        sent = failed = 0
+        first_error: str | None = None
+
+        async def _send_one(r: dict) -> None:
+            nonlocal sent, failed, first_error
+            try:
+                await context.bot.send_message(
+                    chat_id=r["chat_id"],
+                    text=msg.MW_REMINDER.format(
+                        first_name=html.escape(
+                            r["full_name"].split()[0] if r["full_name"] else r["first_name"]
+                        )
+                    ),
+                    parse_mode="HTML",
+                    disable_web_page_preview=True,
+                )
+                sent += 1
+            except Exception as e:
+                if first_error is None:
+                    first_error = f"{type(e).__name__}: {e}"
+                logger.warning(
+                    "Seminar reminder failed for chat_id=%d: %s: %s",
+                    r["chat_id"], type(e).__name__, e,
+                )
+                failed += 1
+
+        # Same batching as the poll: stay under Telegram's ~30 msg/s flood limit
+        # and leave send budget for live replies.
+        batch_size = 20
+        for start in range(0, len(targets), batch_size):
+            await asyncio.gather(*(_send_one(r) for r in targets[start:start + batch_size]))
+            await asyncio.sleep(1.5)
+        result = msg.MW_REMIND_DONE.format(sent=sent, failed=failed, total=len(targets))
+        if first_error:
+            result += f"\n\nFirst error: {first_error}"
+        await update.message.reply_text(result)
+
+    asyncio.create_task(_run())
+
+
 def _mw_attendance_view(rows: list[dict], page: int) -> tuple[str, "InlineKeyboardMarkup"]:
     """Build the check-in message + keyboard for one page of registrants."""
     pages = max(1, -(-len(rows) // _MW_ATTENDANCE_PAGE_SIZE))
@@ -3514,6 +3586,7 @@ def build_app() -> Application:
     app.add_handler(CommandHandler("masters_list", _masters_webinar_list_command, filters=_private))
     app.add_handler(CommandHandler("masters_export", _masters_webinar_export_command, filters=_private))
     app.add_handler(CommandHandler("masters_poll", _masters_webinar_poll_command, filters=_private))
+    app.add_handler(CommandHandler("masters_remind", _masters_webinar_remind_command, filters=_private))
     app.add_handler(CommandHandler("masters_attendance", _masters_webinar_attendance_command, filters=_private))
     app.add_handler(CommandHandler("ae_set_terms", _ae_set_terms_command, filters=_private))
     app.add_handler(CommandHandler("set_guidebook", _set_guidebook_command, filters=_private))

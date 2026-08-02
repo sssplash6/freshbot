@@ -936,6 +936,32 @@ MW_SUBMITTED = (
 )
 MW_LIST_EMPTY = "No Free Admissions Seminar registrations yet."
 
+# --- Day-of reminder (sent to registrants only) ----------------------------
+# Restates that the seminar is offline and repeats the exact time + venue.
+# {first_name} is the registrant's own first name.
+MW_REMINDER = (
+    "\U0001f514 <b>Reminder — your Free Admissions Seminar is today!</b>\n\n"
+    "Hi {first_name}! You're registered for the offline Admissions Seminar with "
+    "Jahongir, an incoming <b>Bocconi University</b> student.\n\n"
+    "\U0001f4c5 <b>Today, Sunday August 2nd</b>\n"
+    "\U0001f561 <b>6:30 PM—8:00 PM</b>\n"
+    "\U0001f4cd <a href=\"https://maps.app.goo.gl/YZRGrhNwbjwyfB3U7\">Freshman Academy, Nest One</a> "
+    "— Block C, Floor 15, Office 117\n\n"
+    "Please arrive <b>10—15 minutes early</b> so we can start on time — "
+    "you'll need your ID at the Nest One entrance.\n\n"
+    "Can't make it after all? Just reply here and let us know so we can free up your seat.\n\n"
+    "See you tonight!"
+)
+MW_REMIND_STARTED = "\U0001f514 Sending the day-of reminder to {total} registrants…"
+MW_REMIND_DONE = (
+    "\U0001f514 Admissions Seminar reminder finished.\n\n"
+    "✅ Sent: {sent}\n❌ Failed: {failed}\n\U0001f465 Total: {total}"
+)
+MW_REMIND_NOBODY = (
+    "Nobody to remind — every registrant answered “No” to the attendance poll. "
+    "Use <code>/masters_remind all</code> to message them anyway."
+)
+
 # --- "Will you attend?" confirmation poll (sent to registrants only) --------
 BTN_MW_ATTEND_YES = "✅ Yes, I will attend"
 BTN_MW_ATTEND_NO = "❌ No, I can't make it"
