@@ -641,13 +641,14 @@ GUIDEBOOK_SET_SUCCESS = "\u2705 Extracurriculars Guidebook file saved successful
 
 BTN_GUIDEBOOK_CHECK = "\u2705 I've subscribed \u2014 check again"
 
-BTN_GETTING_IN = "\u2728Getting In with Alpamis Makhmutov"
+BTN_GETTING_IN = "\u2728Getting In with Abrorbek Samijonov"
 
 GETTING_IN_INTRO = (
-    "\U0001f44b Welcome to the <b>Freshman Getting In Series, Episode XI</b>!\n\n"
+    "\U0001f44b Welcome to the <b>Freshman Getting In Series, Episode XII</b>!\n\n"
     "We're excited to have you with us for our upcoming conversation with "
-    "<b>Alpamis Makhmutov</b>, an incoming student at Cornell University's "
-    "Dyson School of Applied Economics and Management.\n\n"
+    "<b>Abrorbek Samijonov</b>, an incoming student at Bowdoin College, who was "
+    "also admitted to Carnegie Mellon University Qatar and the University of "
+    "Toronto.\n\n"
     "\U0001f4cd Before joining the event group, please take a moment to review "
     "our <b>Community Guidelines</b>:\n\n"
     "(1) The group is exclusively for communication related to the Getting In "
@@ -669,7 +670,7 @@ GETTING_IN_INTRO = (
 BTN_GETTING_IN_JOIN = "\U0001f517 Join the group chat"
 
 GETTING_IN_COMING_SOON = (
-    "🚧 Getting In with Alpamis Makhmutov is coming soon. Stay tuned!"
+    "🚧 Getting In with Abrorbek Samijonov is coming soon. Stay tuned!"
 )
 
 BTN_ADV_ENGLISH = "Special Offer \u2013 Advanced English"
@@ -879,130 +880,6 @@ SAT_ENROLL_EXPERT_ENTRY = (
     "<b>Name:</b> {full_name}\n"
     "<b>SAT History:</b> {sat_history}\n"
     "<b>Desired Test Date:</b> {test_date}"
-)
-
-# ---------------------------------------------------------------------------
-# Free Admissions Seminar (offline, Bocconi) — registration flow
-# ---------------------------------------------------------------------------
-
-BTN_MASTERS_WEBINAR = "\U0001f393 Free Admissions Seminar"
-BTN_MW_REGISTER = "📝 Register"
-
-MW_COMING_SOON = "🚧 The Free Admissions Seminar is coming soon. Stay tuned!"
-
-# Mandatory-follow gate shown before registration if the user hasn't joined
-# the required channels yet. {channel_list} is a bullet list of the channels
-# still missing. Only reachable when MASTERS_GATE_ENABLED is flipped back on.
-MW_MUST_JOIN = (
-    "\U0001f393 To register for the <b>Free Admissions Seminar</b>, "
-    "please follow our channels first:\n\n"
-    "{channel_list}\n\n"
-    "Once you’ve joined, tap the button below."
-)
-BTN_MW_JOIN_CHECK = "✅ I've joined — check again"
-
-MW_ANNOUNCE = (
-    "\U0001f393 <b>Free Admissions Seminar with an Incoming Bocconi Student!</b>\n\n"
-    "Jahongir, an Economics &amp; Finance student at <b>Bocconi University</b> in Italy, is "
-    "hosting an offline Admissions Seminar at Freshman Academy’s Tashkent office at Nest One.\n\n"
-    "Throughout this meeting, Jahongir will share information about his admissions journey to "
-    "Bocconi, life in Italy, how to leverage your university’s resources, and career options "
-    "for economics, finance, and business students.\n\n"
-    "\U0001f4cd <a href=\"https://maps.app.goo.gl/YZRGrhNwbjwyfB3U7\">Freshman Academy, Nest One</a>\n"
-    "\U0001f4c5 <b>August 2nd</b>\n"
-    "\U0001f561 <b>6:30 PM—8:00 PM</b>\n\n"
-    "Tap <b>Register</b> below — it’s completely free."
-)
-
-MW_INTRO = (
-    "\U0001f393 <b>Free Admissions Seminar with an Incoming Bocconi Student!</b>\n\n"
-    "Jahongir, an Economics &amp; Finance student at <b>Bocconi University</b> in Italy, is "
-    "hosting an offline Admissions Seminar at Freshman Academy’s Tashkent office at Nest One.\n\n"
-    "He’ll share his admissions journey to Bocconi, life in Italy, how to leverage your "
-    "university’s resources, and career options for economics, finance, and business students.\n\n"
-    "\U0001f4cd <a href=\"https://maps.app.goo.gl/YZRGrhNwbjwyfB3U7\">Freshman Academy, Nest One</a>\n"
-    "\U0001f4c5 <b>August 2nd</b>\n"
-    "\U0001f561 <b>6:30 PM—8:00 PM</b>\n\n"
-    "Register with the short form below to save your spot."
-)
-MW_ASK_NAME = "What’s your full name?"
-MW_ASK_STUDY = "Where do you currently study? (your school or university)"
-MW_SUBMITTED = (
-    "✅ You’re registered for the Free Admissions Seminar!\n\n"
-    "\U0001f4cd <a href=\"https://maps.app.goo.gl/YZRGrhNwbjwyfB3U7\">Freshman Academy, Nest One</a>\n"
-    "\U0001f4c5 <b>August 2nd</b>\n"
-    "\U0001f561 <b>6:30 PM—8:00 PM</b>\n\n"
-    "See you there!"
-)
-MW_LIST_EMPTY = "No Free Admissions Seminar registrations yet."
-
-# --- Day-of reminder (sent to registrants only) ----------------------------
-# Restates that the seminar is offline and repeats the exact time + venue.
-# {first_name} is the registrant's own first name.
-MW_REMINDER = (
-    "\U0001f514 <b>Reminder — your Free Admissions Seminar is today!</b>\n\n"
-    "Hi {first_name}! You're registered for the offline Admissions Seminar with "
-    "Jahongir, an incoming <b>Bocconi University</b> student.\n\n"
-    "\U0001f4c5 <b>Today, Sunday August 2nd</b>\n"
-    "\U0001f561 <b>6:30 PM—8:00 PM</b>\n"
-    "\U0001f4cd <a href=\"https://maps.app.goo.gl/YZRGrhNwbjwyfB3U7\">Freshman Academy, Nest One</a> "
-    "— Block C, Floor 15, Office 117\n\n"
-    "See you tonight!"
-)
-MW_REMIND_STARTED = "\U0001f514 Sending the day-of reminder to {total} registrants…"
-MW_REMIND_DONE = (
-    "\U0001f514 Admissions Seminar reminder finished.\n\n"
-    "✅ Sent: {sent}\n❌ Failed: {failed}\n\U0001f465 Total: {total}"
-)
-MW_REMIND_NOBODY = (
-    "Nobody to remind — every registrant answered “No” to the attendance poll. "
-    "Use <code>/masters_remind all</code> to message them anyway."
-)
-
-# --- "Will you attend?" confirmation poll (sent to registrants only) --------
-BTN_MW_ATTEND_YES = "✅ Yes, I will attend"
-BTN_MW_ATTEND_NO = "❌ No, I can't make it"
-
-MW_POLL_ASK = (
-    "\U0001f393 <b>Free Admissions Seminar — will you attend?</b>\n\n"
-    "Hi {first_name}! You registered for the offline Admissions Seminar with "
-    "Jahongir, an incoming Bocconi student.\n\n"
-    "\U0001f4cd <a href=\"https://maps.app.goo.gl/YZRGrhNwbjwyfB3U7\">Freshman Academy, Nest One</a>\n"
-    "\U0001f4c5 <b>August 2nd</b>\n"
-    "\U0001f561 <b>6:30 PM—8:00 PM</b>\n\n"
-    "Seats are limited, so please confirm below — it helps us plan the room."
-)
-MW_POLL_YES_ACK = (
-    "✅ Thank you for confirming — see you on <b>August 2nd at 6:30 PM</b> at "
-    "<a href=\"https://maps.app.goo.gl/YZRGrhNwbjwyfB3U7\">Freshman Academy, Nest One</a>!"
-)
-MW_POLL_NO_ACK = (
-    "Got it — thank you for letting us know. We'll free up your seat for someone "
-    "else, and we hope to see you at our next event!"
-)
-MW_POLL_STALE = "You're not on the Admissions Seminar registration list."
-MW_POLL_STARTED = "\U0001f4e2 Sending the attendance poll to {total} registrants…"
-MW_POLL_DONE = (
-    "\U0001f4e2 Attendance poll finished.\n\n"
-    "✅ Sent: {sent}\n❌ Failed: {failed}\n\U0001f465 Total: {total}"
-)
-
-# --- Attendance check-in (during the event) --------------------------------
-MW_ATTENDANCE_HEADER = (
-    "\U0001f4cb <b>Admissions Seminar — attendance</b>\n\n"
-    "\U0001f465 Registered: <b>{total}</b>\n"
-    "✅ Said yes: <b>{yes}</b>  •  ❌ Said no: <b>{no}</b>  •  \U0001f515 No reply: <b>{noreply}</b>\n"
-    "\U0001f6aa Checked in: <b>{checked_in}/{total}</b>\n\n"
-    "Tap a name to check them in or undo. Page {page}/{pages}."
-)
-MW_ATTENDANCE_EMPTY = "No registrations yet — nothing to check in."
-MW_EXPORT_CAPTION = (
-    "\U0001f4c4 <b>Admissions Seminar registrations</b>\n\n"
-    "\U0001f465 Registered: <b>{total}</b>\n"
-    "✅ Said yes: <b>{yes}</b>  •  ❌ Said no: <b>{no}</b>  •  \U0001f515 No reply: <b>{noreply}</b>\n"
-    "\U0001f6aa Checked in: <b>{checked_in}</b>\n\n"
-    "Open in Google Sheets: <i>File → Import → upload this file</i>. "
-    "Times are Tashkent (UTC+5)."
 )
 
 # ---------------------------------------------------------------------------

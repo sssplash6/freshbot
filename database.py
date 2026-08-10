@@ -151,9 +151,10 @@ async def init_db() -> None:
             "ALTER TABLE adv_english_applications ADD COLUMN payment_screenshot_file_id TEXT",
             "ALTER TABLE adv_english_applications ADD COLUMN payment_screenshot_file_type TEXT",
             "ALTER TABLE adv_english_applications ADD COLUMN format_type TEXT",
-            # Attendance tracking for the offline seminar: `attending` holds the
-            # registrant's answer to the "will you attend?" poll ('yes'/'no'),
-            # `attended` is the on-the-day check-in toggled by /masters_attendance.
+            # Attendance tracking for the retired offline seminar: `attending`
+            # holds the registrant's answer to the "will you attend?" poll
+            # ('yes'/'no'), `attended` is the on-the-day check-in. Kept so the
+            # archived registrations stay readable via /export_db.
             "ALTER TABLE masters_webinar_registrations ADD COLUMN attending TEXT",
             "ALTER TABLE masters_webinar_registrations ADD COLUMN attending_at TEXT",
             "ALTER TABLE masters_webinar_registrations ADD COLUMN attended INTEGER NOT NULL DEFAULT 0",
@@ -175,13 +176,10 @@ async def init_db() -> None:
             "tap_posts",
         ]:
             await db.execute(f"DROP TABLE IF EXISTS {_tbl}")
-        # The seminar registration table is reused per event. Clear out the
-        # finished 24 July 2026 Master's Seminar so /masters_list shows only
-        # Free Admissions Seminar (2 Aug 2026) signups. Scoped by timestamp
-        # rather than a bare DELETE so a restart never wipes live registrations.
+        # Release anyone left mid-registration in the retired seminar flow, whose
+        # handler no longer exists — otherwise their row keeps a dead flow value.
         await db.execute(
-            "DELETE FROM masters_webinar_registrations WHERE registered_at < ?",
-            ("2026-07-29",),
+            "UPDATE users SET flow = NULL, status = NULL WHERE flow = 'masters_webinar'"
         )
         await db.commit()
 

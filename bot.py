@@ -107,9 +107,6 @@ _ae_state: dict[int, dict] = {}
 # Accumulates SAT enrollment answers per chat_id.
 _sat_enroll_state: dict[int, dict] = {}
 
-# Accumulates Free Admissions Seminar (offline) registration answers per chat_id.
-_masters_webinar_state: dict[int, dict] = {}
-
 # Accumulates Economics Olympiad Prep registration answers per chat_id
 # ({"full_name": str, "courses": set[str]}).
 _econ_state: dict[int, dict] = {}
@@ -136,7 +133,7 @@ _NAV_BUTTONS: frozenset[str] = frozenset({
     msg.BTN_PROGRAMS, msg.BTN_GENERAL_INQUIRY, msg.BTN_PODCAST,
     msg.BTN_HOME, msg.BTN_START,
     msg.BTN_ADV_ENGLISH, msg.BTN_SAT_ENROLL, msg.BTN_TRIAL_AP,
-    msg.BTN_GET_GUIDEBOOK, msg.BTN_GETTING_IN, msg.BTN_MASTERS_WEBINAR,
+    msg.BTN_GET_GUIDEBOOK, msg.BTN_GETTING_IN,
     # Program sub-menu
     msg.BTN_SAT, msg.BTN_ADMISSIONS, msg.BTN_FULL_SUPPORT, msg.BTN_MASTERS,
     msg.BTN_ADV_PLACEMENT, msg.BTN_IMKON, msg.BTN_RESEARCH_INSTITUTE,
@@ -155,8 +152,7 @@ _NAV_BUTTONS: frozenset[str] = frozenset({
 def _main_keyboard() -> ReplyKeyboardMarkup:
     return ReplyKeyboardMarkup(
         [
-            [msg.BTN_MASTERS_WEBINAR, msg.BTN_GET_GUIDEBOOK],
-            [msg.BTN_GETTING_IN],
+            [msg.BTN_GETTING_IN, msg.BTN_GET_GUIDEBOOK],
             [msg.BTN_ADV_ENGLISH, msg.BTN_SAT_ENROLL],
             [msg.BTN_PROGRAMS, msg.BTN_GENERAL_INQUIRY],
         ],
@@ -423,15 +419,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             await _handle_sat_enroll_step(update, chat_id, text, context)
             return
 
-    if user and user.get("flow") == "masters_webinar":
-        if text in _NAV_BUTTONS:
-            _masters_webinar_state.pop(chat_id, None)
-            await db.set_flow(chat_id, None)
-            await db.set_status(chat_id, None)
-        else:
-            await _handle_masters_webinar_step(update, chat_id, text, context)
-            return
-
     if user and user.get("flow") == "econ":
         if text in _NAV_BUTTONS:
             _econ_state.pop(chat_id, None)
@@ -470,8 +457,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         await _handle_trial_ap(update, chat_id, context)
     elif text == msg.BTN_SAT_ENROLL:
         await _handle_sat_enroll(update, chat_id, context)
-    elif text == msg.BTN_MASTERS_WEBINAR:
-        await _handle_masters_webinar(update, chat_id, context)
     elif text == msg.BTN_GENERAL_INQUIRY:
         await _handle_general_inquiry(update, chat_id)
     elif text == msg.BTN_PODCAST:
@@ -1389,15 +1374,6 @@ async def _handle_back(update: Update, chat_id: int) -> None:
             reply_markup=_main_keyboard(),
         )
         return
-    if flow == "masters_webinar":
-        _masters_webinar_state.pop(chat_id, None)
-        await db.set_flow(chat_id, None)
-        await db.set_status(chat_id, None)
-        await update.message.reply_text(
-            msg.WELCOME.format(first_name=first_name),
-            reply_markup=_main_keyboard(),
-        )
-        return
     if flow == "econ":
         _econ_state.pop(chat_id, None)
         await db.set_flow(chat_id, None)
@@ -1593,15 +1569,14 @@ async def _broadcast_keyboard_command(
         async def _send_one(cid: int) -> None:
             nonlocal sent, failed, first_error
             try:
-                # Free Admissions Seminar announcement - inline "Register" button
-                # opens the registration form directly (see _masters_webinar_inline_callback).
+                # "Getting In with Abrorbek Samijonov" event promo.
                 await context.bot.send_message(
                     chat_id=cid,
-                    text=msg.MW_ANNOUNCE,
+                    text=msg.GETTING_IN_INTRO,
                     parse_mode="HTML",
                     disable_web_page_preview=True,
                     reply_markup=InlineKeyboardMarkup([
-                        [InlineKeyboardButton(msg.BTN_MW_REGISTER, callback_data="mw_register")],
+                        [InlineKeyboardButton(msg.BTN_GETTING_IN_JOIN, url=GETTING_IN_GROUP_URL)],
                     ]),
                 )
                 sent += 1
@@ -1890,10 +1865,10 @@ async def _guidebook_check_callback(update: Update, context: ContextTypes.DEFAUL
 
 
 # ---------------------------------------------------------------------------
-# Getting In with Alpamis Makhmutov — group chat invite
+# Getting In with Abrorbek Samijonov — group chat invite
 # ---------------------------------------------------------------------------
 
-GETTING_IN_GROUP_URL = "https://t.me/+fBfOvLi0ib42Y2Yy"
+GETTING_IN_GROUP_URL = "https://t.me/+KegB4Myh01NmOWIy"
 
 # Coming-soon gate. True = series is live for everyone. False = only /santix
 # bypass users see it (everyone else gets GETTING_IN_COMING_SOON).
@@ -2201,540 +2176,6 @@ async def _handle_sat_enroll_step(
                 )
             except Exception:
                 logger.exception("Failed to notify SAT expert %d for enrollment", expert_id)
-
-
-# ---------------------------------------------------------------------------
-# Free Admissions Seminar (offline, Bocconi) — registration flow
-# ---------------------------------------------------------------------------
-
-# Channels a user must follow before registering for the offline seminar. The
-# handles double as the API chat_id — get_chat_member resolves a public
-# @username directly, so there is no numeric ID to keep in sync with the list
-# shown to the user. The bot must be an admin in each channel; if it isn't, the
-# check errors and fails open (see _masters_is_member), silently letting
-# everyone through.
-MASTERS_REQUIRED_HANDLES = ["@freshmanglobal", "@freshmanblog"]
-
-# Gate switch. True = mandatory follow enforced. Flip to False to OPEN the
-# gate so registration proceeds without the channel check.
-MASTERS_GATE_ENABLED = True
-
-
-async def _masters_is_member(bot, channel: int | str, chat_id: int) -> bool:
-    """True if chat_id is a member of channel. Fails open on API error."""
-    try:
-        member = await bot.get_chat_member(channel, chat_id)
-        return member.status in _MEMBER_STATUSES
-    except TelegramError:
-        logger.warning("Cannot check masters membership in %s. Failing open.", channel)
-        return True
-
-
-async def _masters_get_missing(bot, chat_id: int) -> list[str]:
-    # Gate is open — treat everyone as already following, so the flow finalizes
-    # without a channel check.
-    if not MASTERS_GATE_ENABLED:
-        return []
-    # Check both channels concurrently so the user isn't waiting on two
-    # sequential round-trips (each already queued behind the rate limiter).
-    results = await asyncio.gather(
-        *(_masters_is_member(bot, h, chat_id) for h in MASTERS_REQUIRED_HANDLES)
-    )
-    return [h for h, ok in zip(MASTERS_REQUIRED_HANDLES, results) if not ok]
-
-
-def _masters_gate_markup() -> "InlineKeyboardMarkup":
-    return InlineKeyboardMarkup(
-        [[InlineKeyboardButton(msg.BTN_MW_JOIN_CHECK, callback_data="mw_join_check")]]
-    )
-
-
-async def _masters_webinar_begin(bot, chat_id: int) -> None:
-    """Send the intro and start collecting registration details."""
-    await bot.send_message(chat_id=chat_id, text=msg.MW_INTRO, parse_mode="HTML")
-    _masters_webinar_state[chat_id] = {}
-    await db.set_flow(chat_id, "masters_webinar")
-    await db.set_status(chat_id, "mw_step_name")
-    await bot.send_message(
-        chat_id=chat_id, text=msg.MW_ASK_NAME, reply_markup=_back_keyboard()
-    )
-
-
-async def _handle_masters_webinar(
-    update: Update, chat_id: int, context: ContextTypes.DEFAULT_TYPE
-) -> None:
-    # Coming-soon gate is open — the webinar is live, so every user who taps the
-    # menu button goes straight into registration.
-    await _masters_webinar_begin(context.bot, chat_id)
-
-
-async def _masters_webinar_inline_callback(
-    update: Update, context: ContextTypes.DEFAULT_TYPE
-) -> None:
-    # Inline "Register" button from the /broadcastkeyboard announcement — starts
-    # the registration flow directly (the announcement is the deliberate entry
-    # point, so this bypasses the coming-soon menu gate).
-    query = update.callback_query
-    await query.answer()
-    await _masters_webinar_begin(context.bot, update.effective_chat.id)
-
-
-async def _masters_webinar_finalize_or_gate(bot, chat_id: int) -> None:
-    """Last step of registration: only save once the user follows every
-    required channel. Otherwise hold their answers and prompt them to join."""
-    missing = await _masters_get_missing(bot, chat_id)
-    if missing:
-        channel_list = "\n".join(f"• {h}" for h in missing)
-        await db.set_status(chat_id, "mw_awaiting_join")
-        await bot.send_message(
-            chat_id=chat_id,
-            text=msg.MW_MUST_JOIN.format(channel_list=channel_list),
-            parse_mode="HTML",
-            reply_markup=_masters_gate_markup(),
-        )
-        return
-    await _masters_webinar_finalize(bot, chat_id)
-
-
-async def _masters_webinar_finalize(bot, chat_id: int) -> None:
-    """Persist the registration and reset the user's flow."""
-    state = _masters_webinar_state.get(chat_id) or {}
-    full_name = state.get("full_name", "")
-    place_of_study = state.get("place_of_study", "")
-    if not full_name or not place_of_study:
-        # In-memory answers were lost (e.g. a restart during the join gate).
-        # Restart the short form so we never save a blank registration.
-        await _masters_webinar_begin(bot, chat_id)
-        return
-    _masters_webinar_state.pop(chat_id, None)
-
-    u = await db.get_user(chat_id)
-    first_name = u["first_name"] if u else "Unknown"
-    username = u["username"] if u else None
-
-    await db.masters_webinar_save(chat_id, username, first_name, full_name, place_of_study)
-    await db.set_flow(chat_id, None)
-    await db.set_status(chat_id, None)
-    await bot.send_message(
-        chat_id=chat_id,
-        text=msg.MW_SUBMITTED,
-        reply_markup=_main_keyboard(),
-        parse_mode="HTML",
-    )
-
-
-async def _masters_webinar_join_check_callback(
-    update: Update, context: ContextTypes.DEFAULT_TYPE
-) -> None:
-    # "I've joined — check again" button from the mandatory-follow gate. Runs
-    # after the form is filled, so a successful check finalizes registration.
-    query = update.callback_query
-    await _safe_answer(query)
-    chat_id = update.effective_user.id
-    missing = await _masters_get_missing(context.bot, chat_id)
-    if missing:
-        channel_list = "\n".join(f"• {h}" for h in missing)
-        try:
-            await query.edit_message_text(
-                msg.MW_MUST_JOIN.format(channel_list=channel_list),
-                parse_mode="HTML",
-                reply_markup=_masters_gate_markup(),
-            )
-        except TelegramError as e:
-            if "not modified" not in str(e).lower():
-                raise
-        return
-    await _masters_webinar_finalize(context.bot, chat_id)
-
-
-async def _handle_masters_webinar_step(
-    update: Update, chat_id: int, text: str, context: ContextTypes.DEFAULT_TYPE
-) -> None:
-    user = await db.get_user(chat_id)
-    status = user.get("status") if user else None
-
-    if status == "mw_step_name":
-        if not text.strip():
-            await update.message.reply_text(msg.MW_ASK_NAME, reply_markup=_back_keyboard())
-            return
-        _masters_webinar_state.setdefault(chat_id, {})["full_name"] = text.strip()
-        await db.set_status(chat_id, "mw_step_study")
-        await update.message.reply_text(msg.MW_ASK_STUDY, reply_markup=_back_keyboard())
-
-    elif status == "mw_step_study":
-        if not text.strip():
-            await update.message.reply_text(msg.MW_ASK_STUDY, reply_markup=_back_keyboard())
-            return
-        _masters_webinar_state.setdefault(chat_id, {})["place_of_study"] = text.strip()
-        # Verify the required-channel follow at the very last step, before saving.
-        await _masters_webinar_finalize_or_gate(context.bot, chat_id)
-
-    elif status == "mw_awaiting_join":
-        # User is at the follow gate but typed instead of tapping the button
-        # (e.g. the inline callback expired) — re-check membership.
-        await _masters_webinar_finalize_or_gate(context.bot, chat_id)
-
-
-_MASTERS_LIST_IDS: frozenset[int] = frozenset({PERSON_X_CHAT_ID, *MS_MAN_CHAT_ID})
-
-
-async def _masters_webinar_list_command(
-    update: Update, context: ContextTypes.DEFAULT_TYPE
-) -> None:
-    if update.effective_user.id not in _MASTERS_LIST_IDS:
-        return
-    rows = await db.masters_webinar_get_all()
-    if not rows:
-        await update.message.reply_text(msg.MW_LIST_EMPTY)
-        return
-    lines = [f"\U0001f393 <b>Admissions Seminar registrations ({len(rows)})</b>", ""]
-    for r in rows:
-        username_part = f" (@{r['username']})" if r.get("username") else ""
-        lines.append(
-            f"• <a href=\"tg://user?id={r['chat_id']}\">{r['full_name']}</a>"
-            f"{username_part} — {r['place_of_study']}"
-        )
-    # Telegram caps a message at 4096 chars. A long list overflows and
-    # reply_text raises (silently, from the user's view), so send the list in
-    # chunks of whole lines — never splitting a registration mid-line.
-    chunk: list[str] = []
-    length = 0
-    for line in lines:
-        if chunk and length + len(line) + 1 > 3900:
-            await update.message.reply_text(
-                "\n".join(chunk), parse_mode="HTML", disable_web_page_preview=True
-            )
-            chunk, length = [], 0
-        chunk.append(line)
-        length += len(line) + 1
-    if chunk:
-        await update.message.reply_text(
-            "\n".join(chunk), parse_mode="HTML", disable_web_page_preview=True
-        )
-
-
-# ---------------------------------------------------------------------------
-# Admissions Seminar — CSV export, attendance poll, on-the-day check-in
-# ---------------------------------------------------------------------------
-
-# The seminar is offline in Tashkent, so every timestamp shown to an organiser
-# is rendered in local time rather than the UTC the DB stores.
-_MW_TZ = timezone(timedelta(hours=5))
-
-# Registrants per page of the /masters_attendance keyboard. One button per row
-# keeps full names readable on a phone; the nav row makes it 9 rows total.
-_MW_ATTENDANCE_PAGE_SIZE = 8
-
-
-def _mw_local(ts: str | None) -> str:
-    """Format a stored UTC ISO timestamp as Tashkent local time."""
-    if not ts:
-        return ""
-    try:
-        return datetime.fromisoformat(ts).astimezone(_MW_TZ).strftime("%Y-%m-%d %H:%M")
-    except ValueError:
-        return ts
-
-
-def _mw_counts(rows: list[dict]) -> dict[str, int]:
-    yes = sum(1 for r in rows if r.get("attending") == "yes")
-    no = sum(1 for r in rows if r.get("attending") == "no")
-    return {
-        "total": len(rows),
-        "yes": yes,
-        "no": no,
-        "noreply": len(rows) - yes - no,
-        "checked_in": sum(1 for r in rows if r.get("attended")),
-    }
-
-
-async def _masters_webinar_export_command(
-    update: Update, context: ContextTypes.DEFAULT_TYPE
-) -> None:
-    """Send the full registration list as a CSV that opens as a spreadsheet."""
-    if update.effective_user.id not in _MASTERS_LIST_IDS:
-        return
-    rows = await db.masters_webinar_get_all()
-    if not rows:
-        await update.message.reply_text(msg.MW_LIST_EMPTY)
-        return
-
-    buf = io.StringIO()
-    writer = csv.writer(buf)
-    writer.writerow([
-        "#", "Full name", "Telegram name", "Username", "Telegram ID",
-        "Place of study", "Registered at", "Will attend", "Confirmed at",
-        "Checked in", "Checked in at",
-    ])
-    _ANSWER_LABEL = {"yes": "Yes", "no": "No"}
-    for i, r in enumerate(rows, start=1):
-        writer.writerow([
-            i,
-            r["full_name"],
-            r["first_name"],
-            f"@{r['username']}" if r.get("username") else "",
-            r["chat_id"],
-            r["place_of_study"],
-            _mw_local(r["registered_at"]),
-            _ANSWER_LABEL.get(r.get("attending"), "No reply"),
-            _mw_local(r.get("attending_at")),
-            "Yes" if r.get("attended") else "No",
-            _mw_local(r.get("attended_at")),
-        ])
-
-    # Excel and Google Sheets both need the BOM to read UTF-8 (Cyrillic and
-    # Uzbek Latin names) instead of falling back to a legacy codepage.
-    data = io.BytesIO(buf.getvalue().encode("utf-8-sig"))
-    today = datetime.now(_MW_TZ).strftime("%Y-%m-%d")
-    await update.message.reply_document(
-        document=data,
-        filename=f"admissions_seminar_registrations_{today}.csv",
-        caption=msg.MW_EXPORT_CAPTION.format(**_mw_counts(rows)),
-        parse_mode="HTML",
-    )
-
-
-async def _masters_webinar_poll_command(
-    update: Update, context: ContextTypes.DEFAULT_TYPE
-) -> None:
-    """Ask every registrant to confirm attendance with a Yes/No inline poll."""
-    if update.effective_user.id not in _MASTERS_LIST_IDS:
-        return
-    rows = await db.masters_webinar_get_all()
-    if not rows:
-        await update.message.reply_text(msg.MW_LIST_EMPTY)
-        return
-
-    await update.message.reply_text(msg.MW_POLL_STARTED.format(total=len(rows)))
-    keyboard = InlineKeyboardMarkup([
-        [InlineKeyboardButton(msg.BTN_MW_ATTEND_YES, callback_data="mw_att:yes")],
-        [InlineKeyboardButton(msg.BTN_MW_ATTEND_NO, callback_data="mw_att:no")],
-    ])
-
-    async def _run() -> None:
-        sent = failed = 0
-        first_error: str | None = None
-
-        # Same batching as the broadcast: stay under Telegram's ~30 msg/s flood
-        # limit and leave send budget for live replies.
-        async def _send_one(r: dict) -> None:
-            nonlocal sent, failed, first_error
-            try:
-                await context.bot.send_message(
-                    chat_id=r["chat_id"],
-                    text=msg.MW_POLL_ASK.format(
-                        first_name=r["full_name"].split()[0] if r["full_name"] else r["first_name"]
-                    ),
-                    parse_mode="HTML",
-                    disable_web_page_preview=True,
-                    reply_markup=keyboard,
-                )
-                sent += 1
-            except Exception as e:
-                if first_error is None:
-                    first_error = f"{type(e).__name__}: {e}"
-                logger.warning(
-                    "Seminar poll failed for chat_id=%d: %s: %s",
-                    r["chat_id"], type(e).__name__, e,
-                )
-                failed += 1
-
-        batch_size = 20
-        for start in range(0, len(rows), batch_size):
-            await asyncio.gather(*(_send_one(r) for r in rows[start:start + batch_size]))
-            await asyncio.sleep(1.5)
-        result = msg.MW_POLL_DONE.format(sent=sent, failed=failed, total=len(rows))
-        if first_error:
-            result += f"\n\nFirst error: {first_error}"
-        await update.message.reply_text(result)
-
-    asyncio.create_task(_run())
-
-
-async def _masters_webinar_attend_callback(
-    update: Update, context: ContextTypes.DEFAULT_TYPE
-) -> None:
-    """Registrant tapped Yes/No on the attendance poll."""
-    query = update.callback_query
-    answer = query.data.split(":")[1]
-    saved = await db.masters_webinar_set_attending(update.effective_user.id, answer)
-    if not saved:
-        await query.answer(msg.MW_POLL_STALE, show_alert=True)
-        return
-    await _safe_answer(query)
-    text = msg.MW_POLL_YES_ACK if answer == "yes" else msg.MW_POLL_NO_ACK
-    try:
-        # Replace the question with the acknowledgement so the buttons can't be
-        # tapped again out of context; the answer stays changeable via a new poll.
-        await query.edit_message_text(
-            text, parse_mode="HTML", disable_web_page_preview=True
-        )
-    except TelegramError as e:
-        if "not modified" not in str(e).lower():
-            raise
-
-
-async def _masters_webinar_remind_command(
-    update: Update, context: ContextTypes.DEFAULT_TYPE
-) -> None:
-    """DM registrants the day-of reminder: exact time, venue, arrival guidance.
-
-    Audience defaults to everyone who didn't decline the /masters_poll — there
-    is no point nagging someone who already said they can't make it.
-    `/masters_remind all` messages every registrant, `/masters_remind yes`
-    only the confirmed ones.
-    """
-    if update.effective_user.id not in _MASTERS_LIST_IDS:
-        return
-    rows = await db.masters_webinar_get_all()
-    if not rows:
-        await update.message.reply_text(msg.MW_LIST_EMPTY)
-        return
-
-    audience = (context.args[0].lower() if context.args else "pending")
-    if audience == "all":
-        targets = rows
-    elif audience == "yes":
-        targets = [r for r in rows if r.get("attending") == "yes"]
-    else:
-        targets = [r for r in rows if r.get("attending") != "no"]
-    if not targets:
-        await update.message.reply_text(msg.MW_REMIND_NOBODY, parse_mode="HTML")
-        return
-
-    await update.message.reply_text(msg.MW_REMIND_STARTED.format(total=len(targets)))
-
-    async def _run() -> None:
-        sent = failed = 0
-        first_error: str | None = None
-
-        async def _send_one(r: dict) -> None:
-            nonlocal sent, failed, first_error
-            try:
-                await context.bot.send_message(
-                    chat_id=r["chat_id"],
-                    text=msg.MW_REMINDER.format(
-                        first_name=html.escape(
-                            r["full_name"].split()[0] if r["full_name"] else r["first_name"]
-                        )
-                    ),
-                    parse_mode="HTML",
-                    disable_web_page_preview=True,
-                )
-                sent += 1
-            except Exception as e:
-                if first_error is None:
-                    first_error = f"{type(e).__name__}: {e}"
-                logger.warning(
-                    "Seminar reminder failed for chat_id=%d: %s: %s",
-                    r["chat_id"], type(e).__name__, e,
-                )
-                failed += 1
-
-        # Same batching as the poll: stay under Telegram's ~30 msg/s flood limit
-        # and leave send budget for live replies.
-        batch_size = 20
-        for start in range(0, len(targets), batch_size):
-            await asyncio.gather(*(_send_one(r) for r in targets[start:start + batch_size]))
-            await asyncio.sleep(1.5)
-        result = msg.MW_REMIND_DONE.format(sent=sent, failed=failed, total=len(targets))
-        if first_error:
-            result += f"\n\nFirst error: {first_error}"
-        await update.message.reply_text(result)
-
-    asyncio.create_task(_run())
-
-
-def _mw_attendance_view(rows: list[dict], page: int) -> tuple[str, "InlineKeyboardMarkup"]:
-    """Build the check-in message + keyboard for one page of registrants."""
-    pages = max(1, -(-len(rows) // _MW_ATTENDANCE_PAGE_SIZE))
-    page = max(0, min(page, pages - 1))
-    start = page * _MW_ATTENDANCE_PAGE_SIZE
-    window = rows[start:start + _MW_ATTENDANCE_PAGE_SIZE]
-
-    _MARK = {"yes": "✅", "no": "❌"}
-    buttons: list[list[InlineKeyboardButton]] = []
-    for offset, r in enumerate(window, start=start + 1):
-        box = "☑️" if r.get("attended") else "⬜"
-        rsvp = _MARK.get(r.get("attending"), "")
-        label = f"{box} {offset}. {r['full_name']}"
-        if rsvp:
-            label += f" {rsvp}"
-        # Telegram truncates long button labels mid-word — cap it ourselves so
-        # the name stays readable and the trailing RSVP mark survives.
-        if len(label) > 60:
-            label = label[:57] + "…"
-        buttons.append([
-            InlineKeyboardButton(label, callback_data=f"mwa:t:{r['chat_id']}:{page}")
-        ])
-
-    nav: list[InlineKeyboardButton] = []
-    if pages > 1:
-        prev_page = (page - 1) % pages
-        next_page = (page + 1) % pages
-        nav = [
-            InlineKeyboardButton("◀️", callback_data=f"mwa:p:{prev_page}"),
-            InlineKeyboardButton(f"{page + 1}/{pages}", callback_data=f"mwa:p:{page}"),
-            InlineKeyboardButton("▶️", callback_data=f"mwa:p:{next_page}"),
-        ]
-    else:
-        nav = [InlineKeyboardButton("🔄 Refresh", callback_data=f"mwa:p:{page}")]
-    buttons.append(nav)
-
-    header = msg.MW_ATTENDANCE_HEADER.format(
-        **_mw_counts(rows), page=page + 1, pages=pages
-    )
-    return header, InlineKeyboardMarkup(buttons)
-
-
-async def _masters_webinar_attendance_command(
-    update: Update, context: ContextTypes.DEFAULT_TYPE
-) -> None:
-    """Live check-in sheet: one tappable button per registrant."""
-    if update.effective_user.id not in _MASTERS_LIST_IDS:
-        return
-    rows = await db.masters_webinar_get_all()
-    if not rows:
-        await update.message.reply_text(msg.MW_ATTENDANCE_EMPTY)
-        return
-    text, keyboard = _mw_attendance_view(rows, 0)
-    await update.message.reply_text(text, parse_mode="HTML", reply_markup=keyboard)
-
-
-async def _masters_webinar_attendance_callback(
-    update: Update, context: ContextTypes.DEFAULT_TYPE
-) -> None:
-    """Toggle a check-in or page through the attendance list."""
-    query = update.callback_query
-    if update.effective_user.id not in _MASTERS_LIST_IDS:
-        await query.answer()
-        return
-
-    parts = query.data.split(":")
-    action, page = parts[1], int(parts[-1])
-
-    if action == "t":
-        target = int(parts[2])
-        state = await db.masters_webinar_toggle_attended(target)
-        if state is None:
-            await query.answer("That registration no longer exists.", show_alert=True)
-            return
-        await query.answer("✅ Checked in" if state else "↩️ Check-in undone")
-    else:
-        await _safe_answer(query)
-
-    rows = await db.masters_webinar_get_all()
-    if not rows:
-        await query.edit_message_text(msg.MW_ATTENDANCE_EMPTY)
-        return
-    text, keyboard = _mw_attendance_view(rows, page)
-    try:
-        await query.edit_message_text(text, parse_mode="HTML", reply_markup=keyboard)
-    except TelegramError as e:
-        # Tapping the page-number button (a deliberate no-op refresh) re-sends
-        # identical content — Telegram rejects that, and it isn't an error.
-        if "not modified" not in str(e).lower():
-            raise
 
 
 # ---------------------------------------------------------------------------
@@ -3583,11 +3024,6 @@ def build_app() -> Application:
     app.add_handler(CommandHandler("skipped", _q_skipped_command, filters=_private))
     app.add_handler(CommandHandler("ae_list", _ae_list_command, filters=_private))
     app.add_handler(CommandHandler("econ_list", _econ_list_command, filters=_private))
-    app.add_handler(CommandHandler("masters_list", _masters_webinar_list_command, filters=_private))
-    app.add_handler(CommandHandler("masters_export", _masters_webinar_export_command, filters=_private))
-    app.add_handler(CommandHandler("masters_poll", _masters_webinar_poll_command, filters=_private))
-    app.add_handler(CommandHandler("masters_remind", _masters_webinar_remind_command, filters=_private))
-    app.add_handler(CommandHandler("masters_attendance", _masters_webinar_attendance_command, filters=_private))
     app.add_handler(CommandHandler("ae_set_terms", _ae_set_terms_command, filters=_private))
     app.add_handler(CommandHandler("set_guidebook", _set_guidebook_command, filters=_private))
     app.add_handler(CommandHandler("guidebook_count", _guidebook_count_command, filters=_private))
@@ -3614,10 +3050,6 @@ def build_app() -> Application:
     app.add_handler(CallbackQueryHandler(_guidebook_get_callback, pattern="^guidebook_get$"))
     app.add_handler(CallbackQueryHandler(_guidebook_check_callback, pattern="^guidebook_check$"))
     app.add_handler(CallbackQueryHandler(_sat_enroll_inline_callback, pattern="^sat_enroll_inline$"))
-    app.add_handler(CallbackQueryHandler(_masters_webinar_inline_callback, pattern="^mw_register$"))
-    app.add_handler(CallbackQueryHandler(_masters_webinar_join_check_callback, pattern="^mw_join_check$"))
-    app.add_handler(CallbackQueryHandler(_masters_webinar_attend_callback, pattern="^mw_att:"))
-    app.add_handler(CallbackQueryHandler(_masters_webinar_attendance_callback, pattern="^mwa:"))
     app.add_handler(CallbackQueryHandler(_econ_join_callback, pattern="^econ_join$"))
     app.add_handler(CallbackQueryHandler(_econ_course_callback, pattern="^econ_course:"))
     app.add_handler(CallbackQueryHandler(_econ_done_callback, pattern="^econ_done$"))
