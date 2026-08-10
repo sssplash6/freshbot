@@ -133,7 +133,7 @@ _NAV_BUTTONS: frozenset[str] = frozenset({
     msg.BTN_PROGRAMS, msg.BTN_GENERAL_INQUIRY, msg.BTN_PODCAST,
     msg.BTN_HOME, msg.BTN_START,
     msg.BTN_ADV_ENGLISH, msg.BTN_SAT_ENROLL, msg.BTN_TRIAL_AP,
-    msg.BTN_GET_GUIDEBOOK, msg.BTN_GETTING_IN,
+    msg.BTN_GET_GUIDEBOOK, msg.BTN_GETTING_IN, msg.BTN_ART_SEMINAR,
     # Program sub-menu
     msg.BTN_SAT, msg.BTN_ADMISSIONS, msg.BTN_FULL_SUPPORT, msg.BTN_MASTERS,
     msg.BTN_ADV_PLACEMENT, msg.BTN_IMKON, msg.BTN_RESEARCH_INSTITUTE,
@@ -152,6 +152,7 @@ _NAV_BUTTONS: frozenset[str] = frozenset({
 def _main_keyboard() -> ReplyKeyboardMarkup:
     return ReplyKeyboardMarkup(
         [
+            [msg.BTN_ART_SEMINAR],
             [msg.BTN_GETTING_IN, msg.BTN_GET_GUIDEBOOK],
             [msg.BTN_ADV_ENGLISH, msg.BTN_SAT_ENROLL],
             [msg.BTN_PROGRAMS, msg.BTN_GENERAL_INQUIRY],
@@ -428,6 +429,14 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             await _handle_econ_step(update, chat_id, text, context)
             return
 
+    if user and user.get("flow") == "art_seminar":
+        if text in _NAV_BUTTONS:
+            await db.set_flow(chat_id, None)
+            await db.set_status(chat_id, None)
+        else:
+            await _handle_art_seminar_step(update, chat_id, text)
+            return
+
     if user and user.get("flow") == "adv_english" and user.get("status") in (
         "ae_step_format", "ae_step_full_name", "ae_step_video", "ae_step_ielts", "ae_step_sat",
         "ae_step_why", "ae_step_perspective", "ae_step_resources",
@@ -465,6 +474,8 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         await _handle_guidebook(update, chat_id)
     elif text == msg.BTN_GETTING_IN:
         await _handle_getting_in(update, chat_id)
+    elif text == msg.BTN_ART_SEMINAR:
+        await _art_seminar_begin(context.bot, chat_id, with_intro=True)
     elif text == msg.BTN_SAT:
         await _handle_program(update, chat_id, msg.BTN_SAT)
     elif text == msg.BTN_ADMISSIONS:
@@ -1383,6 +1394,14 @@ async def _handle_back(update: Update, chat_id: int) -> None:
             reply_markup=_main_keyboard(),
         )
         return
+    if flow == "art_seminar":
+        await db.set_flow(chat_id, None)
+        await db.set_status(chat_id, None)
+        await update.message.reply_text(
+            msg.WELCOME.format(first_name=first_name),
+            reply_markup=_main_keyboard(),
+        )
+        return
     if flow == "adv_english":
         _ae_state.pop(chat_id, None)
         await db.set_flow(chat_id, None)
@@ -1569,14 +1588,15 @@ async def _broadcast_keyboard_command(
         async def _send_one(cid: int) -> None:
             nonlocal sent, failed, first_error
             try:
-                # "Getting In with Abrorbek Samijonov" event promo.
+                # Art Seminar announcement — the inline button opens the
+                # one-question registration form (see _art_seminar_register_callback).
                 await context.bot.send_message(
                     chat_id=cid,
-                    text=msg.GETTING_IN_INTRO,
+                    text=msg.ART_ANNOUNCE,
                     parse_mode="HTML",
                     disable_web_page_preview=True,
                     reply_markup=InlineKeyboardMarkup([
-                        [InlineKeyboardButton(msg.BTN_GETTING_IN_JOIN, url=GETTING_IN_GROUP_URL)],
+                        [InlineKeyboardButton(msg.BTN_ART_SEMINAR, callback_data="art_register")],
                     ]),
                 )
                 sent += 1
@@ -2321,6 +2341,91 @@ async def _econ_list_command(update: Update, context: ContextTypes.DEFAULT_TYPE)
 
 
 # ---------------------------------------------------------------------------
+# Art Seminar by Baxshillo Djumaev — registration flow (full name only)
+# ---------------------------------------------------------------------------
+
+async def _art_seminar_begin(bot, chat_id: int, *, with_intro: bool) -> None:
+    """Start the one-question registration form. The menu button leads with the
+    event intro; the announcement's inline button skips it (the details sit
+    right above the button)."""
+    if with_intro:
+        await bot.send_message(
+            chat_id=chat_id,
+            text=msg.ART_INTRO,
+            parse_mode="HTML",
+            disable_web_page_preview=True,
+        )
+    await db.set_flow(chat_id, "art_seminar")
+    await db.set_status(chat_id, "art_step_name")
+    await bot.send_message(
+        chat_id=chat_id, text=msg.ART_ASK_NAME, reply_markup=_back_keyboard()
+    )
+
+
+async def _art_seminar_register_callback(
+    update: Update, context: ContextTypes.DEFAULT_TYPE
+) -> None:
+    # Inline button under the /broadcastkeyboard announcement — starts registration.
+    query = update.callback_query
+    await query.answer()
+    await _art_seminar_begin(context.bot, update.effective_chat.id, with_intro=False)
+
+
+async def _handle_art_seminar_step(update: Update, chat_id: int, text: str) -> None:
+    user = await db.get_user(chat_id)
+    if (user.get("status") if user else None) != "art_step_name":
+        return
+    if not text.strip():
+        await update.message.reply_text(msg.ART_ASK_NAME, reply_markup=_back_keyboard())
+        return
+
+    first_name = user["first_name"] if user else "Unknown"
+    username = user["username"] if user else None
+    await db.art_seminar_save(chat_id, username, first_name, text.strip())
+    await db.set_flow(chat_id, None)
+    await db.set_status(chat_id, None)
+    await update.message.reply_text(
+        msg.ART_SUBMITTED,
+        parse_mode="HTML",
+        disable_web_page_preview=True,
+        reply_markup=_main_keyboard(),
+    )
+
+
+async def _art_seminar_list_command(
+    update: Update, context: ContextTypes.DEFAULT_TYPE
+) -> None:
+    if update.effective_user.id != PERSON_X_CHAT_ID:
+        return
+    rows = await db.art_seminar_get_all()
+    if not rows:
+        await update.message.reply_text(msg.ART_LIST_EMPTY)
+        return
+    lines = [f"\U0001f393 <b>Art Seminar registrations ({len(rows)})</b>", ""]
+    for r in rows:
+        username_part = f" (@{r['username']})" if r.get("username") else ""
+        lines.append(
+            f"• <a href=\"tg://user?id={r['chat_id']}\">{r['full_name']}</a>{username_part}"
+        )
+    # Telegram caps a message at 4096 chars — send the list in chunks of whole
+    # lines so a long registration list never overflows a single message.
+    chunk: list[str] = []
+    length = 0
+    for line in lines:
+        if chunk and length + len(line) + 1 > 3900:
+            await update.message.reply_text(
+                "\n".join(chunk), parse_mode="HTML", disable_web_page_preview=True
+            )
+            chunk, length = [], 0
+        chunk.append(line)
+        length += len(line) + 1
+    if chunk:
+        await update.message.reply_text(
+            "\n".join(chunk), parse_mode="HTML", disable_web_page_preview=True
+        )
+
+
+# ---------------------------------------------------------------------------
 # SAT enrollments — admin list view
 # ---------------------------------------------------------------------------
 
@@ -3024,6 +3129,7 @@ def build_app() -> Application:
     app.add_handler(CommandHandler("skipped", _q_skipped_command, filters=_private))
     app.add_handler(CommandHandler("ae_list", _ae_list_command, filters=_private))
     app.add_handler(CommandHandler("econ_list", _econ_list_command, filters=_private))
+    app.add_handler(CommandHandler("art_list", _art_seminar_list_command, filters=_private))
     app.add_handler(CommandHandler("ae_set_terms", _ae_set_terms_command, filters=_private))
     app.add_handler(CommandHandler("set_guidebook", _set_guidebook_command, filters=_private))
     app.add_handler(CommandHandler("guidebook_count", _guidebook_count_command, filters=_private))
@@ -3051,6 +3157,7 @@ def build_app() -> Application:
     app.add_handler(CallbackQueryHandler(_guidebook_check_callback, pattern="^guidebook_check$"))
     app.add_handler(CallbackQueryHandler(_sat_enroll_inline_callback, pattern="^sat_enroll_inline$"))
     app.add_handler(CallbackQueryHandler(_econ_join_callback, pattern="^econ_join$"))
+    app.add_handler(CallbackQueryHandler(_art_seminar_register_callback, pattern="^art_register$"))
     app.add_handler(CallbackQueryHandler(_econ_course_callback, pattern="^econ_course:"))
     app.add_handler(CallbackQueryHandler(_econ_done_callback, pattern="^econ_done$"))
     app.add_handler(CallbackQueryHandler(_ae_program_faq_callback, pattern="^ae_program_faq$"))

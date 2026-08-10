@@ -142,6 +142,16 @@ async def init_db() -> None:
                 registered_at   TEXT NOT NULL
             )
         """)
+        await db.execute("""
+            CREATE TABLE IF NOT EXISTS art_seminar_registrations (
+                id             INTEGER PRIMARY KEY AUTOINCREMENT,
+                chat_id        INTEGER NOT NULL UNIQUE,
+                username       TEXT,
+                first_name     TEXT NOT NULL,
+                full_name      TEXT NOT NULL,
+                registered_at  TEXT NOT NULL
+            )
+        """)
         for _col in [
             "ALTER TABLE users ADD COLUMN guidebook_sent_at TEXT",
             "ALTER TABLE adv_english_applications ADD COLUMN video_file_id TEXT",
@@ -972,6 +982,38 @@ async def econ_enroll_get_all() -> list[dict]:
         db.row_factory = aiosqlite.Row
         async with db.execute(
             "SELECT * FROM econ_enrollments ORDER BY enrolled_at"
+        ) as cursor:
+            rows = await cursor.fetchall()
+            return [dict(r) for r in rows]
+
+
+async def art_seminar_save(
+    chat_id: int,
+    username: str | None,
+    first_name: str,
+    full_name: str,
+) -> None:
+    now = datetime.now(timezone.utc).isoformat()
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute(
+            """INSERT INTO art_seminar_registrations
+               (chat_id, username, first_name, full_name, registered_at)
+               VALUES (?, ?, ?, ?, ?)
+               ON CONFLICT(chat_id) DO UPDATE SET
+                   username = excluded.username,
+                   first_name = excluded.first_name,
+                   full_name = excluded.full_name,
+                   registered_at = excluded.registered_at""",
+            (chat_id, username, first_name, full_name, now),
+        )
+        await db.commit()
+
+
+async def art_seminar_get_all() -> list[dict]:
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute(
+            "SELECT * FROM art_seminar_registrations ORDER BY registered_at"
         ) as cursor:
             rows = await cursor.fetchall()
             return [dict(r) for r in rows]

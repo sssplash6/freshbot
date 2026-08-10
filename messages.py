@@ -915,6 +915,46 @@ ECON_EXPERT_ENTRY = (
 )
 
 # ---------------------------------------------------------------------------
+# Art Seminar by Baxshillo Djumaev (offline) — registration flow
+# ---------------------------------------------------------------------------
+
+# The event title doubles as the button label — on the main menu and under the
+# /broadcastkeyboard announcement.
+BTN_ART_SEMINAR = "🎓Art Seminar by Baxshillo Djumaev!"
+
+ART_ANNOUNCE = (
+    "🎓<b>Art Seminar by Baxshillo Djumaev!</b>\n\n"
+    "Join us for an offline seminar by <b>Baxshillo Djumaev</b>, sixth generation "
+    "golden embroidery master craftsperson. He will share more about his fifty "
+    "years of experience in Uzbek traditional golden embroidery.\n\n"
+    "\U0001f4cd <a href=\"https://maps.app.goo.gl/YZRGrhNwbjwyfB3U7\">Freshman Academy, Nest One</a>\n"
+    "\U0001f4c5 <b>August 11th</b>\n"
+    "🕡 <b>5:30 PM—7:00 PM</b>\n\n"
+    "Register for free by tapping the button below \U0001f447"
+)
+
+ART_INTRO = (
+    "🎓<b>Art Seminar by Baxshillo Djumaev!</b>\n\n"
+    "Join us for an offline seminar by <b>Baxshillo Djumaev</b>, sixth generation "
+    "golden embroidery master craftsperson. He will share more about his fifty "
+    "years of experience in Uzbek traditional golden embroidery.\n\n"
+    "\U0001f4cd <a href=\"https://maps.app.goo.gl/YZRGrhNwbjwyfB3U7\">Freshman Academy, Nest One</a>\n"
+    "\U0001f4c5 <b>August 11th</b>\n"
+    "🕡 <b>5:30 PM—7:00 PM</b>\n\n"
+    "Register for free with the short form below to save your spot."
+)
+
+ART_ASK_NAME = "What’s your full name?"
+ART_SUBMITTED = (
+    "✅ You’re registered for the Art Seminar by Baxshillo Djumaev!\n\n"
+    "\U0001f4cd <a href=\"https://maps.app.goo.gl/YZRGrhNwbjwyfB3U7\">Freshman Academy, Nest One</a>\n"
+    "\U0001f4c5 <b>August 11th</b>\n"
+    "🕡 <b>5:30 PM—7:00 PM</b>\n\n"
+    "See you there!"
+)
+ART_LIST_EMPTY = "No Art Seminar registrations yet."
+
+# ---------------------------------------------------------------------------
 # Event gate \u2014 student flow
 # ---------------------------------------------------------------------------
 EG_NOT_MEMBER = (

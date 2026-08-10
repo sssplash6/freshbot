@@ -27,6 +27,7 @@ Telegram bot for Freshman Academy. python-telegram-bot (PTB) v21, async, **polli
 - `tap_` — Trial AP Lesson (join → pre-set post → repost screenshot → reviewer confirm → group invite)
 - Getting In Series — no prefix. One menu button + `GETTING_IN_INTRO`, joined by a direct URL button (`GETTING_IN_GROUP_URL` in bot.py). Per episode, swap the speaker in the button label / intro / coming-soon text, swap the group URL, and repoint `/broadcastkeyboard` at the promo.
 - `q`/`qp:`/`qd:`/`qa:`/`qs:`/`qr:` — ask-a-question → expert Q&A threads. Experts answer by swipe-reply; `qs:` skips a duplicate/spam question (silent, cancels the 10h follow-up), `qr:` restores it. Viewers: `/answered`, `/unanswered`, `/skipped`.
+- `art_` — Art Seminar by Baxshillo Djumaev (offline). One-question form: full name → save. Main-menu button + `/broadcastkeyboard` announcement (both labeled with the event title); `/art_list` shows registrations.
 
 Retired (removed in Phase 2, tables dropped on startup): `eg_` event giveaway, `se_` special events/rolls, `sat_` giveaway, `hku_` HKU event, `apw_` AP webinar, `rs_` research seminar.
 
