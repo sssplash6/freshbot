@@ -1588,15 +1588,14 @@ async def _broadcast_keyboard_command(
         async def _send_one(cid: int) -> None:
             nonlocal sent, failed, first_error
             try:
-                # Art Seminar announcement — the inline button opens the
-                # one-question registration form (see _art_seminar_register_callback).
+                # "Getting In with Abrorbek Samijonov" event promo.
                 await context.bot.send_message(
                     chat_id=cid,
-                    text=msg.ART_ANNOUNCE,
+                    text=msg.GETTING_IN_INTRO,
                     parse_mode="HTML",
                     disable_web_page_preview=True,
                     reply_markup=InlineKeyboardMarkup([
-                        [InlineKeyboardButton(msg.BTN_ART_SEMINAR, callback_data="art_register")],
+                        [InlineKeyboardButton(msg.BTN_GETTING_IN_JOIN, url=GETTING_IN_GROUP_URL)],
                     ]),
                 )
                 sent += 1
