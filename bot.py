@@ -1892,7 +1892,7 @@ GETTING_IN_GROUP_URL = "https://t.me/+KegB4Myh01NmOWIy"
 
 # Coming-soon gate. True = series is live for everyone. False = only /santix
 # bypass users see it (everyone else gets GETTING_IN_COMING_SOON).
-GETTING_IN_LIVE = False
+GETTING_IN_LIVE = True
 
 
 async def _handle_getting_in(update: Update, chat_id: int) -> None:
