@@ -1613,14 +1613,14 @@ async def _broadcast_keyboard_command(
         async def _send_one(cid: int) -> None:
             nonlocal sent, failed, first_error
             try:
-                # "Getting In with Abrorbek Samijonov" event promo.
+                # Merch shop announcement — the button opens the catalog.
                 await context.bot.send_message(
                     chat_id=cid,
-                    text=msg.GETTING_IN_INTRO,
+                    text=msg.MERCH_ANNOUNCE,
                     parse_mode="HTML",
                     disable_web_page_preview=True,
                     reply_markup=InlineKeyboardMarkup([
-                        [InlineKeyboardButton(msg.BTN_GETTING_IN_JOIN, url=GETTING_IN_GROUP_URL)],
+                        [InlineKeyboardButton(msg.BTN_MERCH_BROWSE, callback_data="merch_open")],
                     ]),
                 )
                 sent += 1
@@ -2460,6 +2460,14 @@ async def _merch_send_catalog_photos(bot, chat_id: int, caption: str) -> None:
         if cached:
             await db.set_setting("merch_catalog_file_ids", "")
         await bot.send_message(chat_id=chat_id, text=caption, parse_mode="HTML")
+
+
+async def _merch_open_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    # Inline "Browse the merch" button under the /broadcastkeyboard
+    # announcement — sends the same catalog as the menu button.
+    query = update.callback_query
+    await query.answer()
+    await _merch_begin(context.bot, update.effective_chat.id)
 
 
 async def _merch_buy_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -3388,6 +3396,7 @@ def build_app() -> Application:
     app.add_handler(CallbackQueryHandler(_guidebook_check_callback, pattern="^guidebook_check$"))
     app.add_handler(CallbackQueryHandler(_sat_enroll_inline_callback, pattern="^sat_enroll_inline$"))
     app.add_handler(CallbackQueryHandler(_econ_join_callback, pattern="^econ_join$"))
+    app.add_handler(CallbackQueryHandler(_merch_open_callback, pattern="^merch_open$"))
     app.add_handler(CallbackQueryHandler(_merch_buy_callback, pattern="^merch_buy:"))
     app.add_handler(CallbackQueryHandler(_econ_course_callback, pattern="^econ_course:"))
     app.add_handler(CallbackQueryHandler(_econ_done_callback, pattern="^econ_done$"))

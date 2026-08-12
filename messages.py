@@ -933,9 +933,18 @@ MERCH_ITEMS = [
     ("bag", "Bag", 120000),
 ]
 
+# /broadcastkeyboard announcement — the inline button opens the catalog.
+MERCH_ANNOUNCE = (
+    "🛍 <b>Freshman Academy merch is out</b>\n\n"
+    "Notebooks, pens, pencils, t-shirts, caps, mugs and tote bags — "
+    "20,000 to 120,000 UZS. Pick up from the office or get it delivered.\n\n"
+    "Tap below to browse and order."
+)
+BTN_MERCH_BROWSE = "🛍 Browse the merch"
+
 MERCH_CATALOG_CAPTION = (
     "🛍 <b>Freshman Academy Merch</b>\n\n"
-    "Rep the Academy! Here's what's in stock:\n\n"
+    "Here's what's available:\n\n"
     "{items}"
 )
 MERCH_CATALOG_ITEM_LINE = "• <b>{label}</b> — {price} UZS"
