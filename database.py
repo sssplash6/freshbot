@@ -152,6 +152,21 @@ async def init_db() -> None:
                 registered_at  TEXT NOT NULL
             )
         """)
+        await db.execute("""
+            CREATE TABLE IF NOT EXISTS merch_orders (
+                id          INTEGER PRIMARY KEY AUTOINCREMENT,
+                chat_id     INTEGER NOT NULL,
+                username    TEXT,
+                first_name  TEXT NOT NULL,
+                full_name   TEXT NOT NULL,
+                item        TEXT NOT NULL,
+                price       INTEGER NOT NULL,
+                delivery    TEXT NOT NULL,
+                phone       TEXT,
+                address     TEXT,
+                ordered_at  TEXT NOT NULL
+            )
+        """)
         for _col in [
             "ALTER TABLE users ADD COLUMN guidebook_sent_at TEXT",
             "ALTER TABLE adv_english_applications ADD COLUMN video_file_id TEXT",
@@ -186,10 +201,11 @@ async def init_db() -> None:
             "tap_posts",
         ]:
             await db.execute(f"DROP TABLE IF EXISTS {_tbl}")
-        # Release anyone left mid-registration in the retired seminar flow, whose
-        # handler no longer exists — otherwise their row keeps a dead flow value.
+        # Release anyone left mid-registration in a retired flow, whose handler
+        # no longer exists — otherwise their row keeps a dead flow value.
         await db.execute(
-            "UPDATE users SET flow = NULL, status = NULL WHERE flow = 'masters_webinar'"
+            "UPDATE users SET flow = NULL, status = NULL "
+            "WHERE flow IN ('masters_webinar', 'art_seminar')"
         )
         await db.commit()
 
@@ -987,6 +1003,9 @@ async def econ_enroll_get_all() -> list[dict]:
             return [dict(r) for r in rows]
 
 
+# Retired flow (Art Seminar by Baxshillo Djumaev) — the bot.py handlers are
+# gone, but the table and helpers stay so past registrations remain readable
+# via /export_db.
 async def art_seminar_save(
     chat_id: int,
     username: str | None,
@@ -1014,6 +1033,40 @@ async def art_seminar_get_all() -> list[dict]:
         db.row_factory = aiosqlite.Row
         async with db.execute(
             "SELECT * FROM art_seminar_registrations ORDER BY registered_at"
+        ) as cursor:
+            rows = await cursor.fetchall()
+            return [dict(r) for r in rows]
+
+
+async def merch_order_save(
+    chat_id: int,
+    username: str | None,
+    first_name: str,
+    full_name: str,
+    item: str,
+    price: int,
+    delivery: str,
+    phone: str | None,
+    address: str | None,
+) -> None:
+    now = datetime.now(timezone.utc).isoformat()
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute(
+            """INSERT INTO merch_orders
+               (chat_id, username, first_name, full_name, item, price,
+                delivery, phone, address, ordered_at)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            (chat_id, username, first_name, full_name, item, price,
+             delivery, phone, address, now),
+        )
+        await db.commit()
+
+
+async def merch_orders_get_all() -> list[dict]:
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute(
+            "SELECT * FROM merch_orders ORDER BY ordered_at"
         ) as cursor:
             rows = await cursor.fetchall()
             return [dict(r) for r in rows]

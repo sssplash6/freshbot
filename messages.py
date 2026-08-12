@@ -915,44 +915,76 @@ ECON_EXPERT_ENTRY = (
 )
 
 # ---------------------------------------------------------------------------
-# Art Seminar by Baxshillo Djumaev (offline) — registration flow
+# Merch shop — catalog + order flow
 # ---------------------------------------------------------------------------
 
-# The event title doubles as the button label — on the main menu and under the
-# /broadcastkeyboard announcement.
-BTN_ART_SEMINAR = "🎓Art Seminar by Baxshillo Djumaev!"
+BTN_MERCH = "🛍 Freshman Academy Merch"
 
-ART_ANNOUNCE = (
-    "🎓<b>Art Seminar by Baxshillo Djumaev!</b>\n\n"
-    "Join us for an offline seminar by <b>Baxshillo Djumaev</b>, sixth generation "
-    "golden embroidery master craftsperson. He will share more about his fifty "
-    "years of experience in Uzbek traditional golden embroidery.\n\n"
-    "\U0001f4cd <a href=\"https://maps.app.goo.gl/YZRGrhNwbjwyfB3U7\">Freshman Academy, Nest One</a>\n"
-    "\U0001f4c5 <b>August 11th</b>\n"
-    "🕡 <b>5:30 PM—7:00 PM</b>\n\n"
-    "Register for free by tapping the button below \U0001f447"
-)
+# (key, label, price in UZS). The key doubles as the merch_buy: callback suffix
+# and the catalog photo filename (assets/merch/<key>.jpg — the pen has no photo
+# yet, so it appears in the price list and item picker but not the album).
+MERCH_ITEMS = [
+    ("notebook", "Notebook", 90000),
+    ("pen", "Pen", 25000),
+    ("pencil", "Pencil", 20000),
+    ("tshirt", "T-shirt", 120000),
+    ("cap", "Cap", 120000),
+    ("mug", "Mug", 120000),
+    ("bag", "Bag", 120000),
+]
 
-ART_INTRO = (
-    "🎓<b>Art Seminar by Baxshillo Djumaev!</b>\n\n"
-    "Join us for an offline seminar by <b>Baxshillo Djumaev</b>, sixth generation "
-    "golden embroidery master craftsperson. He will share more about his fifty "
-    "years of experience in Uzbek traditional golden embroidery.\n\n"
-    "\U0001f4cd <a href=\"https://maps.app.goo.gl/YZRGrhNwbjwyfB3U7\">Freshman Academy, Nest One</a>\n"
-    "\U0001f4c5 <b>August 11th</b>\n"
-    "🕡 <b>5:30 PM—7:00 PM</b>\n\n"
-    "Register for free with the short form below to save your spot."
+MERCH_CATALOG_CAPTION = (
+    "🛍 <b>Freshman Academy Merch</b>\n\n"
+    "Rep the Academy! Here's what's in stock:\n\n"
+    "{items}"
 )
-
-ART_ASK_NAME = "What’s your full name?"
-ART_SUBMITTED = (
-    "✅ You’re registered for the Art Seminar by Baxshillo Djumaev!\n\n"
-    "\U0001f4cd <a href=\"https://maps.app.goo.gl/YZRGrhNwbjwyfB3U7\">Freshman Academy, Nest One</a>\n"
-    "\U0001f4c5 <b>August 11th</b>\n"
-    "🕡 <b>5:30 PM—7:00 PM</b>\n\n"
-    "See you there!"
+MERCH_CATALOG_ITEM_LINE = "• <b>{label}</b> — {price} UZS"
+MERCH_CHOOSE_ITEM = "Tap the item you'd like to order 👇"
+MERCH_ITEM_CHOSEN = (
+    "🛍 <b>{label}</b> — {price} UZS\n\n"
+    "What's your full name?"
 )
-ART_LIST_EMPTY = "No Art Seminar registrations yet."
+MERCH_ASK_NAME = "What's your full name?"
+MERCH_ASK_DELIVERY = "How would you like to receive your order?"
+BTN_MERCH_PICKUP = "🏢 Pick up from the office"
+BTN_MERCH_DELIVERY = "🚚 Delivery"
+BTN_MERCH_SHARE_PHONE = "📱 Share my phone number"
+MERCH_ASK_PHONE = (
+    "What's a working phone number for the delivery?\n\n"
+    "Tap the button below to share it, or type it in."
+)
+MERCH_PHONE_INVALID = (
+    "Hmm, that doesn't look like a phone number — please send a working phone number."
+)
+MERCH_ASK_ADDRESS = "What address should we deliver your order to?"
+MERCH_PAYMENT_QR = (
+    "✅ Your order for <b>{label}</b> is in!\n\n"
+    "💳 Final step — payment: <b>{price} UZS</b> via Payme. Scan the QR code "
+    "above to pay.\n\n"
+    "Once the payment is through, our team will confirm your order. Thank you! 💙"
+)
+MERCH_PAYMENT_PENDING = (
+    "✅ Your order for <b>{label}</b> is in!\n\n"
+    "💳 Final step — payment: <b>{price} UZS</b> via Payme. Our team will send "
+    "you the payment details shortly. Thank you! 💙"
+)
+MERCH_ORDER_FORWARD = (
+    "🛍 New merch order\n"
+    "From: <a href=\"tg://user?id={chat_id}\">{first_name}</a>{username_part}\n\n"
+    "<b>Item:</b> {label} — {price} UZS\n"
+    "<b>Name:</b> {full_name}\n"
+    "<b>Delivery:</b> {delivery}{delivery_details}"
+)
+MERCH_ORDER_DELIVERY_DETAILS = (
+    "\n<b>Phone:</b> {phone}\n"
+    "<b>Address:</b> {address}"
+)
+MERCH_LIST_EMPTY = "No merch orders yet."
+MERCH_QR_PROMPT = (
+    "Send me the Payme QR code as a photo — it will be shown at every merch "
+    "order's payment step."
+)
+MERCH_QR_SAVED = "✅ Payme QR saved. Merch orders will now end with this QR code."
 
 # ---------------------------------------------------------------------------
 # Event gate \u2014 student flow

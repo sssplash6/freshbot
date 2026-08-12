@@ -2,14 +2,24 @@ import asyncio
 import csv
 import html
 import io
+import json
 import logging
 import time
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
 
 _RATE_LIMIT_SECONDS = 1.5
 _last_message_time: dict[int, float] = {}
 
-from telegram import InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardMarkup, ReplyKeyboardRemove, Update
+from telegram import (
+    InlineKeyboardButton,
+    InlineKeyboardMarkup,
+    InputMediaPhoto,
+    KeyboardButton,
+    ReplyKeyboardMarkup,
+    ReplyKeyboardRemove,
+    Update,
+)
 from telegram.error import TelegramError
 from telegram.ext import (
     AIORateLimiter,
@@ -133,7 +143,7 @@ _NAV_BUTTONS: frozenset[str] = frozenset({
     msg.BTN_PROGRAMS, msg.BTN_GENERAL_INQUIRY, msg.BTN_PODCAST,
     msg.BTN_HOME, msg.BTN_START,
     msg.BTN_ADV_ENGLISH, msg.BTN_SAT_ENROLL, msg.BTN_TRIAL_AP,
-    msg.BTN_GET_GUIDEBOOK, msg.BTN_GETTING_IN, msg.BTN_ART_SEMINAR,
+    msg.BTN_GET_GUIDEBOOK, msg.BTN_GETTING_IN, msg.BTN_MERCH,
     # Program sub-menu
     msg.BTN_SAT, msg.BTN_ADMISSIONS, msg.BTN_FULL_SUPPORT, msg.BTN_MASTERS,
     msg.BTN_ADV_PLACEMENT, msg.BTN_IMKON, msg.BTN_RESEARCH_INSTITUTE,
@@ -152,7 +162,7 @@ _NAV_BUTTONS: frozenset[str] = frozenset({
 def _main_keyboard() -> ReplyKeyboardMarkup:
     return ReplyKeyboardMarkup(
         [
-            [msg.BTN_ART_SEMINAR],
+            [msg.BTN_MERCH],
             [msg.BTN_GETTING_IN, msg.BTN_GET_GUIDEBOOK],
             [msg.BTN_ADV_ENGLISH, msg.BTN_SAT_ENROLL],
             [msg.BTN_PROGRAMS, msg.BTN_GENERAL_INQUIRY],
@@ -322,6 +332,11 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         if _video_admin_state.get("step") is not None:
             await _video_admin_message_handler(update, context)
             return
+        if _merch_qr_state["waiting"] and update.message.photo:
+            await db.set_setting("merch_payme_qr_file_id", update.message.photo[-1].file_id)
+            _merch_qr_state["waiting"] = False
+            await update.message.reply_text(msg.MERCH_QR_SAVED)
+            return
         is_reply = update.message.reply_to_message is not None
         if not (chat_id in _EXPERT_CHAT_IDS and is_reply and text):
             return
@@ -335,6 +350,14 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 
     # Allow video/photo/document through for AE media steps
     if text is None:
+        # Shared contact — the merch delivery step offers a request_contact button.
+        contact = update.message.contact
+        if contact is not None:
+            user_c = await db.get_user(chat_id)
+            if user_c and user_c.get("flow") == "merch" and user_c.get("status") == "merch_step_phone":
+                if await _merch_state_valid(context.bot, chat_id):
+                    await _handle_merch_phone(update, chat_id, contact.phone_number or "")
+                return
         video = update.message.video
         video_note = update.message.video_note
         photo = update.message.photo
@@ -429,12 +452,13 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             await _handle_econ_step(update, chat_id, text, context)
             return
 
-    if user and user.get("flow") == "art_seminar":
+    if user and user.get("flow") == "merch":
         if text in _NAV_BUTTONS:
+            _merch_state.pop(chat_id, None)
             await db.set_flow(chat_id, None)
             await db.set_status(chat_id, None)
         else:
-            await _handle_art_seminar_step(update, chat_id, text)
+            await _handle_merch_step(update, chat_id, text, context)
             return
 
     if user and user.get("flow") == "adv_english" and user.get("status") in (
@@ -474,8 +498,8 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         await _handle_guidebook(update, chat_id)
     elif text == msg.BTN_GETTING_IN:
         await _handle_getting_in(update, chat_id)
-    elif text == msg.BTN_ART_SEMINAR:
-        await _art_seminar_begin(context.bot, chat_id, with_intro=True)
+    elif text == msg.BTN_MERCH:
+        await _merch_begin(context.bot, chat_id)
     elif text == msg.BTN_SAT:
         await _handle_program(update, chat_id, msg.BTN_SAT)
     elif text == msg.BTN_ADMISSIONS:
@@ -1394,7 +1418,8 @@ async def _handle_back(update: Update, chat_id: int) -> None:
             reply_markup=_main_keyboard(),
         )
         return
-    if flow == "art_seminar":
+    if flow == "merch":
+        _merch_state.pop(chat_id, None)
         await db.set_flow(chat_id, None)
         await db.set_status(chat_id, None)
         await update.message.reply_text(
@@ -2340,74 +2365,280 @@ async def _econ_list_command(update: Update, context: ContextTypes.DEFAULT_TYPE)
 
 
 # ---------------------------------------------------------------------------
-# Art Seminar by Baxshillo Djumaev — registration flow (full name only)
+# Merch shop — catalog album + order flow (name → delivery → payment QR)
 # ---------------------------------------------------------------------------
 
-async def _art_seminar_begin(bot, chat_id: int, *, with_intro: bool) -> None:
-    """Start the one-question registration form. The menu button leads with the
-    event intro; the announcement's inline button skips it (the details sit
-    right above the button)."""
-    if with_intro:
-        await bot.send_message(
-            chat_id=chat_id,
-            text=msg.ART_INTRO,
-            parse_mode="HTML",
-            disable_web_page_preview=True,
-        )
-    await db.set_flow(chat_id, "art_seminar")
-    await db.set_status(chat_id, "art_step_name")
-    await bot.send_message(
-        chat_id=chat_id, text=msg.ART_ASK_NAME, reply_markup=_back_keyboard()
+_MERCH_PHOTO_DIR = Path(__file__).resolve().parent / "assets" / "merch"
+
+# Accumulates merch order answers per chat_id
+# ({"item": str, "full_name": str, "delivery": str, "phone": str, "address": str}).
+_merch_state: dict[int, dict] = {}
+
+# True while PERSON_X is expected to send the Payme QR photo (/set_merch_qr).
+_merch_qr_state: dict[str, bool] = {"waiting": False}
+
+
+def _merch_item(key: str) -> tuple[str, int]:
+    for k, label, price in msg.MERCH_ITEMS:
+        if k == key:
+            return label, price
+    return key or "Unknown item", 0
+
+
+def _merch_items_keyboard() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup([
+        [InlineKeyboardButton(f"{label} — {price:,} UZS", callback_data=f"merch_buy:{key}")]
+        for key, label, price in msg.MERCH_ITEMS
+    ])
+
+
+def _merch_delivery_keyboard() -> ReplyKeyboardMarkup:
+    return ReplyKeyboardMarkup(
+        [[msg.BTN_MERCH_PICKUP], [msg.BTN_MERCH_DELIVERY], [msg.BTN_BACK]],
+        resize_keyboard=True,
+        one_time_keyboard=True,
     )
 
 
-async def _art_seminar_register_callback(
-    update: Update, context: ContextTypes.DEFAULT_TYPE
-) -> None:
-    # Inline button under the /broadcastkeyboard announcement — starts registration.
+def _merch_phone_keyboard() -> ReplyKeyboardMarkup:
+    return ReplyKeyboardMarkup(
+        [[KeyboardButton(msg.BTN_MERCH_SHARE_PHONE, request_contact=True)], [msg.BTN_BACK]],
+        resize_keyboard=True,
+        one_time_keyboard=True,
+    )
+
+
+async def _merch_begin(bot, chat_id: int) -> None:
+    """Send the catalog (photo album captioned with the price list) and the
+    item picker that starts an order."""
+    caption = msg.MERCH_CATALOG_CAPTION.format(
+        items="\n".join(
+            msg.MERCH_CATALOG_ITEM_LINE.format(label=label, price=f"{price:,}")
+            for _, label, price in msg.MERCH_ITEMS
+        )
+    )
+    await _merch_send_catalog_photos(bot, chat_id, caption)
+    await bot.send_message(
+        chat_id=chat_id,
+        text=msg.MERCH_CHOOSE_ITEM,
+        reply_markup=_merch_items_keyboard(),
+    )
+
+
+async def _merch_send_catalog_photos(bot, chat_id: int, caption: str) -> None:
+    """Send the product photos as one album. Uploaded file_ids are cached in
+    bot_settings so later catalog views don't re-upload ~1MB of photos; a stale
+    cache (e.g. after a token change) is cleared and the send falls back to a
+    text-only catalog."""
+    cached = None
+    try:
+        cached = await db.get_setting("merch_catalog_file_ids")
+        if cached:
+            photos = json.loads(cached)
+        else:
+            # Items without a photo file (currently the pen) stay in the price
+            # list and item picker — they just don't appear in the album.
+            photos = [
+                (_MERCH_PHOTO_DIR / f"{key}.jpg").read_bytes()
+                for key, _, _ in msg.MERCH_ITEMS
+                if (_MERCH_PHOTO_DIR / f"{key}.jpg").exists()
+            ]
+        if not photos:
+            raise RuntimeError("no merch catalog photos available")
+        media = [
+            InputMediaPhoto(p, caption=caption if i == 0 else None, parse_mode="HTML")
+            for i, p in enumerate(photos)
+        ]
+        sent = await bot.send_media_group(chat_id=chat_id, media=media)
+        if not cached:
+            await db.set_setting(
+                "merch_catalog_file_ids",
+                json.dumps([m.photo[-1].file_id for m in sent]),
+            )
+    except Exception:
+        logger.exception("Merch catalog album failed for chat_id=%d; sending text catalog", chat_id)
+        if cached:
+            await db.set_setting("merch_catalog_file_ids", "")
+        await bot.send_message(chat_id=chat_id, text=caption, parse_mode="HTML")
+
+
+async def _merch_buy_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    # Item button under the catalog — starts the order form.
     query = update.callback_query
     await query.answer()
-    await _art_seminar_begin(context.bot, update.effective_chat.id, with_intro=False)
-
-
-async def _handle_art_seminar_step(update: Update, chat_id: int, text: str) -> None:
-    user = await db.get_user(chat_id)
-    if (user.get("status") if user else None) != "art_step_name":
+    key = query.data.split(":", 1)[1]
+    if not any(k == key for k, _, _ in msg.MERCH_ITEMS):
         return
-    if not text.strip():
-        await update.message.reply_text(msg.ART_ASK_NAME, reply_markup=_back_keyboard())
-        return
-
-    first_name = user["first_name"] if user else "Unknown"
-    username = user["username"] if user else None
-    await db.art_seminar_save(chat_id, username, first_name, text.strip())
-    await db.set_flow(chat_id, None)
-    await db.set_status(chat_id, None)
-    await update.message.reply_text(
-        msg.ART_SUBMITTED,
+    chat_id = update.effective_chat.id
+    _merch_state[chat_id] = {"item": key}
+    await db.set_flow(chat_id, "merch")
+    await db.set_status(chat_id, "merch_step_name")
+    label, price = _merch_item(key)
+    await context.bot.send_message(
+        chat_id=chat_id,
+        text=msg.MERCH_ITEM_CHOSEN.format(label=label, price=f"{price:,}"),
         parse_mode="HTML",
-        disable_web_page_preview=True,
-        reply_markup=_main_keyboard(),
+        reply_markup=_back_keyboard(),
     )
 
 
-async def _art_seminar_list_command(
-    update: Update, context: ContextTypes.DEFAULT_TYPE
+async def _merch_state_valid(bot, chat_id: int) -> bool:
+    """The in-memory order state dies on restart while flow/status persist in
+    the DB — when they disagree, restart the order cleanly from the catalog."""
+    if "item" in _merch_state.get(chat_id, {}):
+        return True
+    _merch_state.pop(chat_id, None)
+    await db.set_flow(chat_id, None)
+    await db.set_status(chat_id, None)
+    await _merch_begin(bot, chat_id)
+    return False
+
+
+async def _handle_merch_step(
+    update: Update, chat_id: int, text: str, context: ContextTypes.DEFAULT_TYPE
 ) -> None:
+    if not await _merch_state_valid(context.bot, chat_id):
+        return
+    user = await db.get_user(chat_id)
+    status = user.get("status") if user else None
+
+    if status == "merch_step_name":
+        if not text.strip():
+            await update.message.reply_text(msg.MERCH_ASK_NAME, reply_markup=_back_keyboard())
+            return
+        _merch_state.setdefault(chat_id, {})["full_name"] = text.strip()
+        await db.set_status(chat_id, "merch_step_delivery")
+        await update.message.reply_text(
+            msg.MERCH_ASK_DELIVERY, reply_markup=_merch_delivery_keyboard()
+        )
+
+    elif status == "merch_step_delivery":
+        if text == msg.BTN_MERCH_PICKUP:
+            _merch_state.setdefault(chat_id, {})["delivery"] = "pickup"
+            await _merch_finalize(context.bot, chat_id)
+        elif text == msg.BTN_MERCH_DELIVERY:
+            _merch_state.setdefault(chat_id, {})["delivery"] = "delivery"
+            await db.set_status(chat_id, "merch_step_phone")
+            await update.message.reply_text(
+                msg.MERCH_ASK_PHONE, reply_markup=_merch_phone_keyboard()
+            )
+        else:
+            await update.message.reply_text(
+                msg.MERCH_ASK_DELIVERY, reply_markup=_merch_delivery_keyboard()
+            )
+
+    elif status == "merch_step_phone":
+        await _handle_merch_phone(update, chat_id, text)
+
+    elif status == "merch_step_address":
+        if not text.strip():
+            await update.message.reply_text(msg.MERCH_ASK_ADDRESS, reply_markup=_back_keyboard())
+            return
+        _merch_state.setdefault(chat_id, {})["address"] = text.strip()
+        await _merch_finalize(context.bot, chat_id)
+
+
+async def _handle_merch_phone(update: Update, chat_id: int, phone: str) -> None:
+    # Accepts a typed number or a shared contact's phone_number.
+    if sum(c.isdigit() for c in phone) < 7:
+        await update.message.reply_text(
+            msg.MERCH_PHONE_INVALID, reply_markup=_merch_phone_keyboard()
+        )
+        return
+    _merch_state.setdefault(chat_id, {})["phone"] = phone.strip()
+    await db.set_status(chat_id, "merch_step_address")
+    await update.message.reply_text(msg.MERCH_ASK_ADDRESS, reply_markup=_back_keyboard())
+
+
+async def _merch_finalize(bot, chat_id: int) -> None:
+    """Close the order: save it, show the payment step (Payme QR), and forward
+    the entry to PERSON_X."""
+    state = _merch_state.pop(chat_id, {})
+    await db.set_flow(chat_id, None)
+    await db.set_status(chat_id, None)
+
+    label, price = _merch_item(state.get("item", ""))
+    user = await db.get_user(chat_id)
+    first_name = user["first_name"] if user else "Unknown"
+    username = user["username"] if user else None
+    full_name = state.get("full_name", "")
+    delivery = state.get("delivery", "pickup")
+    phone = state.get("phone")
+    address = state.get("address")
+
+    await db.merch_order_save(
+        chat_id, username, first_name, full_name, label, price, delivery, phone, address
+    )
+
+    # Payment — the closing step. The QR is set via /set_merch_qr; until then
+    # the order still lands with PERSON_X and the user is told details follow.
+    price_str = f"{price:,}"
+    qr_file_id = await db.get_setting("merch_payme_qr_file_id")
+    if qr_file_id:
+        await bot.send_photo(
+            chat_id=chat_id,
+            photo=qr_file_id,
+            caption=msg.MERCH_PAYMENT_QR.format(label=label, price=price_str),
+            parse_mode="HTML",
+            reply_markup=_main_keyboard(),
+        )
+    else:
+        await bot.send_message(
+            chat_id=chat_id,
+            text=msg.MERCH_PAYMENT_PENDING.format(label=label, price=price_str),
+            parse_mode="HTML",
+            reply_markup=_main_keyboard(),
+        )
+
+    username_part = f" (@{username})" if username else ""
+    delivery_details = ""
+    if delivery == "delivery":
+        delivery_details = msg.MERCH_ORDER_DELIVERY_DETAILS.format(
+            phone=html.escape(phone or "—"), address=html.escape(address or "—")
+        )
+    order_text = msg.MERCH_ORDER_FORWARD.format(
+        chat_id=chat_id,
+        first_name=html.escape(first_name),
+        username_part=username_part,
+        full_name=html.escape(full_name),
+        label=label,
+        price=price_str,
+        delivery=msg.BTN_MERCH_PICKUP if delivery == "pickup" else msg.BTN_MERCH_DELIVERY,
+        delivery_details=delivery_details,
+    )
+    try:
+        await bot.send_message(chat_id=PERSON_X_CHAT_ID, text=order_text, parse_mode="HTML")
+    except Exception:
+        logger.exception("Failed to forward merch order to PERSON_X for chat_id=%d", chat_id)
+
+
+async def _set_merch_qr_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if update.effective_user.id != PERSON_X_CHAT_ID:
         return
-    rows = await db.art_seminar_get_all()
-    if not rows:
-        await update.message.reply_text(msg.ART_LIST_EMPTY)
+    _merch_qr_state["waiting"] = True
+    await update.message.reply_text(msg.MERCH_QR_PROMPT)
+
+
+async def _merch_list_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    if update.effective_user.id != PERSON_X_CHAT_ID:
         return
-    lines = [f"\U0001f393 <b>Art Seminar registrations ({len(rows)})</b>", ""]
+    rows = await db.merch_orders_get_all()
+    if not rows:
+        await update.message.reply_text(msg.MERCH_LIST_EMPTY)
+        return
+    lines = [f"🛍 <b>Merch orders ({len(rows)})</b>", ""]
     for r in rows:
         username_part = f" (@{r['username']})" if r.get("username") else ""
+        if r["delivery"] == "delivery":
+            where = f"🚚 {html.escape(r['phone'] or '—')}, {html.escape(r['address'] or '—')}"
+        else:
+            where = "🏢 pickup"
         lines.append(
-            f"• <a href=\"tg://user?id={r['chat_id']}\">{r['full_name']}</a>{username_part}"
+            f"• <a href=\"tg://user?id={r['chat_id']}\">{html.escape(r['full_name'])}</a>"
+            f"{username_part} — {r['item']} ({r['price']:,} UZS) — {where}"
         )
     # Telegram caps a message at 4096 chars — send the list in chunks of whole
-    # lines so a long registration list never overflows a single message.
+    # lines so a long order list never overflows a single message.
     chunk: list[str] = []
     length = 0
     for line in lines:
@@ -3128,7 +3359,8 @@ def build_app() -> Application:
     app.add_handler(CommandHandler("skipped", _q_skipped_command, filters=_private))
     app.add_handler(CommandHandler("ae_list", _ae_list_command, filters=_private))
     app.add_handler(CommandHandler("econ_list", _econ_list_command, filters=_private))
-    app.add_handler(CommandHandler("art_list", _art_seminar_list_command, filters=_private))
+    app.add_handler(CommandHandler("merch_list", _merch_list_command, filters=_private))
+    app.add_handler(CommandHandler("set_merch_qr", _set_merch_qr_command, filters=_private))
     app.add_handler(CommandHandler("ae_set_terms", _ae_set_terms_command, filters=_private))
     app.add_handler(CommandHandler("set_guidebook", _set_guidebook_command, filters=_private))
     app.add_handler(CommandHandler("guidebook_count", _guidebook_count_command, filters=_private))
@@ -3156,7 +3388,7 @@ def build_app() -> Application:
     app.add_handler(CallbackQueryHandler(_guidebook_check_callback, pattern="^guidebook_check$"))
     app.add_handler(CallbackQueryHandler(_sat_enroll_inline_callback, pattern="^sat_enroll_inline$"))
     app.add_handler(CallbackQueryHandler(_econ_join_callback, pattern="^econ_join$"))
-    app.add_handler(CallbackQueryHandler(_art_seminar_register_callback, pattern="^art_register$"))
+    app.add_handler(CallbackQueryHandler(_merch_buy_callback, pattern="^merch_buy:"))
     app.add_handler(CallbackQueryHandler(_econ_course_callback, pattern="^econ_course:"))
     app.add_handler(CallbackQueryHandler(_econ_done_callback, pattern="^econ_done$"))
     app.add_handler(CallbackQueryHandler(_ae_program_faq_callback, pattern="^ae_program_faq$"))

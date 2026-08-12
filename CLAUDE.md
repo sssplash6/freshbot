@@ -27,11 +27,11 @@ Telegram bot for Freshman Academy. python-telegram-bot (PTB) v21, async, **polli
 - `tap_` — Trial AP Lesson (join → pre-set post → repost screenshot → reviewer confirm → group invite)
 - Getting In Series — no prefix. One menu button + `GETTING_IN_INTRO`, joined by a direct URL button (`GETTING_IN_GROUP_URL` in bot.py). Per episode, swap the speaker in the button label / intro / coming-soon text, swap the group URL, and repoint `/broadcastkeyboard` at the promo.
 - `q`/`qp:`/`qd:`/`qa:`/`qs:`/`qr:` — ask-a-question → expert Q&A threads. Experts answer by swipe-reply; `qs:` skips a duplicate/spam question (silent, cancels the 10h follow-up), `qr:` restores it. Viewers: `/answered`, `/unanswered`, `/skipped`.
-- `art_` — Art Seminar by Baxshillo Djumaev (offline). One-question form: full name → save. Main-menu button + `/broadcastkeyboard` announcement (both labeled with the event title); `/art_list` shows registrations.
+- `merch_`/`merch_buy:` — Merch shop. Catalog album (photos in `assets/merch/<key>.jpg`, keyed by `msg.MERCH_ITEMS`; uploaded file_ids cached in `bot_settings`) → item picker → full name → pickup or delivery (delivery adds phone via `request_contact` or text, then address) → final payment step shows the Payme QR (`/set_merch_qr`, stored in `bot_settings`; text fallback until set). Every order is saved to `merch_orders` and forwarded to Person X with the username; `/merch_list` shows orders.
 
 Retired (removed in Phase 2, tables dropped on startup): `eg_` event giveaway, `se_` special events/rolls, `sat_` giveaway, `hku_` HKU event, `apw_` AP webinar, `rs_` research seminar.
 
-Retired (code removed, table **kept**): `mw_`/`mwa:` Free Admissions Seminar (offline, Bocconi). All handlers, organiser commands, and `MW_*` strings are gone, but `masters_webinar_registrations` and its `database.py` helpers stay so past registration/attendance data survives — recover it via `/export_db`.
+Retired (code removed, table **kept**): `mw_`/`mwa:` Free Admissions Seminar (offline, Bocconi) and `art_` Art Seminar by Baxshillo Djumaev (offline). All handlers, commands, and `MW_*`/`ART_*` strings are gone, but `masters_webinar_registrations` / `art_seminar_registrations` and their `database.py` helpers stay so past registration/attendance data survives — recover it via `/export_db`.
 
 ## Conventions
 - Per-user state machine in DB: `flow` + `status` columns drive `handle_message` branching. Clear both (`set_flow(None)`, `set_status(None)`) when a flow completes.
