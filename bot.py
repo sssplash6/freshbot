@@ -2385,11 +2385,57 @@ def _merch_item(key: str) -> tuple[str, int]:
     return key or "Unknown item", 0
 
 
-def _merch_items_keyboard() -> InlineKeyboardMarkup:
-    return InlineKeyboardMarkup([
-        [InlineKeyboardButton(f"{label} — {price:,} UZS", callback_data=f"merch_buy:{key}")]
-        for key, label, price in msg.MERCH_ITEMS
-    ])
+def _merch_items_keyboard(cart: dict[str, int]) -> InlineKeyboardMarkup:
+    """Item picker. Items already in the cart show a checkmark and their count;
+    tapping any item (re-)asks for its quantity. Checkout starts the order form."""
+    rows = [
+        [InlineKeyboardButton(
+            f"✅ {label} ×{cart[key]}" if key in cart else label,
+            callback_data=f"merch_buy:{key}",
+        )]
+        for key, label, _ in msg.MERCH_ITEMS
+    ]
+    rows.append([InlineKeyboardButton(msg.BTN_MERCH_CHECKOUT, callback_data="merch_checkout")])
+    return InlineKeyboardMarkup(rows)
+
+
+def _merch_qty_keyboard(key: str, in_cart: bool) -> InlineKeyboardMarkup:
+    rows = [
+        [InlineKeyboardButton(str(n), callback_data=f"merch_qty:{key}:{n}") for n in range(1, 6)],
+        [InlineKeyboardButton(str(n), callback_data=f"merch_qty:{key}:{n}") for n in range(6, 11)],
+    ]
+    last_row = [InlineKeyboardButton(msg.BTN_MERCH_QTY_BACK, callback_data="merch_qty_back")]
+    if in_cart:
+        last_row.append(InlineKeyboardButton(msg.BTN_MERCH_REMOVE, callback_data=f"merch_qty:{key}:0"))
+    rows.append(last_row)
+    return InlineKeyboardMarkup(rows)
+
+
+def _merch_cart(chat_id: int) -> dict[str, int]:
+    return _merch_state.setdefault(chat_id, {}).setdefault("cart", {})
+
+
+def _merch_cart_lines(cart: dict[str, int]) -> tuple[str, int]:
+    """Renders the cart as MERCH_CART_LINE rows (in catalog order) and returns
+    them with the total."""
+    lines: list[str] = []
+    total = 0
+    for key, label, price in msg.MERCH_ITEMS:
+        qty = cart.get(key)
+        if not qty:
+            continue
+        line_total = price * qty
+        total += line_total
+        lines.append(msg.MERCH_CART_LINE.format(label=label, qty=qty, line_total=f"{line_total:,}"))
+    return "\n".join(lines), total
+
+
+def _merch_picker_text(cart: dict[str, int]) -> str:
+    text = msg.MERCH_CHOOSE_ITEM
+    if cart:
+        lines, total = _merch_cart_lines(cart)
+        text += msg.MERCH_CART_SUMMARY.format(lines=lines, total=f"{total:,}")
+    return text
 
 
 def _merch_delivery_keyboard() -> ReplyKeyboardMarkup:
@@ -2418,10 +2464,12 @@ async def _merch_begin(bot, chat_id: int) -> None:
         )
     )
     await _merch_send_catalog_photos(bot, chat_id, caption)
+    cart = _merch_cart(chat_id)
     await bot.send_message(
         chat_id=chat_id,
-        text=msg.MERCH_CHOOSE_ITEM,
-        reply_markup=_merch_items_keyboard(),
+        text=_merch_picker_text(cart),
+        parse_mode="HTML",
+        reply_markup=_merch_items_keyboard(cart),
     )
 
 
@@ -2471,29 +2519,86 @@ async def _merch_open_callback(update: Update, context: ContextTypes.DEFAULT_TYP
 
 
 async def _merch_buy_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    # Item button under the catalog — starts the order form.
+    # Item button in the picker — morph the picker into a quantity prompt.
     query = update.callback_query
     await query.answer()
     key = query.data.split(":", 1)[1]
     if not any(k == key for k, _, _ in msg.MERCH_ITEMS):
         return
     chat_id = update.effective_chat.id
-    _merch_state[chat_id] = {"item": key}
+    label, price = _merch_item(key)
+    try:
+        await query.edit_message_text(
+            msg.MERCH_QTY_PROMPT.format(label=label, price=f"{price:,}"),
+            parse_mode="HTML",
+            reply_markup=_merch_qty_keyboard(key, key in _merch_cart(chat_id)),
+        )
+    except TelegramError:
+        pass
+
+
+async def _merch_show_picker(query, chat_id: int) -> None:
+    """Morph the callback's message back into the item picker + cart summary."""
+    cart = _merch_cart(chat_id)
+    try:
+        await query.edit_message_text(
+            _merch_picker_text(cart),
+            parse_mode="HTML",
+            reply_markup=_merch_items_keyboard(cart),
+        )
+    except TelegramError:
+        pass
+
+
+async def _merch_qty_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    # Quantity choice for an item — 0 removes it from the cart.
+    query = update.callback_query
+    await query.answer()
+    _, key, qty_str = query.data.split(":")
+    if not any(k == key for k, _, _ in msg.MERCH_ITEMS):
+        return
+    chat_id = update.effective_chat.id
+    cart = _merch_cart(chat_id)
+    qty = int(qty_str)
+    if qty <= 0:
+        cart.pop(key, None)
+    else:
+        cart[key] = min(qty, 10)
+    await _merch_show_picker(query, chat_id)
+
+
+async def _merch_qty_back_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    query = update.callback_query
+    await query.answer()
+    await _merch_show_picker(query, update.effective_chat.id)
+
+
+async def _merch_checkout_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    # Checkout — freeze the picker and start the order form for the whole cart.
+    query = update.callback_query
+    chat_id = update.effective_chat.id
+    cart = _merch_cart(chat_id)
+    if not cart:
+        await query.answer(msg.MERCH_CART_EMPTY, show_alert=True)
+        return
+    await query.answer()
+    try:
+        await query.edit_message_text(
+            _merch_picker_text(cart), parse_mode="HTML", reply_markup=None
+        )
+    except TelegramError:
+        pass
     await db.set_flow(chat_id, "merch")
     await db.set_status(chat_id, "merch_step_name")
-    label, price = _merch_item(key)
     await context.bot.send_message(
-        chat_id=chat_id,
-        text=msg.MERCH_ITEM_CHOSEN.format(label=label, price=f"{price:,}"),
-        parse_mode="HTML",
-        reply_markup=_back_keyboard(),
+        chat_id=chat_id, text=msg.MERCH_ASK_NAME, reply_markup=_back_keyboard()
     )
 
 
 async def _merch_state_valid(bot, chat_id: int) -> bool:
     """The in-memory order state dies on restart while flow/status persist in
     the DB — when they disagree, restart the order cleanly from the catalog."""
-    if "item" in _merch_state.get(chat_id, {}):
+    if _merch_state.get(chat_id, {}).get("cart"):
         return True
     _merch_state.pop(chat_id, None)
     await db.set_flow(chat_id, None)
@@ -2565,7 +2670,11 @@ async def _merch_finalize(bot, chat_id: int) -> None:
     await db.set_flow(chat_id, None)
     await db.set_status(chat_id, None)
 
-    label, price = _merch_item(state.get("item", ""))
+    cart = state.get("cart", {})
+    lines, total = _merch_cart_lines(cart)
+    item_summary = ", ".join(
+        f"{label} ×{cart[key]}" for key, label, _ in msg.MERCH_ITEMS if cart.get(key)
+    )
     user = await db.get_user(chat_id)
     first_name = user["first_name"] if user else "Unknown"
     username = user["username"] if user else None
@@ -2574,45 +2683,49 @@ async def _merch_finalize(bot, chat_id: int) -> None:
     phone = state.get("phone")
     address = state.get("address")
 
+    # One row per checkout: `item` is the cart summary, `price` the total.
     await db.merch_order_save(
-        chat_id, username, first_name, full_name, label, price, delivery, phone, address
+        chat_id, username, first_name, full_name, item_summary, total, delivery, phone, address
+    )
+
+    delivery_details = ""
+    if delivery == "delivery":
+        delivery_details = msg.MERCH_ORDER_DELIVERY_DETAILS.format(
+            phone=html.escape(phone or "—"), address=html.escape(address or "—")
+        )
+    summary = msg.MERCH_ORDER_SUMMARY.format(
+        lines=lines,
+        total=f"{total:,}",
+        full_name=html.escape(full_name),
+        delivery=msg.BTN_MERCH_PICKUP if delivery == "pickup" else msg.BTN_MERCH_DELIVERY,
+        delivery_details=delivery_details,
     )
 
     # Payment — the closing step. The QR is set via /set_merch_qr; until then
     # the order still lands with PERSON_X and the user is told details follow.
-    price_str = f"{price:,}"
     qr_file_id = await db.get_setting("merch_payme_qr_file_id")
     if qr_file_id:
         await bot.send_photo(
             chat_id=chat_id,
             photo=qr_file_id,
-            caption=msg.MERCH_PAYMENT_QR.format(label=label, price=price_str),
+            caption=msg.MERCH_PAYMENT_QR.format(summary=summary),
             parse_mode="HTML",
             reply_markup=_main_keyboard(),
         )
     else:
         await bot.send_message(
             chat_id=chat_id,
-            text=msg.MERCH_PAYMENT_PENDING.format(label=label, price=price_str),
+            text=msg.MERCH_PAYMENT_PENDING.format(summary=summary),
             parse_mode="HTML",
             reply_markup=_main_keyboard(),
         )
 
     username_part = f" (@{username})" if username else ""
-    delivery_details = ""
-    if delivery == "delivery":
-        delivery_details = msg.MERCH_ORDER_DELIVERY_DETAILS.format(
-            phone=html.escape(phone or "—"), address=html.escape(address or "—")
-        )
     order_text = msg.MERCH_ORDER_FORWARD.format(
         chat_id=chat_id,
         first_name=html.escape(first_name),
         username_part=username_part,
-        full_name=html.escape(full_name),
-        label=label,
-        price=price_str,
-        delivery=msg.BTN_MERCH_PICKUP if delivery == "pickup" else msg.BTN_MERCH_DELIVERY,
-        delivery_details=delivery_details,
+        summary=summary,
     )
     try:
         await bot.send_message(chat_id=PERSON_X_CHAT_ID, text=order_text, parse_mode="HTML")
@@ -3398,6 +3511,9 @@ def build_app() -> Application:
     app.add_handler(CallbackQueryHandler(_econ_join_callback, pattern="^econ_join$"))
     app.add_handler(CallbackQueryHandler(_merch_open_callback, pattern="^merch_open$"))
     app.add_handler(CallbackQueryHandler(_merch_buy_callback, pattern="^merch_buy:"))
+    app.add_handler(CallbackQueryHandler(_merch_qty_callback, pattern="^merch_qty:"))
+    app.add_handler(CallbackQueryHandler(_merch_qty_back_callback, pattern="^merch_qty_back$"))
+    app.add_handler(CallbackQueryHandler(_merch_checkout_callback, pattern="^merch_checkout$"))
     app.add_handler(CallbackQueryHandler(_econ_course_callback, pattern="^econ_course:"))
     app.add_handler(CallbackQueryHandler(_econ_done_callback, pattern="^econ_done$"))
     app.add_handler(CallbackQueryHandler(_ae_program_faq_callback, pattern="^ae_program_faq$"))

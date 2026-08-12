@@ -944,15 +944,21 @@ BTN_MERCH_BROWSE = "🛍 Browse the merch"
 
 MERCH_CATALOG_CAPTION = (
     "🛍 <b>Freshman Academy Merch</b>\n\n"
-    "Here's what's available:\n\n"
+    "Rep the Freshman! Here's what's available:\n\n"
     "{items}"
 )
 MERCH_CATALOG_ITEM_LINE = "• <b>{label}</b> — {price} UZS"
-MERCH_CHOOSE_ITEM = "Tap the item you'd like to order 👇"
-MERCH_ITEM_CHOSEN = (
-    "🛍 <b>{label}</b> — {price} UZS\n\n"
-    "What's your full name?"
+MERCH_CHOOSE_ITEM = (
+    "Tap an item to add it to your cart — add as many as you like, "
+    "then check out. 👇"
 )
+MERCH_QTY_PROMPT = "<b>{label}</b> — {price} UZS each.\n\nHow many would you like?"
+BTN_MERCH_QTY_BACK = "⬅️ Back"
+BTN_MERCH_REMOVE = "🗑 Remove from cart"
+BTN_MERCH_CHECKOUT = "🛒 Checkout"
+MERCH_CART_EMPTY = "Your cart is empty — tap an item first."
+MERCH_CART_LINE = "• {label} ×{qty} — {line_total} UZS"
+MERCH_CART_SUMMARY = "\n\n🛒 <b>Your cart</b>\n{lines}\n<b>Total:</b> {total} UZS"
 MERCH_ASK_NAME = "What's your full name?"
 MERCH_ASK_DELIVERY = "How would you like to receive your order?"
 BTN_MERCH_PICKUP = "🏢 Pick up from the office"
@@ -966,23 +972,30 @@ MERCH_PHONE_INVALID = (
     "Hmm, that doesn't look like a phone number — please send a working phone number."
 )
 MERCH_ASK_ADDRESS = "What address should we deliver your order to?"
+# Shared purchase summary — shown to the buyer at the payment step and
+# forwarded to PERSON_X.
+MERCH_ORDER_SUMMARY = (
+    "{lines}\n"
+    "<b>Total:</b> {total} UZS\n\n"
+    "<b>Name:</b> {full_name}\n"
+    "<b>Delivery:</b> {delivery}{delivery_details}"
+)
 MERCH_PAYMENT_QR = (
-    "✅ Your order for <b>{label}</b> is in!\n\n"
-    "💳 Final step — payment: <b>{price} UZS</b> via Payme. Scan the QR code "
-    "above to pay.\n\n"
+    "✅ Your order is in!\n\n"
+    "{summary}\n\n"
+    "💳 Final step — pay the total via Payme by scanning the QR code above.\n\n"
     "Once the payment is through, our team will confirm your order. Thank you! 💙"
 )
 MERCH_PAYMENT_PENDING = (
-    "✅ Your order for <b>{label}</b> is in!\n\n"
-    "💳 Final step — payment: <b>{price} UZS</b> via Payme. Our team will send "
-    "you the payment details shortly. Thank you! 💙"
+    "✅ Your order is in!\n\n"
+    "{summary}\n\n"
+    "💳 Final step — payment via Payme. Our team will contact you shortly. "
+    "Thank you! 💙"
 )
 MERCH_ORDER_FORWARD = (
     "🛍 New merch order\n"
     "From: <a href=\"tg://user?id={chat_id}\">{first_name}</a>{username_part}\n\n"
-    "<b>Item:</b> {label} — {price} UZS\n"
-    "<b>Name:</b> {full_name}\n"
-    "<b>Delivery:</b> {delivery}{delivery_details}"
+    "{summary}"
 )
 MERCH_ORDER_DELIVERY_DETAILS = (
     "\n<b>Phone:</b> {phone}\n"
