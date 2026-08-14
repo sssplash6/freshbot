@@ -920,6 +920,10 @@ ECON_EXPERT_ENTRY = (
 
 BTN_MERCH = "🛍 Freshman Academy Merch"
 
+MERCH_COMING_SOON = (
+    "🚧 Freshman Academy merch is coming soon. Stay tuned!"
+)
+
 # (key, label, price in UZS). The key doubles as the merch_buy: callback suffix
 # and the catalog photo filename (assets/merch/<key>.jpg — the pen has no photo
 # yet, so it appears in the price list and item picker but not the album).

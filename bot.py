@@ -2370,6 +2370,12 @@ async def _econ_list_command(update: Update, context: ContextTypes.DEFAULT_TYPE)
 
 _MERCH_PHOTO_DIR = Path(__file__).resolve().parent / "assets" / "merch"
 
+# Coming-soon gate. True = shop is live for everyone. False = only /santix
+# bypass users see it (everyone else gets MERCH_COMING_SOON). Gated in
+# _merch_begin, so both the menu button and the merch_open broadcast button
+# are covered.
+MERCH_LIVE = False
+
 # Accumulates merch order answers per chat_id
 # ({"item": str, "full_name": str, "delivery": str, "phone": str, "address": str}).
 _merch_state: dict[int, dict] = {}
@@ -2457,6 +2463,9 @@ def _merch_phone_keyboard() -> ReplyKeyboardMarkup:
 async def _merch_begin(bot, chat_id: int) -> None:
     """Send the catalog (photo album captioned with the price list) and the
     item picker that starts an order."""
+    if not MERCH_LIVE and chat_id not in _bypass_users:
+        await bot.send_message(chat_id=chat_id, text=msg.MERCH_COMING_SOON)
+        return
     caption = msg.MERCH_CATALOG_CAPTION.format(
         items="\n".join(
             msg.MERCH_CATALOG_ITEM_LINE.format(label=label, price=f"{price:,}")
@@ -2520,7 +2529,11 @@ async def _merch_open_callback(update: Update, context: ContextTypes.DEFAULT_TYP
 
 async def _merch_buy_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     # Item button in the picker — morph the picker into a quantity prompt.
+    # Also gated so pickers sent before the coming-soon gate stay inert.
     query = update.callback_query
+    if not MERCH_LIVE and update.effective_chat.id not in _bypass_users:
+        await query.answer(msg.MERCH_COMING_SOON, show_alert=True)
+        return
     await query.answer()
     key = query.data.split(":", 1)[1]
     if not any(k == key for k, _, _ in msg.MERCH_ITEMS):
@@ -2577,6 +2590,9 @@ async def _merch_checkout_callback(update: Update, context: ContextTypes.DEFAULT
     # Checkout — freeze the picker and start the order form for the whole cart.
     query = update.callback_query
     chat_id = update.effective_chat.id
+    if not MERCH_LIVE and chat_id not in _bypass_users:
+        await query.answer(msg.MERCH_COMING_SOON, show_alert=True)
+        return
     cart = _merch_cart(chat_id)
     if not cart:
         await query.answer(msg.MERCH_CART_EMPTY, show_alert=True)
