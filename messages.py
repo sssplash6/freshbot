@@ -1016,7 +1016,7 @@ MERCH_QR_SAVED = "✅ Payme QR saved. Merch orders will now end with this QR cod
 # Fireside Chat (Freshman Research Institute) — event registration
 # ---------------------------------------------------------------------------
 
-BTN_FIRESIDE = "🎓 Fireside Chat"
+BTN_FIRESIDE = "🎓 Research Institute Fireside Chat"
 
 FIRESIDE_INTRO = (
     "🎓<b>Freshman Research Institute Fireside Chat</b>\n\n"
