@@ -1013,6 +1013,48 @@ MERCH_QR_PROMPT = (
 MERCH_QR_SAVED = "✅ Payme QR saved. Merch orders will now end with this QR code."
 
 # ---------------------------------------------------------------------------
+# Fireside Chat (Freshman Research Institute) — event registration
+# ---------------------------------------------------------------------------
+
+BTN_FIRESIDE = "🎓 Fireside Chat"
+
+FIRESIDE_INTRO = (
+    "🎓<b>Freshman Research Institute Fireside Chat</b>\n\n"
+    "Join us for a Fireside Chat with veteran journalist and author Hanshih "
+    "Toh on US-China competition in Central Asia. This will be a great "
+    "opportunity to learn more about current events, international relations, "
+    "and Central Asian geopolitics.\n\n"
+    "Toh is an author of two books on China, <i>Is China an Empire</i> (2016) "
+    "and <i>Is China a Menacing Empire</i> (2024). He is currently working on "
+    "his third book and will be conducting field research in Central Asia.\n\n"
+    "The event will be hosted by Nigel Li, the Director of the Freshman "
+    "Research Institute and a specialist in international relations.\n\n"
+    "📍 Freshman Academy, Nest One\n"
+    "📅 August 18\n"
+    "🕡 6:00 PM—7:30 PM\n\n"
+    "Registration is free!"
+)
+
+# /broadcastkeyboard announcement — the inline button starts the registration.
+BTN_FIRESIDE_REGISTER = "📝 Register for free"
+
+FIRESIDE_ASK_NAME = "What's your full name?"
+
+FIRESIDE_SUBMITTED = (
+    "✅ You're registered for the Fireside Chat!\n\n"
+    "See you on August 18, 6:00 PM at Freshman Academy, Nest One."
+)
+
+# Sent to Person X for each registration.
+FIRESIDE_ADMIN_ENTRY = (
+    "🎓 <b>New Fireside Chat registration</b>\n\n"
+    "<b>From:</b> {first_name}{username_part} (id <code>{chat_id}</code>)\n"
+    "<b>Full name:</b> {full_name}"
+)
+
+FIRESIDE_LIST_EMPTY = "No Fireside Chat registrations yet."
+
+# ---------------------------------------------------------------------------
 # Event gate \u2014 student flow
 # ---------------------------------------------------------------------------
 EG_NOT_MEMBER = (
