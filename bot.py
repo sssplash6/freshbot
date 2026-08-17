@@ -2392,7 +2392,7 @@ _MERCH_PHOTO_DIR = Path(__file__).resolve().parent / "assets" / "merch"
 # bypass users see it (everyone else gets MERCH_COMING_SOON). Gated in
 # _merch_begin, so both the menu button and the merch_open broadcast button
 # are covered.
-MERCH_LIVE = False
+MERCH_LIVE = True
 
 # Accumulates merch order answers per chat_id
 # ({"item": str, "full_name": str, "delivery": str, "phone": str, "address": str}).
