@@ -1615,11 +1615,11 @@ async def _broadcast_keyboard_command(
         async def _send_one(cid: int) -> None:
             nonlocal sent, failed, first_error
             try:
-                # Freshman Global consultations promo — the button runs the
+                # Freshman Global giveaway announcement — the button runs the
                 # subscription gate.
                 await context.bot.send_message(
                     chat_id=cid,
-                    text=msg.CONSULT_INTRO,
+                    text=msg.CONSULT_ANNOUNCEMENT,
                     parse_mode="HTML",
                     disable_web_page_preview=True,
                     reply_markup=InlineKeyboardMarkup([

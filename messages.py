@@ -1043,7 +1043,32 @@ CONSULT_INTRO = (
     "To schedule a free consultation, follow the steps below!"
 )
 
-# /broadcastkeyboard announcement — the inline button runs the same gate.
+# /broadcastkeyboard giveaway announcement — the menu flow keeps CONSULT_INTRO.
+CONSULT_ANNOUNCEMENT = (
+    "🎁 <b>New Giveaway: Free Strategy & EC Consultations!</b>\n\n"
+    "The Freshman Global team is giving away <b>free</b> strategy "
+    "consultations on applying to top Asian and European universities!\n\n"
+    "Our consultants will help you identify scholarship-granting universities "
+    "and assess your profile's strengths and weaknesses. Each has substantial "
+    "professional experience in everything from Politics to AI and Machine "
+    "Learning — they can help evaluate and expand your extracurricular "
+    "profile.\n\n"
+    "<b>The Consultants:</b>\n\n"
+    "<b>Hasan</b> — East China University of Science and Technology\n"
+    "<i>BSc in AI | Broader Asian Admissions | AI Engineer and Researcher</i>\n\n"
+    "<b>Imron</b> — LUISS Guido Carli University (Italy)\n"
+    "<i>LL.B in Global Law Studies | European Admissions | Experience in "
+    "Corporate Law</i>\n\n"
+    "<b>Umid</b> — Hong Kong University (HKU)\n"
+    "<i>BSc in Software Engineering & BA in Philosophy | Competitive Asian "
+    "Admissions | Software Engineer in AI and Human-Computer Interactions</i>\n\n"
+    "<b>How to claim your consultation:</b>\n"
+    "1️⃣ Subscribe to @freshmanglobal and @freshmanblog\n"
+    "2️⃣ Tap the button below\n"
+    "3️⃣ Pick a consultant and book a time that works for you"
+)
+
+# The inline button under the announcement runs the subscription gate.
 BTN_CONSULT_OPEN = "📅 Schedule a free consultation"
 
 CONSULT_MUST_JOIN = (
