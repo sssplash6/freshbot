@@ -2799,6 +2799,12 @@ async def _merch_list_command(update: Update, context: ContextTypes.DEFAULT_TYPE
 # Freshman Global consultations — subscribe to both channels, then book
 # ---------------------------------------------------------------------------
 
+# Coming-soon gate. True = giveaway is live for everyone. False = only /santix
+# bypass users see it (everyone else gets CONSULT_COMING_SOON). Gated in
+# _consult_begin and both inline callbacks, so the menu button, the
+# consult_open broadcast button, and old check-again buttons are all covered.
+CONSULT_LIVE = False
+
 # The bot must be an admin in both channels for the membership check to work.
 CONSULT_REQUIRED_IDS = [-1004469434703, -1001481432083]
 CONSULT_REQUIRED_HANDLES = ["@freshmanglobal", "@freshmanblog"]
@@ -2853,6 +2859,9 @@ async def _consult_send_gate(bot, chat_id: int) -> None:
 
 async def _consult_begin(bot, chat_id: int) -> None:
     """Send the giveaway promo, then either the must-join gate or the links."""
+    if not CONSULT_LIVE and chat_id not in _bypass_users:
+        await bot.send_message(chat_id=chat_id, text=msg.CONSULT_COMING_SOON)
+        return
     await bot.send_message(
         chat_id=chat_id,
         text=msg.CONSULT_INTRO,
@@ -2866,12 +2875,18 @@ async def _consult_open_callback(update: Update, context: ContextTypes.DEFAULT_T
     # Inline button under the /broadcastkeyboard announcement — the promo is
     # already on screen, so go straight to the subscription gate.
     query = update.callback_query
+    if not CONSULT_LIVE and update.effective_user.id not in _bypass_users:
+        await query.answer(msg.CONSULT_COMING_SOON, show_alert=True)
+        return
     await _safe_answer(query)
     await _consult_send_gate(context.bot, update.effective_user.id)
 
 
 async def _consult_check_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     query = update.callback_query
+    if not CONSULT_LIVE and update.effective_user.id not in _bypass_users:
+        await query.answer(msg.CONSULT_COMING_SOON, show_alert=True)
+        return
     await _safe_answer(query)
     chat_id = update.effective_user.id
     missing = await _consult_get_missing(context.bot, chat_id)

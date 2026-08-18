@@ -1018,6 +1018,10 @@ MERCH_QR_SAVED = "✅ Payme QR saved. Merch orders will now end with this QR cod
 
 BTN_CONSULT = "💸 Free Strategy & EC Consultations"
 
+CONSULT_COMING_SOON = (
+    "🚧 Free strategy consultations are coming soon. Stay tuned!"
+)
+
 CONSULT_INTRO = (
     "💸 <b>Freshman Global — Free Strategy & EC Consultations</b>\n\n"
     "The Freshman Global team is offering free strategy consultations on "
