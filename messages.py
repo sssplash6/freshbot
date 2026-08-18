@@ -1085,6 +1085,7 @@ CONSULT_ACCESS_GRANTED = (
 
 BTN_CONSULT_HASAN = "🗓 Book with Hasan — Asian Admissions"
 BTN_CONSULT_IMRON = "🗓 Book with Imron — European Admissions"
+BTN_CONSULT_UMID = "🗓 Book with Umid — Competitive Asian Admissions"
 
 # ---------------------------------------------------------------------------
 # Event gate \u2014 student flow

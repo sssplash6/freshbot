@@ -2812,6 +2812,7 @@ CONSULT_REQUIRED_HANDLES = ["@freshmanglobal", "@freshmanblog"]
 CONSULT_BOOKING_LINKS = [
     (msg.BTN_CONSULT_HASAN, "https://calendar.app.google/HZj8xkyA46BbnVT78"),
     (msg.BTN_CONSULT_IMRON, "https://cal.com/imron-kadyrov-pvcj3q/20-minutes-way-to-europe"),
+    (msg.BTN_CONSULT_UMID, "https://calendar.app.google/o1WZ1FcCBS5iBNic8"),
 ]
 
 
