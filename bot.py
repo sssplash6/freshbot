@@ -143,7 +143,7 @@ _NAV_BUTTONS: frozenset[str] = frozenset({
     msg.BTN_PROGRAMS, msg.BTN_GENERAL_INQUIRY, msg.BTN_PODCAST,
     msg.BTN_HOME, msg.BTN_START,
     msg.BTN_ADV_ENGLISH, msg.BTN_SAT_ENROLL, msg.BTN_TRIAL_AP,
-    msg.BTN_GET_GUIDEBOOK, msg.BTN_GETTING_IN, msg.BTN_MERCH, msg.BTN_FIRESIDE,
+    msg.BTN_GET_GUIDEBOOK, msg.BTN_GETTING_IN, msg.BTN_MERCH, msg.BTN_CONSULT,
     # Program sub-menu
     msg.BTN_SAT, msg.BTN_ADMISSIONS, msg.BTN_FULL_SUPPORT, msg.BTN_MASTERS,
     msg.BTN_ADV_PLACEMENT, msg.BTN_IMKON, msg.BTN_RESEARCH_INSTITUTE,
@@ -162,7 +162,7 @@ _NAV_BUTTONS: frozenset[str] = frozenset({
 def _main_keyboard() -> ReplyKeyboardMarkup:
     return ReplyKeyboardMarkup(
         [
-            [msg.BTN_MERCH, msg.BTN_FIRESIDE],
+            [msg.BTN_MERCH, msg.BTN_CONSULT],
             [msg.BTN_GETTING_IN, msg.BTN_GET_GUIDEBOOK],
             [msg.BTN_ADV_ENGLISH, msg.BTN_SAT_ENROLL],
             [msg.BTN_PROGRAMS, msg.BTN_GENERAL_INQUIRY],
@@ -461,14 +461,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             await _handle_merch_step(update, chat_id, text, context)
             return
 
-    if user and user.get("flow") == "fireside":
-        if text in _NAV_BUTTONS:
-            await db.set_flow(chat_id, None)
-            await db.set_status(chat_id, None)
-        else:
-            await _handle_fireside_step(update, chat_id, text, context)
-            return
-
     if user and user.get("flow") == "adv_english" and user.get("status") in (
         "ae_step_format", "ae_step_full_name", "ae_step_video", "ae_step_ielts", "ae_step_sat",
         "ae_step_why", "ae_step_perspective", "ae_step_resources",
@@ -508,8 +500,8 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         await _handle_getting_in(update, chat_id)
     elif text == msg.BTN_MERCH:
         await _merch_begin(context.bot, chat_id)
-    elif text == msg.BTN_FIRESIDE:
-        await _fireside_begin(context.bot, chat_id)
+    elif text == msg.BTN_CONSULT:
+        await _consult_begin(context.bot, chat_id)
     elif text == msg.BTN_SAT:
         await _handle_program(update, chat_id, msg.BTN_SAT)
     elif text == msg.BTN_ADMISSIONS:
@@ -1437,14 +1429,6 @@ async def _handle_back(update: Update, chat_id: int) -> None:
             reply_markup=_main_keyboard(),
         )
         return
-    if flow == "fireside":
-        await db.set_flow(chat_id, None)
-        await db.set_status(chat_id, None)
-        await update.message.reply_text(
-            msg.WELCOME.format(first_name=first_name),
-            reply_markup=_main_keyboard(),
-        )
-        return
     if flow == "adv_english":
         _ae_state.pop(chat_id, None)
         await db.set_flow(chat_id, None)
@@ -1631,14 +1615,15 @@ async def _broadcast_keyboard_command(
         async def _send_one(cid: int) -> None:
             nonlocal sent, failed, first_error
             try:
-                # Fireside Chat announcement — the button starts registration.
+                # Freshman Global consultations promo — the button runs the
+                # subscription gate.
                 await context.bot.send_message(
                     chat_id=cid,
-                    text=msg.FIRESIDE_INTRO,
+                    text=msg.CONSULT_INTRO,
                     parse_mode="HTML",
                     disable_web_page_preview=True,
                     reply_markup=InlineKeyboardMarkup([
-                        [InlineKeyboardButton(msg.BTN_FIRESIDE_REGISTER, callback_data="fireside_open")],
+                        [InlineKeyboardButton(msg.BTN_CONSULT_OPEN, callback_data="consult_open")],
                     ]),
                 )
                 sent += 1
@@ -2811,94 +2796,108 @@ async def _merch_list_command(update: Update, context: ContextTypes.DEFAULT_TYPE
 
 
 # ---------------------------------------------------------------------------
-# Fireside Chat (Freshman Research Institute) — event registration
+# Freshman Global consultations — subscribe to both channels, then book
 # ---------------------------------------------------------------------------
 
-async def _fireside_begin(bot, chat_id: int) -> None:
-    """Send the event intro and start the one-step registration (full name)."""
+# get_chat_member accepts @usernames for public channels; swap in the numeric
+# channel IDs once provided (the bot must be an admin in both channels for the
+# membership check to work).
+CONSULT_REQUIRED_IDS: list[int | str] = ["@freshmanglobal", -1001481432083]
+CONSULT_REQUIRED_HANDLES = ["@freshmanglobal", "@freshmanblog"]
+
+CONSULT_BOOKING_LINKS = [
+    (msg.BTN_CONSULT_HASAN, "https://calendar.app.google/HZj8xkyA46BbnVT78"),
+    (msg.BTN_CONSULT_IMRON, "https://cal.com/imron-kadyrov-pvcj3q/20-minutes-way-to-europe"),
+]
+
+
+def _consult_links_keyboard() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        [[InlineKeyboardButton(label, url=url)] for label, url in CONSULT_BOOKING_LINKS]
+    )
+
+
+async def _consult_is_member(bot, channel_id: int | str, chat_id: int) -> bool:
+    """True if chat_id is a member of channel_id. Fails open on API error."""
+    try:
+        member = await bot.get_chat_member(channel_id, chat_id)
+        return member.status in _MEMBER_STATUSES
+    except TelegramError:
+        logger.warning("Cannot check consult membership in %s. Failing open.", channel_id)
+        return True
+
+
+async def _consult_get_missing(bot, chat_id: int) -> list[str]:
+    results = await asyncio.gather(
+        *(_consult_is_member(bot, cid, chat_id) for cid in CONSULT_REQUIRED_IDS)
+    )
+    return [h for h, ok in zip(CONSULT_REQUIRED_HANDLES, results) if not ok]
+
+
+async def _consult_send_gate(bot, chat_id: int) -> None:
+    missing = await _consult_get_missing(bot, chat_id)
+    if missing:
+        channel_list = "\n".join(f"• {h}" for h in missing)
+        await bot.send_message(
+            chat_id=chat_id,
+            text=msg.CONSULT_MUST_JOIN.format(channel_list=channel_list),
+            reply_markup=InlineKeyboardMarkup(
+                [[InlineKeyboardButton(msg.BTN_CONSULT_CHECK, callback_data="consult_check")]]
+            ),
+        )
+        return
     await bot.send_message(
         chat_id=chat_id,
-        text=msg.FIRESIDE_INTRO,
+        text=msg.CONSULT_ACCESS_GRANTED,
+        reply_markup=_consult_links_keyboard(),
+    )
+
+
+async def _consult_begin(bot, chat_id: int) -> None:
+    """Send the giveaway promo, then either the must-join gate or the links."""
+    await bot.send_message(
+        chat_id=chat_id,
+        text=msg.CONSULT_INTRO,
         parse_mode="HTML",
         disable_web_page_preview=True,
     )
-    await db.set_flow(chat_id, "fireside")
-    await db.set_status(chat_id, "fireside_step_name")
-    await bot.send_message(
-        chat_id=chat_id, text=msg.FIRESIDE_ASK_NAME, reply_markup=_back_keyboard()
-    )
+    await _consult_send_gate(bot, chat_id)
 
 
-async def _fireside_open_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    # Inline "Register for free" button under the /broadcastkeyboard
-    # announcement — starts the same registration as the menu button.
+async def _consult_open_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    # Inline button under the /broadcastkeyboard announcement — the promo is
+    # already on screen, so go straight to the subscription gate.
     query = update.callback_query
-    await query.answer()
-    await _fireside_begin(context.bot, update.effective_chat.id)
+    await _safe_answer(query)
+    await _consult_send_gate(context.bot, update.effective_user.id)
 
 
-async def _handle_fireside_step(
-    update: Update, chat_id: int, text: str, context: ContextTypes.DEFAULT_TYPE
-) -> None:
-    full_name = text.strip()
-    if not full_name:
-        await update.message.reply_text(msg.FIRESIDE_ASK_NAME, reply_markup=_back_keyboard())
-        return
-
-    u = await db.get_user(chat_id)
-    first_name = u["first_name"] if u else "Unknown"
-    username = u["username"] if u else None
-
-    await db.fireside_save(chat_id, username, first_name, full_name)
-    await db.set_flow(chat_id, None)
-    await db.set_status(chat_id, None)
-    await update.message.reply_text(msg.FIRESIDE_SUBMITTED, reply_markup=_main_keyboard())
-
-    username_part = f" (@{username})" if username else ""
-    try:
-        await context.bot.send_message(
-            chat_id=PERSON_X_CHAT_ID,
-            text=msg.FIRESIDE_ADMIN_ENTRY.format(
-                first_name=first_name,
-                username_part=username_part,
-                chat_id=chat_id,
-                full_name=full_name,
-            ),
-            parse_mode="HTML",
-        )
-    except Exception:
-        logger.exception("Failed to notify Person X of Fireside Chat registration")
-
-
-async def _fireside_list_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    if update.effective_user.id != PERSON_X_CHAT_ID:
-        return
-    rows = await db.fireside_get_all()
-    if not rows:
-        await update.message.reply_text(msg.FIRESIDE_LIST_EMPTY)
-        return
-    lines = [f"🎓 <b>Fireside Chat registrations ({len(rows)})</b>", ""]
-    for r in rows:
-        username_part = f" (@{r['username']})" if r.get("username") else ""
-        lines.append(
-            f"• <a href=\"tg://user?id={r['chat_id']}\">{html.escape(r['full_name'])}</a>"
-            f"{username_part}"
-        )
-    # Same whole-line chunking as /merch_list to stay under the 4096-char cap.
-    chunk: list[str] = []
-    length = 0
-    for line in lines:
-        if chunk and length + len(line) + 1 > 3900:
-            await update.message.reply_text(
-                "\n".join(chunk), parse_mode="HTML", disable_web_page_preview=True
+async def _consult_check_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    query = update.callback_query
+    await _safe_answer(query)
+    chat_id = update.effective_user.id
+    missing = await _consult_get_missing(context.bot, chat_id)
+    if missing:
+        channel_list = "\n".join(f"• {h}" for h in missing)
+        try:
+            await query.edit_message_text(
+                msg.CONSULT_MUST_JOIN.format(channel_list=channel_list),
+                reply_markup=InlineKeyboardMarkup(
+                    [[InlineKeyboardButton(msg.BTN_CONSULT_CHECK, callback_data="consult_check")]]
+                ),
             )
-            chunk, length = [], 0
-        chunk.append(line)
-        length += len(line) + 1
-    if chunk:
-        await update.message.reply_text(
-            "\n".join(chunk), parse_mode="HTML", disable_web_page_preview=True
+        except TelegramError as e:
+            if "not modified" not in str(e).lower():
+                raise
+        return
+    try:
+        await query.edit_message_text(
+            msg.CONSULT_ACCESS_GRANTED,
+            reply_markup=_consult_links_keyboard(),
         )
+    except TelegramError as e:
+        if "not modified" not in str(e).lower():
+            raise
 
 
 # ---------------------------------------------------------------------------
@@ -3606,7 +3605,6 @@ def build_app() -> Application:
     app.add_handler(CommandHandler("ae_list", _ae_list_command, filters=_private))
     app.add_handler(CommandHandler("econ_list", _econ_list_command, filters=_private))
     app.add_handler(CommandHandler("merch_list", _merch_list_command, filters=_private))
-    app.add_handler(CommandHandler("fireside_list", _fireside_list_command, filters=_private))
     app.add_handler(CommandHandler("set_merch_qr", _set_merch_qr_command, filters=_private))
     app.add_handler(CommandHandler("ae_set_terms", _ae_set_terms_command, filters=_private))
     app.add_handler(CommandHandler("set_guidebook", _set_guidebook_command, filters=_private))
@@ -3640,7 +3638,8 @@ def build_app() -> Application:
     app.add_handler(CallbackQueryHandler(_merch_qty_callback, pattern="^merch_qty:"))
     app.add_handler(CallbackQueryHandler(_merch_qty_back_callback, pattern="^merch_qty_back$"))
     app.add_handler(CallbackQueryHandler(_merch_checkout_callback, pattern="^merch_checkout$"))
-    app.add_handler(CallbackQueryHandler(_fireside_open_callback, pattern="^fireside_open$"))
+    app.add_handler(CallbackQueryHandler(_consult_open_callback, pattern="^consult_open$"))
+    app.add_handler(CallbackQueryHandler(_consult_check_callback, pattern="^consult_check$"))
     app.add_handler(CallbackQueryHandler(_econ_course_callback, pattern="^econ_course:"))
     app.add_handler(CallbackQueryHandler(_econ_done_callback, pattern="^econ_done$"))
     app.add_handler(CallbackQueryHandler(_ae_program_faq_callback, pattern="^ae_program_faq$"))

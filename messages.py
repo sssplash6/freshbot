@@ -1013,46 +1013,49 @@ MERCH_QR_PROMPT = (
 MERCH_QR_SAVED = "✅ Payme QR saved. Merch orders will now end with this QR code."
 
 # ---------------------------------------------------------------------------
-# Fireside Chat (Freshman Research Institute) — event registration
+# Freshman Global — free strategy & EC consultations (subscription giveaway)
 # ---------------------------------------------------------------------------
 
-BTN_FIRESIDE = "🎓 Research Institute Fireside Chat"
+BTN_CONSULT = "💸 Free Strategy & EC Consultations"
 
-FIRESIDE_INTRO = (
-    "🎓<b>Freshman Research Institute Fireside Chat</b>\n\n"
-    "Join us for a Fireside Chat with veteran journalist and author Hanshih "
-    "Toh on US-China competition in Central Asia. This will be a great "
-    "opportunity to learn more about current events, international relations, "
-    "and Central Asian geopolitics.\n\n"
-    "Toh is an author of two books on China, <i>Is China an Empire</i> (2016) "
-    "and <i>Is China a Menacing Empire</i> (2024). He is currently working on "
-    "his third book and will be conducting field research in Central Asia.\n\n"
-    "The event will be hosted by Nigel Li, the Director of the Freshman "
-    "Research Institute and a specialist in international relations.\n\n"
-    "📍 Freshman Academy, Nest One\n"
-    "📅 August 18\n"
-    "🕡 6:00 PM—7:30 PM\n\n"
-    "Registration is free!"
+CONSULT_INTRO = (
+    "💸 <b>Freshman Global — Free Strategy & EC Consultations</b>\n\n"
+    "The Freshman Global team is offering free strategy consultations on "
+    "applying to top Asian and European universities!\n\n"
+    "Our consultants will help you identify scholarship-granting universities "
+    "and assess your profile's strengths and weaknesses. Moreover, each has "
+    "substantial professional experience in everything from Politics to AI "
+    "and Machine Learning — they can help evaluate and expand your "
+    "extracurricular profile.\n\n"
+    "<b>The Consultants:</b>\n\n"
+    "<b>Hasan</b> — East China University of Science and Technology\n"
+    "<i>BSc in AI | Broader Asian Admissions | AI Engineer and Researcher</i>\n\n"
+    "<b>Imron</b> — LUISS Guido Carli University (Italy)\n"
+    "<i>LL.B in Global Law Studies | European Admissions | Experience in "
+    "Corporate Law</i>\n\n"
+    "<b>Umid</b> — Hong Kong University (HKU)\n"
+    "<i>BSc in Software Engineering & BA in Philosophy | Competitive Asian "
+    "Admissions | Software Engineer in AI and Human-Computer Interactions</i>\n\n"
+    "To schedule a free consultation, follow the steps below!"
 )
 
-# /broadcastkeyboard announcement — the inline button starts the registration.
-BTN_FIRESIDE_REGISTER = "📝 Register for free"
+# /broadcastkeyboard announcement — the inline button runs the same gate.
+BTN_CONSULT_OPEN = "📅 Schedule a free consultation"
 
-FIRESIDE_ASK_NAME = "What's your full name?"
-
-FIRESIDE_SUBMITTED = (
-    "✅ You're registered for the Fireside Chat!\n\n"
-    "See you on August 18, 6:00 PM at Freshman Academy, Nest One."
+CONSULT_MUST_JOIN = (
+    "To schedule a free consultation, please subscribe to both channels first:\n"
+    "{channel_list}\n\n"
+    "Once you've subscribed, tap the button below."
 )
 
-# Sent to Person X for each registration.
-FIRESIDE_ADMIN_ENTRY = (
-    "🎓 <b>New Fireside Chat registration</b>\n\n"
-    "<b>From:</b> {first_name}{username_part} (id <code>{chat_id}</code>)\n"
-    "<b>Full name:</b> {full_name}"
+BTN_CONSULT_CHECK = "✅ I've subscribed — check again"
+
+CONSULT_ACCESS_GRANTED = (
+    "✅ You're all set — pick a consultant and book your free consultation below!"
 )
 
-FIRESIDE_LIST_EMPTY = "No Fireside Chat registrations yet."
+BTN_CONSULT_HASAN = "🗓 Book with Hasan — Asian Admissions"
+BTN_CONSULT_IMRON = "🗓 Book with Imron — European Admissions"
 
 # ---------------------------------------------------------------------------
 # Event gate \u2014 student flow
