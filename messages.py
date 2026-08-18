@@ -1016,7 +1016,7 @@ MERCH_QR_SAVED = "✅ Payme QR saved. Merch orders will now end with this QR cod
 # Freshman Global — free strategy & EC consultations (subscription giveaway)
 # ---------------------------------------------------------------------------
 
-BTN_CONSULT = "💸 Free Strategy & EC Consultations"
+BTN_CONSULT = "💸 Freshman Global - Free Consultations"
 
 CONSULT_COMING_SOON = (
     "🚧 Free strategy consultations are coming soon. Stay tuned!"
