@@ -2799,10 +2799,8 @@ async def _merch_list_command(update: Update, context: ContextTypes.DEFAULT_TYPE
 # Freshman Global consultations — subscribe to both channels, then book
 # ---------------------------------------------------------------------------
 
-# get_chat_member accepts @usernames for public channels; swap in the numeric
-# channel IDs once provided (the bot must be an admin in both channels for the
-# membership check to work).
-CONSULT_REQUIRED_IDS: list[int | str] = ["@freshmanglobal", -1001481432083]
+# The bot must be an admin in both channels for the membership check to work.
+CONSULT_REQUIRED_IDS = [-1004469434703, -1001481432083]
 CONSULT_REQUIRED_HANDLES = ["@freshmanglobal", "@freshmanblog"]
 
 CONSULT_BOOKING_LINKS = [
