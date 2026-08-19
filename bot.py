@@ -165,10 +165,9 @@ def _main_keyboard() -> ReplyKeyboardMarkup:
     return ReplyKeyboardMarkup(
         [
             [msg.BTN_VALERA_GIVEAWAY, msg.BTN_CONSULT],
-            [msg.BTN_GETTING_IN, msg.BTN_GET_GUIDEBOOK],
+            [msg.BTN_MERCH, msg.BTN_GET_GUIDEBOOK],
             [msg.BTN_ADV_ENGLISH, msg.BTN_SAT_ENROLL],
             [msg.BTN_PROGRAMS, msg.BTN_GENERAL_INQUIRY],
-            [msg.BTN_MERCH],
         ],
         resize_keyboard=True,
         is_persistent=True,
