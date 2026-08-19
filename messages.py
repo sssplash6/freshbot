@@ -1108,7 +1108,8 @@ VG_INTRO = (
     "the instructions and pressing the button below.\n\n"
     "<b>How to enter:</b>\n"
     "1️⃣ Subscribe to @valeranotes and @freshmanblog\n"
-    "2️⃣ Tap the button below to join the draw"
+    "2️⃣ Tap the button below to join the draw\n\n"
+    "🗓 We will send the results through the bot by September 1."
 )
 
 VG_JOIN_PROMPT = "Tap below to join the giveaway:"
