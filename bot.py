@@ -2928,7 +2928,7 @@ async def _consult_check_callback(update: Update, context: ContextTypes.DEFAULT_
 # bypass users see it (everyone else gets VG_COMING_SOON). Gated in _vg_begin
 # and both inline callbacks, so the menu button and old check-again buttons
 # are all covered.
-VG_LIVE = False
+VG_LIVE = True
 
 # The bot must be an admin in both channels for the membership check to work.
 VG_REQUIRED_IDS = [-1001188644050, -1001481432083]
