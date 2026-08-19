@@ -1619,15 +1619,15 @@ async def _broadcast_keyboard_command(
         async def _send_one(cid: int) -> None:
             nonlocal sent, failed, first_error
             try:
-                # Freshman Global giveaway announcement — the button runs the
-                # subscription gate.
+                # Valera giveaway announcement — the button runs the
+                # subscription gate and enters the user into the draw.
                 await context.bot.send_message(
                     chat_id=cid,
-                    text=msg.CONSULT_ANNOUNCEMENT,
+                    text=msg.VG_INTRO,
                     parse_mode="HTML",
                     disable_web_page_preview=True,
                     reply_markup=InlineKeyboardMarkup([
-                        [InlineKeyboardButton(msg.BTN_CONSULT_OPEN, callback_data="consult_open")],
+                        [InlineKeyboardButton(msg.BTN_VG_JOIN, callback_data="vg_open")],
                     ]),
                 )
                 sent += 1
@@ -3020,9 +3020,35 @@ async def _vg_edit(query, *args, **kwargs) -> None:
             raise
 
 
+async def _vg_process_entry(user, context, send) -> None:
+    """Verify the subscriptions, then enter the user into the draw (or re-gate
+    them if they unsubscribed). `send` is an async callable(text, reply_markup)
+    — an edit for taps on the join prompt, a fresh message for taps on the
+    broadcast announcement (so the promo stays on screen)."""
+    missing = await _vg_get_missing(context.bot, user.id)
+    if missing:
+        # Left a channel after joining? Drop them from the draw until they're
+        # subscribed again.
+        await db.vg_remove_participant(user.id)
+        channel_list = "\n".join(f"• {h}" for h in missing)
+        await send(
+            msg.VG_MUST_JOIN.format(channel_list=channel_list),
+            InlineKeyboardMarkup(
+                [[InlineKeyboardButton(msg.BTN_VG_CHECK, callback_data="vg_check")]]
+            ),
+        )
+        return
+
+    if await db.vg_get_participant(user.id):
+        await send(msg.VG_ALREADY_PARTICIPATING, None)
+        return
+    await db.vg_add_participant(user.id, user.first_name, user.username)
+    await send(msg.VG_NOW_PARTICIPATING, None)
+
+
 async def _vg_join_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Shared by vg_join and vg_check — verify the subscriptions, then enter
-    the user into the draw (or re-gate them if they unsubscribed)."""
+    """Shared by vg_join and vg_check — the button lives on the join prompt
+    message, so the outcome replaces it in place."""
     query = update.callback_query
     user = update.effective_user
     if not VG_LIVE and user.id not in _bypass_users:
@@ -3030,27 +3056,28 @@ async def _vg_join_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) 
         return
     await _safe_answer(query)
 
-    check_keyboard = InlineKeyboardMarkup(
-        [[InlineKeyboardButton(msg.BTN_VG_CHECK, callback_data="vg_check")]]
-    )
-    missing = await _vg_get_missing(context.bot, user.id)
-    if missing:
-        # Left a channel after joining? Drop them from the draw until they're
-        # subscribed again.
-        await db.vg_remove_participant(user.id)
-        channel_list = "\n".join(f"• {h}" for h in missing)
-        await _vg_edit(
-            query,
-            msg.VG_MUST_JOIN.format(channel_list=channel_list),
-            reply_markup=check_keyboard,
-        )
-        return
+    async def send(text, reply_markup):
+        await _vg_edit(query, text, reply_markup=reply_markup)
 
-    if await db.vg_get_participant(user.id):
-        await _vg_edit(query, msg.VG_ALREADY_PARTICIPATING)
+    await _vg_process_entry(user, context, send)
+
+
+async def _vg_open_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Inline button under the /broadcastkeyboard announcement — reply with a
+    fresh message instead of editing the promo away."""
+    query = update.callback_query
+    user = update.effective_user
+    if not VG_LIVE and user.id not in _bypass_users:
+        await query.answer(msg.VG_COMING_SOON, show_alert=True)
         return
-    await db.vg_add_participant(user.id, user.first_name, user.username)
-    await _vg_edit(query, msg.VG_NOW_PARTICIPATING)
+    await _safe_answer(query)
+
+    async def send(text, reply_markup):
+        await context.bot.send_message(
+            chat_id=user.id, text=text, reply_markup=reply_markup
+        )
+
+    await _vg_process_entry(user, context, send)
 
 
 async def _vg_list_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -3942,6 +3969,7 @@ def build_app() -> Application:
     app.add_handler(CallbackQueryHandler(_consult_check_callback, pattern="^consult_check$"))
     app.add_handler(CallbackQueryHandler(_vg_join_callback, pattern="^vg_join$"))
     app.add_handler(CallbackQueryHandler(_vg_join_callback, pattern="^vg_check$"))
+    app.add_handler(CallbackQueryHandler(_vg_open_callback, pattern="^vg_open$"))
     app.add_handler(CallbackQueryHandler(_vg_confirm_callback, pattern="^vg_confirm:"))
     app.add_handler(CallbackQueryHandler(_vg_reroll_callback, pattern="^vg_reroll$"))
     app.add_handler(CallbackQueryHandler(_econ_course_callback, pattern="^econ_course:"))
