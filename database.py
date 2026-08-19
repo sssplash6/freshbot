@@ -185,6 +185,14 @@ async def init_db() -> None:
                 joined_at   TEXT NOT NULL
             )
         """)
+        await db.execute("""
+            CREATE TABLE IF NOT EXISTS consult_claims (
+                chat_id     INTEGER PRIMARY KEY,
+                first_name  TEXT,
+                username    TEXT,
+                claimed_at  TEXT NOT NULL
+            )
+        """)
         for _col in [
             "ALTER TABLE users ADD COLUMN guidebook_sent_at TEXT",
             "ALTER TABLE adv_english_applications ADD COLUMN video_file_id TEXT",
@@ -1269,6 +1277,34 @@ async def vg_get_all_participants() -> list[dict]:
         db.row_factory = aiosqlite.Row
         async with db.execute(
             "SELECT * FROM valera_giveaway_participants ORDER BY joined_at"
+        ) as cursor:
+            rows = await cursor.fetchall()
+            return [dict(r) for r in rows]
+
+
+# ---------------------------------------------------------------------------
+# Freshman Global consultations — who passed the gate and got the booking links
+# ---------------------------------------------------------------------------
+
+async def consult_add_claim(
+    chat_id: int, first_name: str | None, username: str | None
+) -> None:
+    now = datetime.now(timezone.utc).isoformat()
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute(
+            """INSERT OR IGNORE INTO consult_claims
+               (chat_id, first_name, username, claimed_at)
+               VALUES (?, ?, ?, ?)""",
+            (chat_id, first_name, username, now),
+        )
+        await db.commit()
+
+
+async def consult_get_all_claims() -> list[dict]:
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute(
+            "SELECT * FROM consult_claims ORDER BY claimed_at"
         ) as cursor:
             rows = await cursor.fetchall()
             return [dict(r) for r in rows]

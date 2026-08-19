@@ -1083,6 +1083,8 @@ CONSULT_ACCESS_GRANTED = (
     "✅ You're all set — pick a consultant and book your free consultation below!"
 )
 
+CONSULT_LIST_EMPTY = "No one has claimed consultation access yet."
+
 BTN_CONSULT_HASAN = "🗓 Book with Hasan — Asian Admissions"
 BTN_CONSULT_IMRON = "🗓 Book with Imron — European Admissions"
 BTN_CONSULT_UMID = "🗓 Book with Umid — Competitive Asian Admissions"

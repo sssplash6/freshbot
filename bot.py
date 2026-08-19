@@ -2843,7 +2843,20 @@ async def _consult_get_missing(bot, chat_id: int) -> list[str]:
     return [h for h, ok in zip(CONSULT_REQUIRED_HANDLES, results) if not ok]
 
 
-async def _consult_send_gate(bot, chat_id: int) -> None:
+async def _consult_record_claim(user, chat_id: int) -> None:
+    """Log who passed the gate and got the booking links (first claim keeps
+    its timestamp). Falls back to the users table when no Telegram user object
+    is at hand (the menu-button path)."""
+    if user is not None:
+        first_name, username = user.first_name, user.username
+    else:
+        row = await db.get_user(chat_id)
+        first_name = (row or {}).get("first_name")
+        username = (row or {}).get("username")
+    await db.consult_add_claim(chat_id, first_name, username)
+
+
+async def _consult_send_gate(bot, chat_id: int, user=None) -> None:
     missing = await _consult_get_missing(bot, chat_id)
     if missing:
         channel_list = "\n".join(f"• {h}" for h in missing)
@@ -2855,6 +2868,7 @@ async def _consult_send_gate(bot, chat_id: int) -> None:
             ),
         )
         return
+    await _consult_record_claim(user, chat_id)
     await bot.send_message(
         chat_id=chat_id,
         text=msg.CONSULT_ACCESS_GRANTED,
@@ -2884,7 +2898,7 @@ async def _consult_open_callback(update: Update, context: ContextTypes.DEFAULT_T
         await query.answer(msg.CONSULT_COMING_SOON, show_alert=True)
         return
     await _safe_answer(query)
-    await _consult_send_gate(context.bot, update.effective_user.id)
+    await _consult_send_gate(context.bot, update.effective_user.id, update.effective_user)
 
 
 async def _consult_check_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -2908,6 +2922,7 @@ async def _consult_check_callback(update: Update, context: ContextTypes.DEFAULT_
             if "not modified" not in str(e).lower():
                 raise
         return
+    await _consult_record_claim(update.effective_user, chat_id)
     try:
         await query.edit_message_text(
             msg.CONSULT_ACCESS_GRANTED,
@@ -2916,6 +2931,27 @@ async def _consult_check_callback(update: Update, context: ContextTypes.DEFAULT_
     except TelegramError as e:
         if "not modified" not in str(e).lower():
             raise
+
+
+async def _consult_list_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    if update.effective_user.id != PERSON_X_CHAT_ID:
+        return
+    claims = await db.consult_get_all_claims()
+    if not claims:
+        await update.message.reply_text(msg.CONSULT_LIST_EMPTY)
+        return
+    lines = [
+        f"{i + 1}. {c['first_name'] or '—'}" + (f" (@{c['username']})" if c.get("username") else "")
+        for i, c in enumerate(claims)
+    ]
+    current = f"Consultation claims: {len(claims)}\n\n"
+    for line in lines:
+        if len(current) + len(line) + 1 > 4096:
+            await update.message.reply_text(current)
+            current = ""
+        current += line + "\n"
+    if current:
+        await update.message.reply_text(current)
 
 
 # ---------------------------------------------------------------------------
@@ -3869,6 +3905,7 @@ def build_app() -> Application:
     app.add_handler(CommandHandler("roll", _roll_command, filters=_private))
     app.add_handler(CommandHandler("reroll", _reroll_command, filters=_private))
     app.add_handler(CommandHandler("vg_list", _vg_list_command, filters=_private))
+    app.add_handler(CommandHandler("consult_list", _consult_list_command, filters=_private))
     app.add_handler(CommandHandler("ae_set_terms", _ae_set_terms_command, filters=_private))
     app.add_handler(CommandHandler("set_guidebook", _set_guidebook_command, filters=_private))
     app.add_handler(CommandHandler("guidebook_count", _guidebook_count_command, filters=_private))
