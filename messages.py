@@ -1088,6 +1088,70 @@ BTN_CONSULT_IMRON = "🗓 Book with Imron — European Admissions"
 BTN_CONSULT_UMID = "🗓 Book with Umid — Competitive Asian Admissions"
 
 # ---------------------------------------------------------------------------
+# Consultation Giveaway with Valera — lottery (subscribe → join → /roll)
+# ---------------------------------------------------------------------------
+
+BTN_VALERA_GIVEAWAY = "💥 Consultation Giveaway with Valera"
+
+VG_COMING_SOON = (
+    "🚧 The Consultation Giveaway with Valera is coming soon. Stay tuned!"
+)
+
+VG_INTRO = (
+    "💥 <b>Consultation Giveaway with Valera</b>\n\n"
+    "Valera, Founder of Freshman Academy, has consulted students admitted to "
+    "Harvard, Princeton, Yale, Cornell, Columbia, UPenn, Stanford, "
+    "UC Berkeley, Brown, and many more.\n\n"
+    "Win <b>3 consultations with Valera</b>, worth <b>$360</b>, by following "
+    "the instructions and pressing the button below.\n\n"
+    "<b>How to enter:</b>\n"
+    "1️⃣ Subscribe to @valeranotes and @freshmanblog\n"
+    "2️⃣ Tap the button below to join the draw"
+)
+
+VG_JOIN_PROMPT = "Tap below to join the giveaway:"
+BTN_VG_JOIN = "🎉 Join the giveaway"
+
+VG_MUST_JOIN = (
+    "To join the giveaway, please subscribe to both channels first:\n"
+    "{channel_list}\n\n"
+    "Once you've subscribed, tap the button below."
+)
+BTN_VG_CHECK = "✅ I've subscribed — check again"
+
+VG_ALREADY_PARTICIPATING = (
+    "You're already in the draw! We'll announce the winner through the bot. 🎉"
+)
+VG_NOW_PARTICIPATING = (
+    "🎉 You are now participating!\n\n"
+    "We will announce the winner through the bot. Good luck!"
+)
+
+# /roll and /reroll — winner draw (Person X only)
+ROLL_NO_PARTICIPANTS = "No participants yet."
+ROLL_ONLY_ONE = "Only one participant — can't pick someone different."
+ROLL_USE_FIRST = "Use /roll first."
+ROLL_RESULT = '🎲 Result: <a href="tg://user?id={chat_id}">{first_name}</a>{username_part}'
+REROLL_RESULT = '🎲 Re-rolled: <a href="tg://user?id={chat_id}">{first_name}</a>{username_part}'
+
+BTN_CONFIRM_WINNER = "✅ Confirm Winner"
+BTN_REROLL_INLINE = "🎲 Reroll"
+
+ROLL_CONFIRMING = "⏳ Winner confirmed — notifying {count} participants…"
+ROLL_WINNER_NOTIFY = (
+    "Congratulations! 🎉\n\n"
+    "You have won the Consultation Giveaway with Valera: three consultations "
+    "with Valera, Founder of Freshman Academy, worth $360.\n\n"
+    "Valera will contact you personally with the next steps."
+)
+ROLL_LOSER_NOTIFY = (
+    "Thank you for participating in the Consultation Giveaway with Valera!\n\n"
+    "Unfortunately, you were not selected this time. "
+    "Stay tuned, we will be launching more opportunities soon."
+)
+ROLL_CONFIRMED = "✅ Winner confirmed. Notifications sent: {sent} delivered, {failed} failed."
+
+# ---------------------------------------------------------------------------
 # Event gate \u2014 student flow
 # ---------------------------------------------------------------------------
 EG_NOT_MEMBER = (

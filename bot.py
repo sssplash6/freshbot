@@ -4,6 +4,7 @@ import html
 import io
 import json
 import logging
+import random
 import time
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -144,6 +145,7 @@ _NAV_BUTTONS: frozenset[str] = frozenset({
     msg.BTN_HOME, msg.BTN_START,
     msg.BTN_ADV_ENGLISH, msg.BTN_SAT_ENROLL, msg.BTN_TRIAL_AP,
     msg.BTN_GET_GUIDEBOOK, msg.BTN_GETTING_IN, msg.BTN_MERCH, msg.BTN_CONSULT,
+    msg.BTN_VALERA_GIVEAWAY,
     # Program sub-menu
     msg.BTN_SAT, msg.BTN_ADMISSIONS, msg.BTN_FULL_SUPPORT, msg.BTN_MASTERS,
     msg.BTN_ADV_PLACEMENT, msg.BTN_IMKON, msg.BTN_RESEARCH_INSTITUTE,
@@ -162,10 +164,11 @@ _NAV_BUTTONS: frozenset[str] = frozenset({
 def _main_keyboard() -> ReplyKeyboardMarkup:
     return ReplyKeyboardMarkup(
         [
-            [msg.BTN_MERCH, msg.BTN_CONSULT],
+            [msg.BTN_VALERA_GIVEAWAY, msg.BTN_CONSULT],
             [msg.BTN_GETTING_IN, msg.BTN_GET_GUIDEBOOK],
             [msg.BTN_ADV_ENGLISH, msg.BTN_SAT_ENROLL],
             [msg.BTN_PROGRAMS, msg.BTN_GENERAL_INQUIRY],
+            [msg.BTN_MERCH],
         ],
         resize_keyboard=True,
         is_persistent=True,
@@ -502,6 +505,8 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         await _merch_begin(context.bot, chat_id)
     elif text == msg.BTN_CONSULT:
         await _consult_begin(context.bot, chat_id)
+    elif text == msg.BTN_VALERA_GIVEAWAY:
+        await _vg_begin(context.bot, chat_id)
     elif text == msg.BTN_SAT:
         await _handle_program(update, chat_id, msg.BTN_SAT)
     elif text == msg.BTN_ADMISSIONS:
@@ -2915,6 +2920,248 @@ async def _consult_check_callback(update: Update, context: ContextTypes.DEFAULT_
 
 
 # ---------------------------------------------------------------------------
+# Consultation Giveaway with Valera — subscribe to both channels to enter the
+# draw; Person X picks the winner with /roll + /reroll
+# ---------------------------------------------------------------------------
+
+# Coming-soon gate. True = giveaway is live for everyone. False = only /santix
+# bypass users see it (everyone else gets VG_COMING_SOON). Gated in _vg_begin
+# and both inline callbacks, so the menu button and old check-again buttons
+# are all covered.
+VG_LIVE = False
+
+# The bot must be an admin in both channels for the membership check to work.
+VG_REQUIRED_IDS = [-1001188644050, -1001481432083]
+VG_REQUIRED_HANDLES = ["@valeranotes", "@freshmanblog"]
+
+# Tracks the last rolled participant so /reroll can exclude them.
+_roll_state: dict = {"last_id": None}
+
+
+async def _vg_is_member(bot, channel_id: int | str, chat_id: int) -> bool:
+    """True if chat_id is a member of channel_id. Fails open on API error."""
+    try:
+        member = await bot.get_chat_member(channel_id, chat_id)
+        return member.status in _MEMBER_STATUSES
+    except TelegramError:
+        logger.warning("Cannot check giveaway membership in %s. Failing open.", channel_id)
+        return True
+
+
+async def _vg_get_missing(bot, chat_id: int) -> list[str]:
+    results = await asyncio.gather(
+        *(_vg_is_member(bot, cid, chat_id) for cid in VG_REQUIRED_IDS)
+    )
+    return [h for h, ok in zip(VG_REQUIRED_HANDLES, results) if not ok]
+
+
+async def _vg_begin(bot, chat_id: int) -> None:
+    """Send the giveaway promo, then the join prompt with the entry button."""
+    if not VG_LIVE and chat_id not in _bypass_users:
+        await bot.send_message(chat_id=chat_id, text=msg.VG_COMING_SOON)
+        return
+    await bot.send_message(
+        chat_id=chat_id,
+        text=msg.VG_INTRO,
+        parse_mode="HTML",
+        disable_web_page_preview=True,
+    )
+    # The join button lives on its own message so the gate/confirmation edits
+    # don't wipe the promo off the screen.
+    await bot.send_message(
+        chat_id=chat_id,
+        text=msg.VG_JOIN_PROMPT,
+        reply_markup=InlineKeyboardMarkup(
+            [[InlineKeyboardButton(msg.BTN_VG_JOIN, callback_data="vg_join")]]
+        ),
+    )
+
+
+async def _vg_edit(query, *args, **kwargs) -> None:
+    try:
+        await query.edit_message_text(*args, **kwargs)
+    except TelegramError as e:
+        if "not modified" not in str(e).lower():
+            raise
+
+
+async def _vg_join_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Shared by vg_join and vg_check — verify the subscriptions, then enter
+    the user into the draw (or re-gate them if they unsubscribed)."""
+    query = update.callback_query
+    user = update.effective_user
+    if not VG_LIVE and user.id not in _bypass_users:
+        await query.answer(msg.VG_COMING_SOON, show_alert=True)
+        return
+    await _safe_answer(query)
+
+    check_keyboard = InlineKeyboardMarkup(
+        [[InlineKeyboardButton(msg.BTN_VG_CHECK, callback_data="vg_check")]]
+    )
+    missing = await _vg_get_missing(context.bot, user.id)
+    if missing:
+        # Left a channel after joining? Drop them from the draw until they're
+        # subscribed again.
+        await db.vg_remove_participant(user.id)
+        channel_list = "\n".join(f"• {h}" for h in missing)
+        await _vg_edit(
+            query,
+            msg.VG_MUST_JOIN.format(channel_list=channel_list),
+            reply_markup=check_keyboard,
+        )
+        return
+
+    if await db.vg_get_participant(user.id):
+        await _vg_edit(query, msg.VG_ALREADY_PARTICIPATING)
+        return
+    await db.vg_add_participant(user.id, user.first_name, user.username)
+    await _vg_edit(query, msg.VG_NOW_PARTICIPATING)
+
+
+async def _vg_list_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    if update.effective_user.id != PERSON_X_CHAT_ID:
+        return
+    participants = await db.vg_get_all_participants()
+    if not participants:
+        await update.message.reply_text(msg.ROLL_NO_PARTICIPANTS)
+        return
+    lines = [
+        f"{i + 1}. {p['first_name']}" + (f" (@{p['username']})" if p.get("username") else "")
+        for i, p in enumerate(participants)
+    ]
+    current = f"Giveaway participants: {len(participants)}\n\n"
+    for line in lines:
+        if len(current) + len(line) + 1 > 4096:
+            await update.message.reply_text(current)
+            current = ""
+        current += line + "\n"
+    if current:
+        await update.message.reply_text(current)
+
+
+def _roll_format(participant: dict, header: str) -> str:
+    username_part = f" (@{participant['username']})" if participant.get("username") else ""
+    return header.format(
+        chat_id=participant["chat_id"],
+        first_name=participant["first_name"],
+        username_part=username_part,
+    )
+
+
+def _roll_keyboard(winner_chat_id: int) -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup([[
+        InlineKeyboardButton(msg.BTN_CONFIRM_WINNER, callback_data=f"vg_confirm:{winner_chat_id}"),
+        InlineKeyboardButton(msg.BTN_REROLL_INLINE, callback_data="vg_reroll"),
+    ]])
+
+
+async def _roll_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    if update.effective_user.id != PERSON_X_CHAT_ID:
+        return
+    participants = await db.vg_get_all_participants()
+    if not participants:
+        await update.message.reply_text(msg.ROLL_NO_PARTICIPANTS)
+        return
+    winner = random.choice(participants)
+    _roll_state["last_id"] = winner["chat_id"]
+    await update.message.reply_text(
+        _roll_format(winner, msg.ROLL_RESULT),
+        parse_mode="HTML",
+        reply_markup=_roll_keyboard(winner["chat_id"]),
+    )
+
+
+async def _reroll_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    if update.effective_user.id != PERSON_X_CHAT_ID:
+        return
+    if _roll_state["last_id"] is None:
+        await update.message.reply_text(msg.ROLL_USE_FIRST)
+        return
+    participants = await db.vg_get_all_participants()
+    pool = [p for p in participants if p["chat_id"] != _roll_state["last_id"]]
+    if not pool:
+        await update.message.reply_text(msg.ROLL_ONLY_ONE)
+        return
+    winner = random.choice(pool)
+    _roll_state["last_id"] = winner["chat_id"]
+    await update.message.reply_text(
+        _roll_format(winner, msg.REROLL_RESULT),
+        parse_mode="HTML",
+        reply_markup=_roll_keyboard(winner["chat_id"]),
+    )
+
+
+async def _vg_reroll_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    query = update.callback_query
+    await _safe_answer(query)
+    if update.effective_user.id != PERSON_X_CHAT_ID:
+        return
+    if _roll_state["last_id"] is None:
+        await _vg_edit(query, msg.ROLL_USE_FIRST)
+        return
+    participants = await db.vg_get_all_participants()
+    pool = [p for p in participants if p["chat_id"] != _roll_state["last_id"]]
+    if not pool:
+        await _vg_edit(query, msg.ROLL_ONLY_ONE)
+        return
+    winner = random.choice(pool)
+    _roll_state["last_id"] = winner["chat_id"]
+    await _vg_edit(
+        query,
+        _roll_format(winner, msg.REROLL_RESULT),
+        parse_mode="HTML",
+        reply_markup=_roll_keyboard(winner["chat_id"]),
+    )
+
+
+async def _vg_confirm_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Notify every participant of the outcome — winner text for the winner,
+    better-luck text for everyone else. Runs in the background so a big
+    participant list doesn't stall the handler."""
+    query = update.callback_query
+    await _safe_answer(query)
+    if update.effective_user.id != PERSON_X_CHAT_ID:
+        return
+    winner_chat_id = int(query.data.split(":")[1])
+    participants = await db.vg_get_all_participants()
+    _roll_state["last_id"] = None
+    await _vg_edit(query, msg.ROLL_CONFIRMING.format(count=len(participants)))
+
+    async def _run() -> None:
+        sent = failed = 0
+        # Same batching as /broadcastkeyboard — stay under Telegram's flood
+        # limit and keep the connection pool free for live replies.
+        batch_size = 20
+        batch_pause = 1.5
+
+        async def _send_one(p: dict) -> None:
+            nonlocal sent, failed
+            text = (
+                msg.ROLL_WINNER_NOTIFY
+                if p["chat_id"] == winner_chat_id
+                else msg.ROLL_LOSER_NOTIFY
+            )
+            try:
+                await context.bot.send_message(chat_id=p["chat_id"], text=text)
+                sent += 1
+            except Exception as e:
+                logger.warning(
+                    "Failed to notify giveaway participant chat_id=%d: %s", p["chat_id"], e
+                )
+                failed += 1
+
+        for start in range(0, len(participants), batch_size):
+            await asyncio.gather(*(_send_one(p) for p in participants[start:start + batch_size]))
+            await asyncio.sleep(batch_pause)
+        await context.bot.send_message(
+            chat_id=PERSON_X_CHAT_ID,
+            text=msg.ROLL_CONFIRMED.format(sent=sent, failed=failed),
+        )
+
+    asyncio.create_task(_run())
+
+
+# ---------------------------------------------------------------------------
 # SAT enrollments — admin list view
 # ---------------------------------------------------------------------------
 
@@ -3620,6 +3867,9 @@ def build_app() -> Application:
     app.add_handler(CommandHandler("econ_list", _econ_list_command, filters=_private))
     app.add_handler(CommandHandler("merch_list", _merch_list_command, filters=_private))
     app.add_handler(CommandHandler("set_merch_qr", _set_merch_qr_command, filters=_private))
+    app.add_handler(CommandHandler("roll", _roll_command, filters=_private))
+    app.add_handler(CommandHandler("reroll", _reroll_command, filters=_private))
+    app.add_handler(CommandHandler("vg_list", _vg_list_command, filters=_private))
     app.add_handler(CommandHandler("ae_set_terms", _ae_set_terms_command, filters=_private))
     app.add_handler(CommandHandler("set_guidebook", _set_guidebook_command, filters=_private))
     app.add_handler(CommandHandler("guidebook_count", _guidebook_count_command, filters=_private))
@@ -3654,6 +3904,10 @@ def build_app() -> Application:
     app.add_handler(CallbackQueryHandler(_merch_checkout_callback, pattern="^merch_checkout$"))
     app.add_handler(CallbackQueryHandler(_consult_open_callback, pattern="^consult_open$"))
     app.add_handler(CallbackQueryHandler(_consult_check_callback, pattern="^consult_check$"))
+    app.add_handler(CallbackQueryHandler(_vg_join_callback, pattern="^vg_join$"))
+    app.add_handler(CallbackQueryHandler(_vg_join_callback, pattern="^vg_check$"))
+    app.add_handler(CallbackQueryHandler(_vg_confirm_callback, pattern="^vg_confirm:"))
+    app.add_handler(CallbackQueryHandler(_vg_reroll_callback, pattern="^vg_reroll$"))
     app.add_handler(CallbackQueryHandler(_econ_course_callback, pattern="^econ_course:"))
     app.add_handler(CallbackQueryHandler(_econ_done_callback, pattern="^econ_done$"))
     app.add_handler(CallbackQueryHandler(_ae_program_faq_callback, pattern="^ae_program_faq$"))

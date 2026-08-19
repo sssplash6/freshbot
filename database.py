@@ -177,6 +177,14 @@ async def init_db() -> None:
                 ordered_at  TEXT NOT NULL
             )
         """)
+        await db.execute("""
+            CREATE TABLE IF NOT EXISTS valera_giveaway_participants (
+                chat_id     INTEGER PRIMARY KEY,
+                first_name  TEXT NOT NULL,
+                username    TEXT,
+                joined_at   TEXT NOT NULL
+            )
+        """)
         for _col in [
             "ALTER TABLE users ADD COLUMN guidebook_sent_at TEXT",
             "ALTER TABLE adv_english_applications ADD COLUMN video_file_id TEXT",
@@ -1216,3 +1224,51 @@ async def masters_webinar_toggle_attended(chat_id: int) -> bool | None:
         )
         await db.commit()
         return bool(new_state)
+
+
+# ---------------------------------------------------------------------------
+# Consultation Giveaway with Valera — lottery participants
+# ---------------------------------------------------------------------------
+
+async def vg_add_participant(
+    chat_id: int, first_name: str, username: str | None
+) -> None:
+    now = datetime.now(timezone.utc).isoformat()
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute(
+            """INSERT OR IGNORE INTO valera_giveaway_participants
+               (chat_id, first_name, username, joined_at)
+               VALUES (?, ?, ?, ?)""",
+            (chat_id, first_name, username, now),
+        )
+        await db.commit()
+
+
+async def vg_get_participant(chat_id: int) -> dict | None:
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute(
+            "SELECT * FROM valera_giveaway_participants WHERE chat_id = ?",
+            (chat_id,),
+        ) as cursor:
+            row = await cursor.fetchone()
+            return dict(row) if row else None
+
+
+async def vg_remove_participant(chat_id: int) -> None:
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute(
+            "DELETE FROM valera_giveaway_participants WHERE chat_id = ?",
+            (chat_id,),
+        )
+        await db.commit()
+
+
+async def vg_get_all_participants() -> list[dict]:
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute(
+            "SELECT * FROM valera_giveaway_participants ORDER BY joined_at"
+        ) as cursor:
+            rows = await cursor.fetchall()
+            return [dict(r) for r in rows]
