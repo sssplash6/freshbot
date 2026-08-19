@@ -2807,7 +2807,7 @@ async def _merch_list_command(update: Update, context: ContextTypes.DEFAULT_TYPE
 # bypass users see it (everyone else gets CONSULT_COMING_SOON). Gated in
 # _consult_begin and both inline callbacks, so the menu button, the
 # consult_open broadcast button, and old check-again buttons are all covered.
-CONSULT_LIVE = False
+CONSULT_LIVE = True
 
 # The bot must be an admin in both channels for the membership check to work.
 CONSULT_REQUIRED_IDS = [-1004469434703, -1001481432083]
