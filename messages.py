@@ -1013,81 +1013,62 @@ MERCH_QR_PROMPT = (
 MERCH_QR_SAVED = "✅ Payme QR saved. Merch orders will now end with this QR code."
 
 # ---------------------------------------------------------------------------
-# Freshman Global — free strategy & EC consultations (subscription giveaway)
+# SAT Freshman — free SAT strategy consultations (subscription giveaway)
 # ---------------------------------------------------------------------------
 
-BTN_CONSULT = "💸 Freshman Global - Free Consultations"
+BTN_SAT_CONSULT = "📚 SAT Freshman - Free Consultations"
 
-CONSULT_COMING_SOON = (
-    "🚧 Free strategy consultations are coming soon. Stay tuned!"
+SATC_COMING_SOON = (
+    "🚧 Free SAT strategy consultations are coming soon. Stay tuned!"
 )
 
-CONSULT_INTRO = (
-    "💸 <b>Freshman Global — Free Strategy & EC Consultations</b>\n\n"
-    "The Freshman Global team is offering free strategy consultations on "
-    "applying to top Asian and European universities!\n\n"
-    "Our consultants will help you identify scholarship-granting universities "
-    "and assess your profile's strengths and weaknesses. Moreover, each has "
-    "substantial professional experience in everything from Politics to AI "
-    "and Machine Learning — they can help evaluate and expand your "
-    "extracurricular profile.\n\n"
-    "<b>The Consultants:</b>\n\n"
-    "<b>Hasan</b> — East China University of Science and Technology\n"
-    "<i>BSc in AI | Broader Asian Admissions | AI Engineer and Researcher</i>\n\n"
-    "<b>Imron</b> — LUISS Guido Carli University (Italy)\n"
-    "<i>LL.B in Global Law Studies | European Admissions | Experience in "
-    "Corporate Law</i>\n\n"
-    "<b>Umid</b> — Hong Kong University (HKU)\n"
-    "<i>BSc in Software Engineering & BA in Philosophy | Competitive Asian "
-    "Admissions | Software Engineer in AI and Human-Computer Interactions</i>\n\n"
-    "To schedule a free consultation, follow the steps below!"
+SATC_INTRO = (
+    "📚 <b>SAT Freshman — Free SAT Strategy Consultations</b>\n\n"
+    "The SAT Freshman is giving away free SAT strategy consultations to "
+    "everyone who just wants to start studying for SAT or taking it soon!\n\n"
+    "During the consultation, we will help you identify your weak areas and "
+    "build a preparation strategy.\n\n"
+    "To claim your free consultation, follow the steps below!"
 )
 
-# /broadcastkeyboard giveaway announcement — the menu flow keeps CONSULT_INTRO.
-CONSULT_ANNOUNCEMENT = (
-    "🎁 <b>New Giveaway: Free Strategy & EC Consultations!</b>\n\n"
-    "The Freshman Global team is giving away <b>free</b> strategy "
-    "consultations on applying to top Asian and European universities!\n\n"
-    "Our consultants will help you identify scholarship-granting universities "
-    "and assess your profile's strengths and weaknesses. Each has substantial "
-    "professional experience in everything from Politics to AI and Machine "
-    "Learning — they can help evaluate and expand your extracurricular "
-    "profile.\n\n"
-    "<b>The Consultants:</b>\n\n"
-    "<b>Hasan</b> — East China University of Science and Technology\n"
-    "<i>BSc in AI | Broader Asian Admissions | AI Engineer and Researcher</i>\n\n"
-    "<b>Imron</b> — LUISS Guido Carli University (Italy)\n"
-    "<i>LL.B in Global Law Studies | European Admissions | Experience in "
-    "Corporate Law</i>\n\n"
-    "<b>Umid</b> — Hong Kong University (HKU)\n"
-    "<i>BSc in Software Engineering & BA in Philosophy | Competitive Asian "
-    "Admissions | Software Engineer in AI and Human-Computer Interactions</i>\n\n"
+# /broadcastkeyboard giveaway announcement — the menu flow keeps SATC_INTRO.
+SATC_ANNOUNCEMENT = (
+    "🎁 <b>New Giveaway: Free SAT Strategy Consultations!</b>\n\n"
+    "The SAT Freshman is giving away free SAT strategy consultations to "
+    "everyone who just wants to start studying for SAT or taking it soon!\n\n"
+    "During the consultation, we will help you identify your weak areas and "
+    "build a preparation strategy.\n\n"
     "<b>How to claim your consultation:</b>\n"
-    "1️⃣ Subscribe to @freshmanglobal and @freshmanblog\n"
+    "1️⃣ Subscribe to @satfreshman and @freshmanblog\n"
     "2️⃣ Tap the button below\n"
-    "3️⃣ Pick a consultant and book a time that works for you"
+    "3️⃣ Book a time slot"
 )
 
 # The inline button under the announcement runs the subscription gate.
-BTN_CONSULT_OPEN = "📅 Schedule a free consultation"
+BTN_SATC_OPEN = "📅 Claim your free consultation"
 
-CONSULT_MUST_JOIN = (
-    "To schedule a free consultation, please subscribe to both channels first:\n"
+SATC_MUST_JOIN = (
+    "To claim your free SAT consultation, please subscribe to both channels "
+    "first:\n"
     "{channel_list}\n\n"
     "Once you've subscribed, tap the button below."
 )
 
-BTN_CONSULT_CHECK = "✅ I've subscribed — check again"
+BTN_SATC_CHECK = "✅ I've subscribed — check again"
 
-CONSULT_ACCESS_GRANTED = (
-    "✅ You're all set — pick a consultant and book your free consultation below!"
+SATC_ACCESS_GRANTED = (
+    "✅ You're all set — book your free SAT strategy consultation below!"
 )
 
-CONSULT_LIST_EMPTY = "No one has claimed consultation access yet."
+BTN_SATC_BOOK = "🗓 Book your consultation"
 
-BTN_CONSULT_HASAN = "🗓 Book with Hasan — Asian Admissions"
-BTN_CONSULT_IMRON = "🗓 Book with Imron — European Admissions"
-BTN_CONSULT_UMID = "🗓 Book with Umid — Competitive Asian Admissions"
+SATC_LIST_EMPTY = "No one has claimed an SAT consultation yet."
+
+# Shown to anyone tapping a leftover button under the retired Freshman Global
+# free-consultations announcement.
+CONSULT_ENDED = (
+    "This giveaway has ended. Check the menu for what's running now!"
+)
 
 # ---------------------------------------------------------------------------
 # Consultation Giveaway with Valera — lottery (subscribe → join → /roll)

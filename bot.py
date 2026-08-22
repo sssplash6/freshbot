@@ -144,7 +144,7 @@ _NAV_BUTTONS: frozenset[str] = frozenset({
     msg.BTN_PROGRAMS, msg.BTN_GENERAL_INQUIRY, msg.BTN_PODCAST,
     msg.BTN_HOME, msg.BTN_START,
     msg.BTN_ADV_ENGLISH, msg.BTN_SAT_ENROLL, msg.BTN_TRIAL_AP,
-    msg.BTN_GET_GUIDEBOOK, msg.BTN_GETTING_IN, msg.BTN_MERCH, msg.BTN_CONSULT,
+    msg.BTN_GET_GUIDEBOOK, msg.BTN_GETTING_IN, msg.BTN_MERCH, msg.BTN_SAT_CONSULT,
     msg.BTN_VALERA_GIVEAWAY,
     # Program sub-menu
     msg.BTN_SAT, msg.BTN_ADMISSIONS, msg.BTN_FULL_SUPPORT, msg.BTN_MASTERS,
@@ -164,7 +164,7 @@ _NAV_BUTTONS: frozenset[str] = frozenset({
 def _main_keyboard() -> ReplyKeyboardMarkup:
     return ReplyKeyboardMarkup(
         [
-            [msg.BTN_VALERA_GIVEAWAY, msg.BTN_CONSULT],
+            [msg.BTN_VALERA_GIVEAWAY, msg.BTN_SAT_CONSULT],
             [msg.BTN_MERCH, msg.BTN_GET_GUIDEBOOK],
             [msg.BTN_ADV_ENGLISH, msg.BTN_SAT_ENROLL],
             [msg.BTN_PROGRAMS, msg.BTN_GENERAL_INQUIRY],
@@ -502,8 +502,8 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         await _handle_getting_in(update, chat_id)
     elif text == msg.BTN_MERCH:
         await _merch_begin(context.bot, chat_id)
-    elif text == msg.BTN_CONSULT:
-        await _consult_begin(context.bot, chat_id)
+    elif text == msg.BTN_SAT_CONSULT:
+        await _satc_begin(context.bot, chat_id)
     elif text == msg.BTN_VALERA_GIVEAWAY:
         await _vg_begin(context.bot, chat_id)
     elif text == msg.BTN_SAT:
@@ -1619,15 +1619,15 @@ async def _broadcast_keyboard_command(
         async def _send_one(cid: int) -> None:
             nonlocal sent, failed, first_error
             try:
-                # Valera giveaway announcement — the button runs the
-                # subscription gate and enters the user into the draw.
+                # SAT consultations giveaway announcement — the button runs
+                # the subscription gate and hands over the booking link.
                 await context.bot.send_message(
                     chat_id=cid,
-                    text=msg.VG_INTRO,
+                    text=msg.SATC_ANNOUNCEMENT,
                     parse_mode="HTML",
                     disable_web_page_preview=True,
                     reply_markup=InlineKeyboardMarkup([
-                        [InlineKeyboardButton(msg.BTN_VG_JOIN, callback_data="vg_open")],
+                        [InlineKeyboardButton(msg.BTN_SATC_OPEN, callback_data="satc_open")],
                     ]),
                 )
                 sent += 1
@@ -2800,151 +2800,149 @@ async def _merch_list_command(update: Update, context: ContextTypes.DEFAULT_TYPE
 
 
 # ---------------------------------------------------------------------------
-# Freshman Global consultations — subscribe to both channels, then book
+# SAT Freshman consultations — subscribe to both channels, then book a slot
 # ---------------------------------------------------------------------------
 
 # Coming-soon gate. True = giveaway is live for everyone. False = only /santix
-# bypass users see it (everyone else gets CONSULT_COMING_SOON). Gated in
-# _consult_begin and both inline callbacks, so the menu button, the
-# consult_open broadcast button, and old check-again buttons are all covered.
-CONSULT_LIVE = True
+# bypass users see it (everyone else gets SATC_COMING_SOON). Gated in
+# _satc_begin and both inline callbacks, so the menu button, the satc_open
+# broadcast button, and old check-again buttons are all covered.
+SATC_LIVE = True
 
 # The bot must be an admin in both channels for the membership check to work.
-CONSULT_REQUIRED_IDS = [-1004469434703, -1001481432083]
-CONSULT_REQUIRED_HANDLES = ["@freshmanglobal", "@freshmanblog"]
+# @satfreshman goes in by handle — get_chat_member takes either, so swap in its
+# numeric ID if the channel ever goes private.
+SATC_REQUIRED_IDS = ["@satfreshman", -1001481432083]
+SATC_REQUIRED_HANDLES = ["@satfreshman", "@freshmanblog"]
 
-CONSULT_BOOKING_LINKS = [
-    (msg.BTN_CONSULT_HASAN, "https://calendar.app.google/HZj8xkyA46BbnVT78"),
-    (msg.BTN_CONSULT_IMRON, "https://cal.com/imron-kadyrov-pvcj3q/20-minutes-way-to-europe"),
-    (msg.BTN_CONSULT_UMID, "https://calendar.app.google/o1WZ1FcCBS5iBNic8"),
-]
+SATC_BOOKING_URL = "https://calendar.app.google/5UA6X1zCVnBnypQM7"
 
 
-def _consult_links_keyboard() -> InlineKeyboardMarkup:
+def _satc_links_keyboard() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
-        [[InlineKeyboardButton(label, url=url)] for label, url in CONSULT_BOOKING_LINKS]
+        [[InlineKeyboardButton(msg.BTN_SATC_BOOK, url=SATC_BOOKING_URL)]]
     )
 
 
-async def _consult_is_member(bot, channel_id: int | str, chat_id: int) -> bool:
+async def _satc_is_member(bot, channel_id: int | str, chat_id: int) -> bool:
     """True if chat_id is a member of channel_id. Fails open on API error."""
     try:
         member = await bot.get_chat_member(channel_id, chat_id)
         return member.status in _MEMBER_STATUSES
     except TelegramError:
-        logger.warning("Cannot check consult membership in %s. Failing open.", channel_id)
+        logger.warning("Cannot check SAT consult membership in %s. Failing open.", channel_id)
         return True
 
 
-async def _consult_get_missing(bot, chat_id: int) -> list[str]:
+async def _satc_get_missing(bot, chat_id: int) -> list[str]:
     results = await asyncio.gather(
-        *(_consult_is_member(bot, cid, chat_id) for cid in CONSULT_REQUIRED_IDS)
+        *(_satc_is_member(bot, cid, chat_id) for cid in SATC_REQUIRED_IDS)
     )
-    return [h for h, ok in zip(CONSULT_REQUIRED_HANDLES, results) if not ok]
+    return [h for h, ok in zip(SATC_REQUIRED_HANDLES, results) if not ok]
 
 
-async def _consult_record_claim(user, chat_id: int) -> None:
-    """Log who passed the gate and got the booking links (first claim keeps
-    its timestamp). Falls back to the users table when no Telegram user object
-    is at hand (the menu-button path)."""
+async def _satc_record_claim(user, chat_id: int) -> None:
+    """Log who passed the gate and got the booking link (first claim keeps its
+    timestamp). Falls back to the users table when no Telegram user object is
+    at hand (the menu-button path)."""
     if user is not None:
         first_name, username = user.first_name, user.username
     else:
         row = await db.get_user(chat_id)
         first_name = (row or {}).get("first_name")
         username = (row or {}).get("username")
-    await db.consult_add_claim(chat_id, first_name, username)
+    await db.satc_add_claim(chat_id, first_name, username)
 
 
-async def _consult_send_gate(bot, chat_id: int, user=None) -> None:
-    missing = await _consult_get_missing(bot, chat_id)
+async def _satc_send_gate(bot, chat_id: int, user=None) -> None:
+    missing = await _satc_get_missing(bot, chat_id)
     if missing:
         channel_list = "\n".join(f"• {h}" for h in missing)
         await bot.send_message(
             chat_id=chat_id,
-            text=msg.CONSULT_MUST_JOIN.format(channel_list=channel_list),
+            text=msg.SATC_MUST_JOIN.format(channel_list=channel_list),
             reply_markup=InlineKeyboardMarkup(
-                [[InlineKeyboardButton(msg.BTN_CONSULT_CHECK, callback_data="consult_check")]]
+                [[InlineKeyboardButton(msg.BTN_SATC_CHECK, callback_data="satc_check")]]
             ),
         )
         return
-    await _consult_record_claim(user, chat_id)
+    await _satc_record_claim(user, chat_id)
     await bot.send_message(
         chat_id=chat_id,
-        text=msg.CONSULT_ACCESS_GRANTED,
-        reply_markup=_consult_links_keyboard(),
+        text=msg.SATC_ACCESS_GRANTED,
+        reply_markup=_satc_links_keyboard(),
     )
 
 
-async def _consult_begin(bot, chat_id: int) -> None:
-    """Send the giveaway promo, then either the must-join gate or the links."""
-    if not CONSULT_LIVE and chat_id not in _bypass_users:
-        await bot.send_message(chat_id=chat_id, text=msg.CONSULT_COMING_SOON)
+async def _satc_begin(bot, chat_id: int) -> None:
+    """Send the giveaway promo, then either the must-join gate or the link."""
+    if not SATC_LIVE and chat_id not in _bypass_users:
+        await bot.send_message(chat_id=chat_id, text=msg.SATC_COMING_SOON)
         return
     await bot.send_message(
         chat_id=chat_id,
-        text=msg.CONSULT_INTRO,
+        text=msg.SATC_INTRO,
         parse_mode="HTML",
         disable_web_page_preview=True,
     )
-    await _consult_send_gate(bot, chat_id)
+    await _satc_send_gate(bot, chat_id)
 
 
-async def _consult_open_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+async def _satc_open_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     # Inline button under the /broadcastkeyboard announcement — the promo is
     # already on screen, so go straight to the subscription gate.
     query = update.callback_query
-    if not CONSULT_LIVE and update.effective_user.id not in _bypass_users:
-        await query.answer(msg.CONSULT_COMING_SOON, show_alert=True)
+    if not SATC_LIVE and update.effective_user.id not in _bypass_users:
+        await query.answer(msg.SATC_COMING_SOON, show_alert=True)
         return
     await _safe_answer(query)
-    await _consult_send_gate(context.bot, update.effective_user.id, update.effective_user)
+    await _satc_send_gate(context.bot, update.effective_user.id, update.effective_user)
 
 
-async def _consult_check_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+async def _satc_check_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     query = update.callback_query
-    if not CONSULT_LIVE and update.effective_user.id not in _bypass_users:
-        await query.answer(msg.CONSULT_COMING_SOON, show_alert=True)
+    if not SATC_LIVE and update.effective_user.id not in _bypass_users:
+        await query.answer(msg.SATC_COMING_SOON, show_alert=True)
         return
     await _safe_answer(query)
     chat_id = update.effective_user.id
-    missing = await _consult_get_missing(context.bot, chat_id)
+    missing = await _satc_get_missing(context.bot, chat_id)
     if missing:
         channel_list = "\n".join(f"• {h}" for h in missing)
         try:
             await query.edit_message_text(
-                msg.CONSULT_MUST_JOIN.format(channel_list=channel_list),
+                msg.SATC_MUST_JOIN.format(channel_list=channel_list),
                 reply_markup=InlineKeyboardMarkup(
-                    [[InlineKeyboardButton(msg.BTN_CONSULT_CHECK, callback_data="consult_check")]]
+                    [[InlineKeyboardButton(msg.BTN_SATC_CHECK, callback_data="satc_check")]]
                 ),
             )
         except TelegramError as e:
             if "not modified" not in str(e).lower():
                 raise
         return
-    await _consult_record_claim(update.effective_user, chat_id)
+    await _satc_record_claim(update.effective_user, chat_id)
     try:
         await query.edit_message_text(
-            msg.CONSULT_ACCESS_GRANTED,
-            reply_markup=_consult_links_keyboard(),
+            msg.SATC_ACCESS_GRANTED,
+            reply_markup=_satc_links_keyboard(),
         )
     except TelegramError as e:
         if "not modified" not in str(e).lower():
             raise
 
 
-async def _consult_list_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+async def _satc_list_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if update.effective_user.id != PERSON_X_CHAT_ID:
         return
-    claims = await db.consult_get_all_claims()
+    claims = await db.satc_get_all_claims()
     if not claims:
-        await update.message.reply_text(msg.CONSULT_LIST_EMPTY)
+        await update.message.reply_text(msg.SATC_LIST_EMPTY)
         return
     lines = [
         f"{i + 1}. {c['first_name'] or '—'}" + (f" (@{c['username']})" if c.get("username") else "")
         for i, c in enumerate(claims)
     ]
-    current = f"Consultation claims: {len(claims)}\n\n"
+    current = f"SAT consultation claims: {len(claims)}\n\n"
     for line in lines:
         if len(current) + len(line) + 1 > 4096:
             await update.message.reply_text(current)
@@ -2952,6 +2950,12 @@ async def _consult_list_command(update: Update, context: ContextTypes.DEFAULT_TY
         current += line + "\n"
     if current:
         await update.message.reply_text(current)
+
+
+async def _consult_retired_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    # The retired Freshman Global consultations announcement was broadcast, so
+    # its inline buttons are still out there. Answer instead of spinning.
+    await update.callback_query.answer(msg.CONSULT_ENDED, show_alert=True)
 
 
 # ---------------------------------------------------------------------------
@@ -3932,7 +3936,7 @@ def build_app() -> Application:
     app.add_handler(CommandHandler("roll", _roll_command, filters=_private))
     app.add_handler(CommandHandler("reroll", _reroll_command, filters=_private))
     app.add_handler(CommandHandler("vg_list", _vg_list_command, filters=_private))
-    app.add_handler(CommandHandler("consult_list", _consult_list_command, filters=_private))
+    app.add_handler(CommandHandler("satc_list", _satc_list_command, filters=_private))
     app.add_handler(CommandHandler("ae_set_terms", _ae_set_terms_command, filters=_private))
     app.add_handler(CommandHandler("set_guidebook", _set_guidebook_command, filters=_private))
     app.add_handler(CommandHandler("guidebook_count", _guidebook_count_command, filters=_private))
@@ -3965,8 +3969,9 @@ def build_app() -> Application:
     app.add_handler(CallbackQueryHandler(_merch_qty_callback, pattern="^merch_qty:"))
     app.add_handler(CallbackQueryHandler(_merch_qty_back_callback, pattern="^merch_qty_back$"))
     app.add_handler(CallbackQueryHandler(_merch_checkout_callback, pattern="^merch_checkout$"))
-    app.add_handler(CallbackQueryHandler(_consult_open_callback, pattern="^consult_open$"))
-    app.add_handler(CallbackQueryHandler(_consult_check_callback, pattern="^consult_check$"))
+    app.add_handler(CallbackQueryHandler(_satc_open_callback, pattern="^satc_open$"))
+    app.add_handler(CallbackQueryHandler(_satc_check_callback, pattern="^satc_check$"))
+    app.add_handler(CallbackQueryHandler(_consult_retired_callback, pattern="^consult_(open|check)$"))
     app.add_handler(CallbackQueryHandler(_vg_join_callback, pattern="^vg_join$"))
     app.add_handler(CallbackQueryHandler(_vg_join_callback, pattern="^vg_check$"))
     app.add_handler(CallbackQueryHandler(_vg_open_callback, pattern="^vg_open$"))
