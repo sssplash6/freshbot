@@ -1056,10 +1056,7 @@ RF_REGISTER_PROMPT = "Tap below to register \u2014 it only takes a moment:"
 BTN_RF_REGISTER = "\U0001f4dd Register for the event"
 
 RF_ASK_NAME = "Let\u2019s get you registered. What\u2019s your full name?"
-RF_ASK_EMAIL = (
-    "Thanks, {full_name}! What\u2019s your email address? "
-    "We\u2019ll use it to send you the event details."
-)
+RF_ASK_EMAIL = "Thanks, {full_name}! What\u2019s your email address?"
 RF_INVALID_EMAIL = (
     "That doesn\u2019t look like a valid email address. Please send it in the "
     "format name@example.com."
