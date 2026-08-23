@@ -163,6 +163,17 @@ async def init_db() -> None:
             )
         """)
         await db.execute("""
+            CREATE TABLE IF NOT EXISTS research_fair_registrations (
+                id             INTEGER PRIMARY KEY AUTOINCREMENT,
+                chat_id        INTEGER NOT NULL UNIQUE,
+                username       TEXT,
+                first_name     TEXT NOT NULL,
+                full_name      TEXT NOT NULL,
+                email          TEXT NOT NULL,
+                registered_at  TEXT NOT NULL
+            )
+        """)
+        await db.execute("""
             CREATE TABLE IF NOT EXISTS merch_orders (
                 id          INTEGER PRIMARY KEY AUTOINCREMENT,
                 chat_id     INTEGER NOT NULL,
@@ -1099,6 +1110,50 @@ async def fireside_get_all() -> list[dict]:
         db.row_factory = aiosqlite.Row
         async with db.execute(
             "SELECT * FROM fireside_registrations ORDER BY registered_at"
+        ) as cursor:
+            rows = await cursor.fetchall()
+            return [dict(r) for r in rows]
+
+
+async def research_fair_save(
+    chat_id: int,
+    username: str | None,
+    first_name: str,
+    full_name: str,
+    email: str,
+) -> None:
+    now = datetime.now(timezone.utc).isoformat()
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute(
+            """INSERT INTO research_fair_registrations
+               (chat_id, username, first_name, full_name, email, registered_at)
+               VALUES (?, ?, ?, ?, ?, ?)
+               ON CONFLICT(chat_id) DO UPDATE SET
+                   username = excluded.username,
+                   first_name = excluded.first_name,
+                   full_name = excluded.full_name,
+                   email = excluded.email,
+                   registered_at = excluded.registered_at""",
+            (chat_id, username, first_name, full_name, email, now),
+        )
+        await db.commit()
+
+
+async def research_fair_get(chat_id: int) -> dict | None:
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute(
+            "SELECT * FROM research_fair_registrations WHERE chat_id = ?", (chat_id,)
+        ) as cursor:
+            row = await cursor.fetchone()
+            return dict(row) if row else None
+
+
+async def research_fair_get_all() -> list[dict]:
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute(
+            "SELECT * FROM research_fair_registrations ORDER BY registered_at"
         ) as cursor:
             rows = await cursor.fetchall()
             return [dict(r) for r in rows]

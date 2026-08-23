@@ -118,6 +118,10 @@ _ae_state: dict[int, dict] = {}
 # Accumulates SAT enrollment answers per chat_id.
 _sat_enroll_state: dict[int, dict] = {}
 
+# Accumulates Research Program Fair registration answers per chat_id
+# ({"full_name": str}).
+_rf_state: dict[int, dict] = {}
+
 # Accumulates Economics Olympiad Prep registration answers per chat_id
 # ({"full_name": str, "courses": set[str]}).
 _econ_state: dict[int, dict] = {}
@@ -145,7 +149,7 @@ _NAV_BUTTONS: frozenset[str] = frozenset({
     msg.BTN_HOME, msg.BTN_START,
     msg.BTN_ADV_ENGLISH, msg.BTN_SAT_ENROLL, msg.BTN_TRIAL_AP,
     msg.BTN_GET_GUIDEBOOK, msg.BTN_GETTING_IN, msg.BTN_MERCH, msg.BTN_SAT_CONSULT,
-    msg.BTN_VALERA_GIVEAWAY,
+    msg.BTN_VALERA_GIVEAWAY, msg.BTN_RESEARCH_FAIR,
     # Program sub-menu
     msg.BTN_SAT, msg.BTN_ADMISSIONS, msg.BTN_FULL_SUPPORT, msg.BTN_MASTERS,
     msg.BTN_ADV_PLACEMENT, msg.BTN_IMKON, msg.BTN_RESEARCH_INSTITUTE,
@@ -164,6 +168,7 @@ _NAV_BUTTONS: frozenset[str] = frozenset({
 def _main_keyboard() -> ReplyKeyboardMarkup:
     return ReplyKeyboardMarkup(
         [
+            [msg.BTN_RESEARCH_FAIR],
             [msg.BTN_VALERA_GIVEAWAY, msg.BTN_SAT_CONSULT],
             [msg.BTN_MERCH, msg.BTN_GET_GUIDEBOOK],
             [msg.BTN_ADV_ENGLISH, msg.BTN_SAT_ENROLL],
@@ -445,6 +450,15 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             await _handle_sat_enroll_step(update, chat_id, text, context)
             return
 
+    if user and user.get("flow") == "research_fair":
+        if text in _NAV_BUTTONS:
+            _rf_state.pop(chat_id, None)
+            await db.set_flow(chat_id, None)
+            await db.set_status(chat_id, None)
+        else:
+            await _handle_rf_step(update, chat_id, text, context)
+            return
+
     if user and user.get("flow") == "econ":
         if text in _NAV_BUTTONS:
             _econ_state.pop(chat_id, None)
@@ -506,6 +520,8 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         await _satc_begin(context.bot, chat_id)
     elif text == msg.BTN_VALERA_GIVEAWAY:
         await _vg_begin(context.bot, chat_id)
+    elif text == msg.BTN_RESEARCH_FAIR:
+        await _rf_begin(context.bot, chat_id)
     elif text == msg.BTN_SAT:
         await _handle_program(update, chat_id, msg.BTN_SAT)
     elif text == msg.BTN_ADMISSIONS:
@@ -1415,6 +1431,15 @@ async def _handle_back(update: Update, chat_id: int) -> None:
             reply_markup=_main_keyboard(),
         )
         return
+    if flow == "research_fair":
+        _rf_state.pop(chat_id, None)
+        await db.set_flow(chat_id, None)
+        await db.set_status(chat_id, None)
+        await update.message.reply_text(
+            msg.WELCOME.format(first_name=first_name),
+            reply_markup=_main_keyboard(),
+        )
+        return
     if flow == "econ":
         _econ_state.pop(chat_id, None)
         await db.set_flow(chat_id, None)
@@ -1619,15 +1644,15 @@ async def _broadcast_keyboard_command(
         async def _send_one(cid: int) -> None:
             nonlocal sent, failed, first_error
             try:
-                # SAT consultations giveaway announcement — the button runs
-                # the subscription gate and hands over the booking link.
+                # Research Program Fair x Research Competition announcement —
+                # the button opens the name + email registration flow.
                 await context.bot.send_message(
                     chat_id=cid,
-                    text=msg.SATC_ANNOUNCEMENT,
+                    text=msg.RF_ANNOUNCEMENT,
                     parse_mode="HTML",
                     disable_web_page_preview=True,
                     reply_markup=InlineKeyboardMarkup([
-                        [InlineKeyboardButton(msg.BTN_SATC_OPEN, callback_data="satc_open")],
+                        [InlineKeyboardButton(msg.BTN_RF_REGISTER, callback_data="rf_register")],
                     ]),
                 )
                 sent += 1
@@ -2800,6 +2825,179 @@ async def _merch_list_command(update: Update, context: ContextTypes.DEFAULT_TYPE
 
 
 # ---------------------------------------------------------------------------
+# Freshman Research Program Fair x Research Competition (Aug 28) — registration
+# captures a full name + email
+# ---------------------------------------------------------------------------
+
+# Coming-soon gate. True = registration is open for everyone. False = only
+# /santix bypass users see it (everyone else gets RF_COMING_SOON). Gated in
+# _rf_begin and the inline callback, so the menu button and the rf_register
+# broadcast button are both covered.
+RF_LIVE = True
+
+# Who gets notified of a new registration (deduped).
+_RF_NOTIFY_IDS: frozenset[int] = frozenset({PERSON_X_CHAT_ID})
+
+
+def _rf_valid_email(value: str) -> bool:
+    """Loose sanity check — enough to reject stray text and obvious typos, not
+    a full RFC 5322 validator. One @, no whitespace, dotted alphabetic TLD."""
+    if not value or any(c.isspace() for c in value) or value.count("@") != 1:
+        return False
+    local, _, domain = value.partition("@")
+    if not local or "." not in domain or domain.startswith(".") or domain.endswith("."):
+        return False
+    tld = domain.rsplit(".", 1)[1]
+    return len(tld) >= 2 and tld.isalpha()
+
+
+def _rf_register_keyboard() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        [[InlineKeyboardButton(msg.BTN_RF_REGISTER, callback_data="rf_register")]]
+    )
+
+
+async def _rf_start_flow(bot, chat_id: int) -> None:
+    """Ask for the full name and enter the two-step name → email capture."""
+    _rf_state[chat_id] = {}
+    await db.set_flow(chat_id, "research_fair")
+    await db.set_status(chat_id, "rf_step_name")
+    await bot.send_message(
+        chat_id=chat_id,
+        text=msg.RF_ASK_NAME,
+        reply_markup=_back_keyboard(),
+    )
+
+
+async def _rf_begin(bot, chat_id: int) -> None:
+    """Menu-button entry: the event details, then the register button on its own
+    message so editing the prompt can never wipe the details."""
+    if not RF_LIVE and chat_id not in _bypass_users:
+        await bot.send_message(chat_id=chat_id, text=msg.RF_COMING_SOON)
+        return
+    await bot.send_message(
+        chat_id=chat_id,
+        text=msg.RF_INTRO,
+        parse_mode="HTML",
+        disable_web_page_preview=True,
+    )
+    if await db.research_fair_get(chat_id):
+        await bot.send_message(chat_id=chat_id, text=msg.RF_ALREADY_REGISTERED)
+        return
+    await bot.send_message(
+        chat_id=chat_id,
+        text=msg.RF_REGISTER_PROMPT,
+        reply_markup=_rf_register_keyboard(),
+    )
+
+
+async def _rf_register_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    # Inline button under both the /broadcastkeyboard announcement and the
+    # menu-flow prompt — either way, start the name + email capture.
+    query = update.callback_query
+    chat_id = update.effective_user.id
+    if not RF_LIVE and chat_id not in _bypass_users:
+        await query.answer(msg.RF_COMING_SOON, show_alert=True)
+        return
+    if await db.research_fair_get(chat_id):
+        await query.answer(msg.RF_ALREADY_REGISTERED, show_alert=True)
+        return
+    await _safe_answer(query)
+    await _rf_start_flow(context.bot, chat_id)
+
+
+async def _handle_rf_step(
+    update: Update, chat_id: int, text: str, context: ContextTypes.DEFAULT_TYPE
+) -> None:
+    user = await db.get_user(chat_id)
+    status = user.get("status") if user else None
+
+    if status == "rf_step_name":
+        full_name = text.strip()
+        if not full_name:
+            await update.message.reply_text(msg.RF_ASK_NAME, reply_markup=_back_keyboard())
+            return
+        _rf_state.setdefault(chat_id, {})["full_name"] = full_name
+        await db.set_status(chat_id, "rf_step_email")
+        await update.message.reply_text(
+            msg.RF_ASK_EMAIL.format(full_name=full_name),
+            reply_markup=_back_keyboard(),
+        )
+
+    elif status == "rf_step_email":
+        email = text.strip()
+        if not _rf_valid_email(email):
+            await update.message.reply_text(msg.RF_INVALID_EMAIL, reply_markup=_back_keyboard())
+            return
+
+        full_name = (_rf_state.get(chat_id) or {}).get("full_name", "").strip()
+        if not full_name:
+            # In-memory state lost (the bot restarted mid-flow) — ask for the
+            # name again instead of saving a blank registration.
+            await db.set_status(chat_id, "rf_step_name")
+            await update.message.reply_text(msg.RF_ASK_NAME, reply_markup=_back_keyboard())
+            return
+        _rf_state.pop(chat_id, None)
+
+        u = await db.get_user(chat_id)
+        first_name = u["first_name"] if u else "Unknown"
+        username = u["username"] if u else None
+
+        await db.research_fair_save(chat_id, username, first_name, full_name, email)
+        await db.set_flow(chat_id, None)
+        await db.set_status(chat_id, None)
+        await update.message.reply_text(msg.RF_SUBMITTED, reply_markup=_main_keyboard())
+
+        username_part = f" (@{username})" if username else ""
+        notify_text = msg.RF_ADMIN_ENTRY.format(
+            chat_id=chat_id,
+            first_name=html.escape(first_name or "Unknown"),
+            username_part=username_part,
+            full_name=html.escape(full_name),
+            email=html.escape(email),
+        )
+        for notify_id in _RF_NOTIFY_IDS:
+            try:
+                await context.bot.send_message(
+                    chat_id=notify_id,
+                    text=notify_text,
+                    parse_mode="HTML",
+                    disable_web_page_preview=True,
+                )
+            except Exception:
+                logger.exception(
+                    "Failed to notify %d of a Research Fair registration", notify_id
+                )
+
+
+async def _rf_list_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    if update.effective_user.id not in _RF_NOTIFY_IDS:
+        return
+    rows = await db.research_fair_get_all()
+    if not rows:
+        await update.message.reply_text(msg.RF_LIST_EMPTY)
+        return
+    current = f"\U0001f52c <b>Research Fair registrations ({len(rows)})</b>\n\n"
+    for i, r in enumerate(rows, 1):
+        username_part = f" (@{r['username']})" if r.get("username") else ""
+        line = (
+            f"{i}. <a href=\"tg://user?id={r['chat_id']}\">"
+            f"{html.escape(r['full_name'])}</a>{username_part}"
+            f" — {html.escape(r['email'])}\n"
+        )
+        if len(current) + len(line) > 4096:
+            await update.message.reply_text(
+                current, parse_mode="HTML", disable_web_page_preview=True
+            )
+            current = ""
+        current += line
+    if current:
+        await update.message.reply_text(
+            current, parse_mode="HTML", disable_web_page_preview=True
+        )
+
+
+# ---------------------------------------------------------------------------
 # SAT Freshman consultations — subscribe to both channels, then book a slot
 # ---------------------------------------------------------------------------
 
@@ -3937,6 +4135,7 @@ def build_app() -> Application:
     app.add_handler(CommandHandler("reroll", _reroll_command, filters=_private))
     app.add_handler(CommandHandler("vg_list", _vg_list_command, filters=_private))
     app.add_handler(CommandHandler("satc_list", _satc_list_command, filters=_private))
+    app.add_handler(CommandHandler("rf_list", _rf_list_command, filters=_private))
     app.add_handler(CommandHandler("ae_set_terms", _ae_set_terms_command, filters=_private))
     app.add_handler(CommandHandler("set_guidebook", _set_guidebook_command, filters=_private))
     app.add_handler(CommandHandler("guidebook_count", _guidebook_count_command, filters=_private))
@@ -3969,6 +4168,7 @@ def build_app() -> Application:
     app.add_handler(CallbackQueryHandler(_merch_qty_callback, pattern="^merch_qty:"))
     app.add_handler(CallbackQueryHandler(_merch_qty_back_callback, pattern="^merch_qty_back$"))
     app.add_handler(CallbackQueryHandler(_merch_checkout_callback, pattern="^merch_checkout$"))
+    app.add_handler(CallbackQueryHandler(_rf_register_callback, pattern="^rf_register$"))
     app.add_handler(CallbackQueryHandler(_satc_open_callback, pattern="^satc_open$"))
     app.add_handler(CallbackQueryHandler(_satc_check_callback, pattern="^satc_check$"))
     app.add_handler(CallbackQueryHandler(_consult_retired_callback, pattern="^consult_(open|check)$"))
