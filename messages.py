@@ -641,7 +641,7 @@ GUIDEBOOK_SET_SUCCESS = "\u2705 Extracurriculars Guidebook file saved successful
 
 BTN_GUIDEBOOK_CHECK = "\u2705 I've subscribed \u2014 check again"
 
-BTN_GETTING_IN = "\u2728Getting In with Manzilbek Karlibaev"
+BTN_GETTING_IN = "\u2728 Getting In: Manzilbek Karlibaev"
 
 GETTING_IN_INTRO = (
     "\U0001f44b Welcome to the <b>Freshman Getting In Series, Episode XIII</b>!\n\n"
