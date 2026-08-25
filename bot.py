@@ -168,7 +168,7 @@ _NAV_BUTTONS: frozenset[str] = frozenset({
 def _main_keyboard() -> ReplyKeyboardMarkup:
     return ReplyKeyboardMarkup(
         [
-            [msg.BTN_RESEARCH_FAIR],
+            [msg.BTN_GETTING_IN, msg.BTN_RESEARCH_FAIR],
             [msg.BTN_VALERA_GIVEAWAY, msg.BTN_SAT_CONSULT],
             [msg.BTN_MERCH, msg.BTN_GET_GUIDEBOOK],
             [msg.BTN_ADV_ENGLISH, msg.BTN_SAT_ENROLL],
@@ -1644,15 +1644,15 @@ async def _broadcast_keyboard_command(
         async def _send_one(cid: int) -> None:
             nonlocal sent, failed, first_error
             try:
-                # Research Program Fair x Research Competition announcement —
-                # the button opens the name + email registration flow.
+                # "Getting In with Manzilbek Karlibaev" (Episode XIII) event
+                # promo — the button opens the event group chat directly.
                 await context.bot.send_message(
                     chat_id=cid,
-                    text=msg.RF_ANNOUNCEMENT,
+                    text=msg.GETTING_IN_INTRO,
                     parse_mode="HTML",
                     disable_web_page_preview=True,
                     reply_markup=InlineKeyboardMarkup([
-                        [InlineKeyboardButton(msg.BTN_RF_REGISTER, callback_data="rf_register")],
+                        [InlineKeyboardButton(msg.BTN_GETTING_IN_JOIN, url=GETTING_IN_GROUP_URL)],
                     ]),
                 )
                 sent += 1
@@ -1941,10 +1941,10 @@ async def _guidebook_check_callback(update: Update, context: ContextTypes.DEFAUL
 
 
 # ---------------------------------------------------------------------------
-# Getting In with Abrorbek Samijonov — group chat invite
+# Getting In with Manzilbek Karlibaev — group chat invite
 # ---------------------------------------------------------------------------
 
-GETTING_IN_GROUP_URL = "https://t.me/+KegB4Myh01NmOWIy"
+GETTING_IN_GROUP_URL = "https://t.me/+GkQxr9EQ3hgyNjY6"
 
 # Coming-soon gate. True = series is live for everyone. False = only /santix
 # bypass users see it (everyone else gets GETTING_IN_COMING_SOON).

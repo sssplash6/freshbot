@@ -641,14 +641,15 @@ GUIDEBOOK_SET_SUCCESS = "\u2705 Extracurriculars Guidebook file saved successful
 
 BTN_GUIDEBOOK_CHECK = "\u2705 I've subscribed \u2014 check again"
 
-BTN_GETTING_IN = "\u2728Getting In with Abrorbek Samijonov"
+BTN_GETTING_IN = "\u2728Getting In with Manzilbek Karlibaev"
 
 GETTING_IN_INTRO = (
-    "\U0001f44b Welcome to the <b>Freshman Getting In Series, Episode XII</b>!\n\n"
+    "\U0001f44b Welcome to the <b>Freshman Getting In Series, Episode XIII</b>!\n\n"
     "We're excited to have you with us for our upcoming conversation with "
-    "<b>Abrorbek Samijonov</b>, an incoming student at Bowdoin College, who was "
-    "also admitted to Carnegie Mellon University Qatar and the University of "
-    "Toronto.\n\n"
+    "<b>Manzilbek Karlibaev</b>, a graduate of the Presidential School in Nukus "
+    "who was admitted to <b>KAIST</b> (Korea Advanced Institute of Science and "
+    "Technology) with a full-ride scholarship worth over $29,000 to study "
+    "Artificial Intelligence and Machine Learning.\n\n"
     "\U0001f4cd Before joining the event group, please take a moment to review "
     "our <b>Community Guidelines</b>:\n\n"
     "(1) The group is exclusively for communication related to the Getting In "
@@ -670,7 +671,7 @@ GETTING_IN_INTRO = (
 BTN_GETTING_IN_JOIN = "\U0001f517 Join the group chat"
 
 GETTING_IN_COMING_SOON = (
-    "🚧 Getting In with Abrorbek Samijonov is coming soon. Stay tuned!"
+    "🚧 Getting In with Manzilbek Karlibaev is coming soon. Stay tuned!"
 )
 
 BTN_ADV_ENGLISH = "Special Offer \u2013 Advanced English"
