@@ -2835,6 +2835,10 @@ async def _merch_list_command(update: Update, context: ContextTypes.DEFAULT_TYPE
 # broadcast button are both covered.
 RF_LIVE = True
 
+# Event group chat for the Research Program Fair x Research Competition —
+# pushed to registrants with /rf_group.
+RF_GROUP_URL = "https://t.me/+4V5gPYcn7BtlNmRi"
+
 # Who gets notified of a new registration (deduped).
 _RF_NOTIFY_IDS: frozenset[int] = frozenset({PERSON_X_CHAT_ID})
 
@@ -2968,6 +2972,57 @@ async def _handle_rf_step(
                 logger.exception(
                     "Failed to notify %d of a Research Fair registration", notify_id
                 )
+
+
+async def _rf_group_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Send the event group chat link to everyone registered for the Research
+    Fair. Runs in the background so a long registrant list doesn't stall the
+    handler."""
+    if update.effective_user.id not in _RF_NOTIFY_IDS:
+        return
+    rows = await db.research_fair_get_all()
+    if not rows:
+        await update.message.reply_text(msg.RF_LIST_EMPTY)
+        return
+    await update.message.reply_text(msg.RF_GROUP_SENDING.format(count=len(rows)))
+
+    async def _run() -> None:
+        sent = failed = 0
+        # Same batching as /broadcastkeyboard — stay under Telegram's flood
+        # limit and keep the connection pool free for live replies.
+        batch_size = 20
+        batch_pause = 1.5
+        keyboard = InlineKeyboardMarkup(
+            [[InlineKeyboardButton(msg.BTN_RF_GROUP_JOIN, url=RF_GROUP_URL)]]
+        )
+
+        async def _send_one(r: dict) -> None:
+            nonlocal sent, failed
+            try:
+                await context.bot.send_message(
+                    chat_id=r["chat_id"],
+                    text=msg.RF_GROUP_MESSAGE,
+                    parse_mode="HTML",
+                    disable_web_page_preview=True,
+                    reply_markup=keyboard,
+                )
+                sent += 1
+            except Exception as e:
+                logger.warning(
+                    "Failed to send the Research Fair group link to chat_id=%d: %s",
+                    r["chat_id"], e,
+                )
+                failed += 1
+
+        for start in range(0, len(rows), batch_size):
+            await asyncio.gather(*(_send_one(r) for r in rows[start:start + batch_size]))
+            await asyncio.sleep(batch_pause)
+        await context.bot.send_message(
+            chat_id=update.effective_user.id,
+            text=msg.RF_GROUP_DONE.format(sent=sent, failed=failed),
+        )
+
+    asyncio.create_task(_run())
 
 
 async def _rf_list_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -4136,6 +4191,7 @@ def build_app() -> Application:
     app.add_handler(CommandHandler("vg_list", _vg_list_command, filters=_private))
     app.add_handler(CommandHandler("satc_list", _satc_list_command, filters=_private))
     app.add_handler(CommandHandler("rf_list", _rf_list_command, filters=_private))
+    app.add_handler(CommandHandler("rf_group", _rf_group_command, filters=_private))
     app.add_handler(CommandHandler("ae_set_terms", _ae_set_terms_command, filters=_private))
     app.add_handler(CommandHandler("set_guidebook", _set_guidebook_command, filters=_private))
     app.add_handler(CommandHandler("guidebook_count", _guidebook_count_command, filters=_private))

@@ -1083,6 +1083,17 @@ RF_ADMIN_ENTRY = (
 
 RF_LIST_EMPTY = "No Research Program Fair registrations yet."
 
+# /rf_group — push the event group chat link to everyone already registered.
+RF_GROUP_MESSAGE = (
+    "\U0001f52c <b>Freshman Research Program Fair x Research Competition</b>\n\n"
+    "\U0001f5d3 <b>August 28th, 11 AM \u2013 3 PM</b>\n\n"
+    "You\u2019re registered \u2014 join the event group chat below for the venue "
+    "details, the agenda and any last-minute updates. See you there!"
+)
+BTN_RF_GROUP_JOIN = "\U0001f4ac Join the event group chat"
+RF_GROUP_SENDING = "\u23f3 Sending the group chat link to {count} registrants\u2026"
+RF_GROUP_DONE = "\u2705 Group chat link sent: {sent} delivered, {failed} failed."
+
 # ---------------------------------------------------------------------------
 # SAT Freshman — free SAT strategy consultations (subscription giveaway)
 # ---------------------------------------------------------------------------
