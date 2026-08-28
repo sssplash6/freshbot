@@ -250,7 +250,7 @@ async def init_db() -> None:
         # no longer exists — otherwise their row keeps a dead flow value.
         await db.execute(
             "UPDATE users SET flow = NULL, status = NULL "
-            "WHERE flow IN ('masters_webinar', 'art_seminar')"
+            "WHERE flow IN ('masters_webinar', 'art_seminar', 'research_fair')"
         )
         await db.commit()
 

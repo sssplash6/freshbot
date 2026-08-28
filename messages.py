@@ -1014,87 +1014,6 @@ MERCH_QR_PROMPT = (
 MERCH_QR_SAVED = "✅ Payme QR saved. Merch orders will now end with this QR code."
 
 # ---------------------------------------------------------------------------
-# Freshman Research Program Fair x Research Competition — Aug 28 registration
-# ---------------------------------------------------------------------------
-
-BTN_RESEARCH_FAIR = "\U0001f52c Research Program Fair x Competition"
-
-RF_COMING_SOON = (
-    "\U0001f6a7 The Freshman Research Program Fair x Research Competition is "
-    "coming soon. Stay tuned!"
-)
-
-# Event copy, shared by the menu intro and the /broadcastkeyboard announcement.
-RF_DETAILS = (
-    "\U0001f52c <b>Freshman Research Program Fair x Research Competition</b>\n\n"
-    "\U0001f5d3 <b>August 28th, 11 AM \u2013 3 PM</b>\n\n"
-    "Don\u2019t leave your university application incomplete without a research "
-    "project.\n\n"
-    "With admissions season right around the corner, now is the time to get "
-    "started on your research project.\n\n"
-    "The Freshman Research Institute will be hosting its program fair on the "
-    "28th of August where you can meet and interact with the Institute\u2019s "
-    "various mentors who specialize in fields from Engineering to History.\n\n"
-    "Additionally the science club <b>InterSTEM</b> will be holding its first "
-    "research proposal competition where students will get the chance to "
-    "present them to a panel of judges and receive special prizes. The event "
-    "will also have a special guest speaker from the University of "
-    "Manchester.\n\n"
-    "This will be a great opportunity to better understand how research can "
-    "elevate your university application and deepen your knowledge in your "
-    "field.\n\n"
-    "<b>Agenda:</b>\n"
-    "\u2022 10 AM \u2013 2 PM \u2014 Competition\n"
-    "\u2022 2 PM \u2013 3 PM \u2014 Research Program Fair"
-)
-
-RF_INTRO = RF_DETAILS
-RF_ANNOUNCEMENT = RF_DETAILS
-
-# Sent as its own message so the register button sits under the details
-# without the gate/confirmation edits wiping the event copy.
-RF_REGISTER_PROMPT = "Tap below to register \u2014 it only takes a moment:"
-BTN_RF_REGISTER = "\U0001f4dd Register for the event"
-
-RF_ASK_NAME = "Let\u2019s get you registered. What\u2019s your full name?"
-RF_ASK_EMAIL = "Thanks, {full_name}! What\u2019s your email address?"
-RF_INVALID_EMAIL = (
-    "That doesn\u2019t look like a valid email address. Please send it in the "
-    "format name@example.com."
-)
-RF_ALREADY_REGISTERED = (
-    "\u2705 You\u2019re already registered for the Research Program Fair x "
-    "Research Competition on August 28th. See you there!"
-)
-RF_SUBMITTED = (
-    "\u2705 You\u2019re registered for the Freshman Research Program Fair x "
-    "Research Competition!\n\n"
-    "\U0001f5d3 August 28th, 11 AM \u2013 3 PM\n\n"
-    "We\u2019ll send the venue details and any updates through the bot. "
-    "See you there!"
-)
-
-RF_ADMIN_ENTRY = (
-    "\U0001f52c <b>New Research Fair registration</b>\n\n"
-    "\U0001f464 <a href=\"tg://user?id={chat_id}\">{first_name}</a>{username_part}\n"
-    "\U0001f4dd Full name: {full_name}\n"
-    "\U0001f4e7 Email: {email}"
-)
-
-RF_LIST_EMPTY = "No Research Program Fair registrations yet."
-
-# /rf_group — push the event group chat link to everyone already registered.
-RF_GROUP_MESSAGE = (
-    "\U0001f52c <b>Freshman Research Program Fair x Research Competition</b>\n\n"
-    "\U0001f5d3 <b>August 28th, 11 AM \u2013 3 PM</b>\n\n"
-    "You\u2019re registered \u2014 join the event group chat below for the venue "
-    "details, the agenda and any last-minute updates. See you there!"
-)
-BTN_RF_GROUP_JOIN = "\U0001f4ac Join the event group chat"
-RF_GROUP_SENDING = "\u23f3 Sending the group chat link to {count} registrants\u2026"
-RF_GROUP_DONE = "\u2705 Group chat link sent: {sent} delivered, {failed} failed."
-
-# ---------------------------------------------------------------------------
 # SAT Freshman — free SAT strategy consultations (subscription giveaway)
 # ---------------------------------------------------------------------------
 
@@ -1150,6 +1069,12 @@ SATC_LIST_EMPTY = "No one has claimed an SAT consultation yet."
 # free-consultations announcement.
 CONSULT_ENDED = (
     "This giveaway has ended. Check the menu for what's running now!"
+)
+
+# Shown to anyone tapping a leftover button under the retired Research Program
+# Fair x Research Competition announcement.
+RF_ENDED = (
+    "This event has ended. Check the menu for what’s running now!"
 )
 
 # ---------------------------------------------------------------------------
