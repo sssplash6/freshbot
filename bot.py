@@ -1671,6 +1671,9 @@ async def _broadcast_keyboard_command(
     if update.effective_user.id != PERSON_X_CHAT_ID:
         return
     chat_ids = await db.get_all_chat_ids()
+    # Read the admin-set intro once up front rather than per send — whatever
+    # /set_handbook_intro saved is what goes out.
+    intro = await _hb_intro_text()
     await update.message.reply_text(f"📢 Broadcasting to {len(chat_ids)} users — I'll report back when done.")
 
     async def _run() -> None:
@@ -1685,16 +1688,14 @@ async def _broadcast_keyboard_command(
         async def _send_one(cid: int) -> None:
             nonlocal sent, failed, first_error
             try:
-                # "Getting In with Manzilbek Karlibaev" (Episode XIII) event
-                # promo — the button opens the event group chat directly.
+                # Top 10 Mistakes Handbook promo — the button runs the same
+                # subscribe-then-deliver flow as the menu entry.
                 await context.bot.send_message(
                     chat_id=cid,
-                    text=msg.GETTING_IN_INTRO,
+                    text=intro,
                     parse_mode="HTML",
                     disable_web_page_preview=True,
-                    reply_markup=InlineKeyboardMarkup([
-                        [InlineKeyboardButton(msg.BTN_GETTING_IN_JOIN, url=GETTING_IN_GROUP_URL)],
-                    ]),
+                    reply_markup=_hb_get_keyboard(),
                 )
                 sent += 1
             except Exception as e:
