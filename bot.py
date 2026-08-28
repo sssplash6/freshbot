@@ -145,6 +145,7 @@ _NAV_BUTTONS: frozenset[str] = frozenset({
     msg.BTN_HOME, msg.BTN_START,
     msg.BTN_ADV_ENGLISH, msg.BTN_SAT_ENROLL, msg.BTN_TRIAL_AP,
     msg.BTN_GET_GUIDEBOOK, msg.BTN_GETTING_IN, msg.BTN_MERCH, msg.BTN_SAT_CONSULT,
+    msg.BTN_HANDBOOK,
     msg.BTN_VALERA_GIVEAWAY,
     # Program sub-menu
     msg.BTN_SAT, msg.BTN_ADMISSIONS, msg.BTN_FULL_SUPPORT, msg.BTN_MASTERS,
@@ -164,7 +165,7 @@ _NAV_BUTTONS: frozenset[str] = frozenset({
 def _main_keyboard() -> ReplyKeyboardMarkup:
     return ReplyKeyboardMarkup(
         [
-            [msg.BTN_GETTING_IN],
+            [msg.BTN_GETTING_IN, msg.BTN_HANDBOOK],
             [msg.BTN_VALERA_GIVEAWAY, msg.BTN_SAT_CONSULT],
             [msg.BTN_MERCH, msg.BTN_GET_GUIDEBOOK],
             [msg.BTN_ADV_ENGLISH, msg.BTN_SAT_ENROLL],
@@ -499,6 +500,8 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         await _handle_podcast(update, chat_id)
     elif text == msg.BTN_GET_GUIDEBOOK:
         await _handle_guidebook(update, chat_id)
+    elif text == msg.BTN_HANDBOOK:
+        await _hb_begin(context.bot, chat_id)
     elif text == msg.BTN_GETTING_IN:
         await _handle_getting_in(update, chat_id)
     elif text == msg.BTN_MERCH:
@@ -1027,6 +1030,68 @@ async def _guidebook_count_command(
     count = await db.count_guidebook_recipients()
     await update.message.reply_text(
         f"📖 Guidebook delivered to {count} unique user(s)."
+    )
+
+
+async def _set_handbook_intro_command(
+    update: Update, context: ContextTypes.DEFAULT_TYPE
+) -> None:
+    """Set the intro shown above the 'Get the handbook' button.
+
+    Either reply to the message you want to use, or type the text straight
+    after the command. Both paths go through Telegram's *_html so bold, italic
+    and links survive; the saved text is sent with parse_mode="HTML".
+    """
+    if update.effective_chat.id != PERSON_X_CHAT_ID and update.effective_chat.id not in _AE_REVIEWER_IDS:
+        return
+    reply = update.message.reply_to_message
+    if reply is not None:
+        text = reply.text_html or reply.caption_html
+    else:
+        # text_html keeps the entities of everything after the command token,
+        # which is itself plain (bot_command entities carry no markup).
+        parts = (update.message.text_html or "").split(None, 1)
+        text = parts[1] if len(parts) > 1 else ""
+    text = (text or "").strip()
+    if not text:
+        await update.message.reply_text(msg.HANDBOOK_INTRO_SET_USAGE, parse_mode="HTML")
+        return
+    if text.lower() == "reset":
+        await db.set_setting("handbook_intro", "")
+        await update.message.reply_text(msg.HANDBOOK_INTRO_RESET)
+        return
+    await db.set_setting("handbook_intro", text)
+    await update.message.reply_text(msg.HANDBOOK_INTRO_SET_SUCCESS)
+    # Echo the saved intro exactly as users will see it, button included.
+    await update.message.reply_text(
+        text,
+        parse_mode="HTML",
+        disable_web_page_preview=True,
+        reply_markup=_hb_get_keyboard(),
+    )
+
+
+async def _set_handbook_command(
+    update: Update, context: ContextTypes.DEFAULT_TYPE
+) -> None:
+    if update.effective_chat.id != PERSON_X_CHAT_ID and update.effective_chat.id not in _AE_REVIEWER_IDS:
+        return
+    reply = update.message.reply_to_message
+    if not reply or not reply.document:
+        await update.message.reply_text(msg.HANDBOOK_SET_USAGE)
+        return
+    await db.set_setting("handbook_file_id", reply.document.file_id)
+    await update.message.reply_text(msg.HANDBOOK_SET_SUCCESS)
+
+
+async def _handbook_count_command(
+    update: Update, context: ContextTypes.DEFAULT_TYPE
+) -> None:
+    if update.effective_chat.id != PERSON_X_CHAT_ID and update.effective_chat.id not in _AE_REVIEWER_IDS:
+        return
+    count = await db.count_handbook_recipients()
+    await update.message.reply_text(
+        f"📕 Handbook delivered to {count} unique user(s)."
     )
 
 
@@ -1914,6 +1979,168 @@ async def _guidebook_check_callback(update: Update, context: ContextTypes.DEFAUL
                 raise
         return
     await _guidebook_deliver(context.bot, chat_id)
+
+
+# ---------------------------------------------------------------------------
+# Top 10 Mistakes handbook (Freshman Global) — subscribe to both channels,
+# then get the PDF
+# ---------------------------------------------------------------------------
+
+# Coming-soon gate. True = the handbook is live for everyone. False = only
+# /santix bypass users see it (everyone else gets HANDBOOK_COMING_SOON). Gated
+# in _hb_begin and the hb_get callback, so the menu button and any broadcast
+# button are both covered.
+HANDBOOK_LIVE = True
+
+# The bot must be an admin in both channels or the membership check fails open.
+# @freshmanblog goes in by numeric ID, @freshmanglobal by handle —
+# get_chat_member takes either.
+HANDBOOK_REQUIRED_IDS = [-1001481432083, "@freshmanglobal"]
+HANDBOOK_REQUIRED_HANDLES = ["@freshmanblog", "@freshmanglobal"]
+
+# Shipped with the repo so a fresh deploy serves the PDF without an admin
+# running /set_handbook first. The file_id Telegram returns on the first send
+# is cached in bot_settings so later deliveries never re-upload it.
+_HANDBOOK_PDF = Path(__file__).resolve().parent / "assets" / "handbook" / "top10_mistakes.pdf"
+
+
+async def _hb_is_member(bot, channel_id, chat_id: int) -> bool:
+    """True if chat_id is a member of channel_id. Fails open on API error."""
+    try:
+        member = await bot.get_chat_member(channel_id, chat_id)
+        return member.status in _MEMBER_STATUSES
+    except TelegramError:
+        logger.warning("Cannot check handbook membership in %s. Failing open.", channel_id)
+        return True
+
+
+async def _hb_get_missing(bot, chat_id: int) -> list[str]:
+    # Both channels concurrently so the user isn't waiting on two sequential
+    # round-trips (each already queued behind the rate limiter).
+    results = await asyncio.gather(
+        *(_hb_is_member(bot, cid, chat_id) for cid in HANDBOOK_REQUIRED_IDS)
+    )
+    return [h for h, ok in zip(HANDBOOK_REQUIRED_HANDLES, results) if not ok]
+
+
+async def _hb_intro_text() -> str:
+    """The admin-set intro (/set_handbook_intro), or the built-in default."""
+    return await db.get_setting("handbook_intro") or msg.HANDBOOK_INTRO_DEFAULT
+
+
+def _hb_get_keyboard() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        [[InlineKeyboardButton(msg.BTN_HANDBOOK_GET, callback_data="hb_get")]]
+    )
+
+
+def _hb_check_keyboard() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        [[InlineKeyboardButton(msg.BTN_HANDBOOK_CHECK, callback_data="hb_check")]]
+    )
+
+
+async def _hb_begin(bot, chat_id: int) -> None:
+    """Menu entry — send the intro with the 'Get the handbook' button under it."""
+    if not HANDBOOK_LIVE and chat_id not in _bypass_users:
+        await bot.send_message(chat_id=chat_id, text=msg.HANDBOOK_COMING_SOON)
+        return
+    await bot.send_message(
+        chat_id=chat_id,
+        text=await _hb_intro_text(),
+        parse_mode="HTML",
+        disable_web_page_preview=True,
+        reply_markup=_hb_get_keyboard(),
+    )
+
+
+async def _hb_deliver(bot, chat_id: int) -> None:
+    """Send the handbook PDF once the channel requirements are met."""
+    file_id = await db.get_setting("handbook_file_id")
+    if file_id:
+        try:
+            await bot.send_document(
+                chat_id=chat_id,
+                document=file_id,
+                caption=msg.HANDBOOK_ACCESS_GRANTED,
+                parse_mode="HTML",
+            )
+            await db.mark_handbook_sent(chat_id)
+            logger.info("Handbook delivered to chat_id=%d (cached file_id)", chat_id)
+            return
+        except TelegramError:
+            # Stale file_id (e.g. after a bot token change) — drop it and fall
+            # through to the on-disk upload, which re-caches a fresh one.
+            logger.exception("Cached handbook_file_id failed; re-uploading from disk")
+            await db.set_setting("handbook_file_id", "")
+
+    if not _HANDBOOK_PDF.exists():
+        logger.warning("%s is missing and no handbook_file_id is set.", _HANDBOOK_PDF)
+        await bot.send_message(chat_id=chat_id, text=msg.HANDBOOK_UNAVAILABLE)
+        return
+    try:
+        sent = await bot.send_document(
+            chat_id=chat_id,
+            document=_HANDBOOK_PDF.read_bytes(),
+            filename=_HANDBOOK_PDF.name,
+            caption=msg.HANDBOOK_ACCESS_GRANTED,
+            parse_mode="HTML",
+        )
+    except Exception:
+        logger.exception("Handbook upload failed for chat_id=%d", chat_id)
+        await bot.send_message(chat_id=chat_id, text=msg.HANDBOOK_UNAVAILABLE)
+        return
+    if sent.document:
+        await db.set_setting("handbook_file_id", sent.document.file_id)
+    await db.mark_handbook_sent(chat_id)
+    logger.info("Handbook delivered to chat_id=%d (uploaded from disk)", chat_id)
+
+
+async def _hb_gate_or_deliver(bot, chat_id: int) -> None:
+    missing = await _hb_get_missing(bot, chat_id)
+    if missing:
+        channel_list = "\n".join(f"\u2022 {h}" for h in missing)
+        # Sent as its own message so the check-again edits never wipe the intro.
+        await bot.send_message(
+            chat_id=chat_id,
+            text=msg.HANDBOOK_MUST_JOIN.format(channel_list=channel_list),
+            parse_mode="HTML",
+            reply_markup=_hb_check_keyboard(),
+        )
+        return
+    await _hb_deliver(bot, chat_id)
+
+
+async def _hb_get_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    # "Get the handbook" — under the menu intro and under any broadcast of it.
+    query = update.callback_query
+    chat_id = update.effective_user.id
+    # The alert has to be the single answer to this query, so gate before ack.
+    if not HANDBOOK_LIVE and chat_id not in _bypass_users:
+        await query.answer(msg.HANDBOOK_COMING_SOON, show_alert=True)
+        return
+    await _safe_answer(query)
+    await _hb_gate_or_deliver(context.bot, chat_id)
+
+
+async def _hb_check_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    query = update.callback_query
+    await _safe_answer(query)
+    chat_id = update.effective_user.id
+    missing = await _hb_get_missing(context.bot, chat_id)
+    if missing:
+        channel_list = "\n".join(f"\u2022 {h}" for h in missing)
+        try:
+            await query.edit_message_text(
+                msg.HANDBOOK_MUST_JOIN.format(channel_list=channel_list),
+                parse_mode="HTML",
+                reply_markup=_hb_check_keyboard(),
+            )
+        except TelegramError as e:
+            if "not modified" not in str(e).lower():
+                raise
+        return
+    await _hb_deliver(context.bot, chat_id)
 
 
 # ---------------------------------------------------------------------------
@@ -3947,6 +4174,9 @@ def build_app() -> Application:
     app.add_handler(CommandHandler("ae_set_terms", _ae_set_terms_command, filters=_private))
     app.add_handler(CommandHandler("set_guidebook", _set_guidebook_command, filters=_private))
     app.add_handler(CommandHandler("guidebook_count", _guidebook_count_command, filters=_private))
+    app.add_handler(CommandHandler("set_handbook_intro", _set_handbook_intro_command, filters=_private))
+    app.add_handler(CommandHandler("set_handbook", _set_handbook_command, filters=_private))
+    app.add_handler(CommandHandler("handbook_count", _handbook_count_command, filters=_private))
     app.add_handler(CommandHandler("ae_set_payment", _ae_set_payment_command, filters=_private))
     app.add_handler(CommandHandler("ae_remind", _ae_remind_command, filters=_private))
     app.add_handler(CommandHandler("ae_stuck", _ae_stuck_command, filters=_private))
@@ -3969,6 +4199,8 @@ def build_app() -> Application:
     app.add_handler(CallbackQueryHandler(_podcast_check_callback, pattern="^podcast_check$"))
     app.add_handler(CallbackQueryHandler(_guidebook_get_callback, pattern="^guidebook_get$"))
     app.add_handler(CallbackQueryHandler(_guidebook_check_callback, pattern="^guidebook_check$"))
+    app.add_handler(CallbackQueryHandler(_hb_get_callback, pattern="^hb_get$"))
+    app.add_handler(CallbackQueryHandler(_hb_check_callback, pattern="^hb_check$"))
     app.add_handler(CallbackQueryHandler(_sat_enroll_inline_callback, pattern="^sat_enroll_inline$"))
     app.add_handler(CallbackQueryHandler(_econ_join_callback, pattern="^econ_join$"))
     app.add_handler(CallbackQueryHandler(_merch_open_callback, pattern="^merch_open$"))

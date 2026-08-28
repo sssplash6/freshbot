@@ -641,6 +641,64 @@ GUIDEBOOK_SET_SUCCESS = "\u2705 Extracurriculars Guidebook file saved successful
 
 BTN_GUIDEBOOK_CHECK = "\u2705 I've subscribed \u2014 check again"
 
+# ---------------------------------------------------------------------------
+# Top 10 Mistakes handbook (Freshman Global) — subscribe to both channels,
+# then get the PDF. The intro is admin-editable via /set_handbook_intro, so
+# HANDBOOK_INTRO_DEFAULT is only the fallback until one is saved.
+# ---------------------------------------------------------------------------
+
+BTN_HANDBOOK = "\U0001f4d5 Top 10 Mistakes Handbook"
+
+HANDBOOK_INTRO_DEFAULT = (
+    "\U0001f4d5 <b>Top 10 Mistakes Freshman Global Applicants Make</b>\n\n"
+    "We put together the ten mistakes we see most often in applications \u2014 "
+    "and exactly how to avoid each one.\n\n"
+    "Tap below to get your free copy."
+)
+
+BTN_HANDBOOK_GET = "\U0001f4e5 Get the handbook"
+
+HANDBOOK_MUST_JOIN = (
+    "To get the <b>Top 10 Mistakes Handbook</b>, please subscribe to both "
+    "channels first:\n"
+    "{channel_list}\n\n"
+    "Once you\u2019ve subscribed, tap the button below."
+)
+
+BTN_HANDBOOK_CHECK = "\u2705 I\u2019ve subscribed \u2014 check again"
+
+HANDBOOK_ACCESS_GRANTED = (
+    "\U0001f4d5 You\u2019re all set \u2014 here\u2019s your <b>Top 10 Mistakes "
+    "Handbook</b>. Enjoy!"
+)
+
+HANDBOOK_UNAVAILABLE = (
+    "\U0001f512 The Top 10 Mistakes Handbook isn\u2019t available right now. "
+    "Please check back soon!"
+)
+
+HANDBOOK_COMING_SOON = (
+    "\U0001f6a7 The Top 10 Mistakes Handbook is coming soon. Stay tuned!"
+)
+
+HANDBOOK_INTRO_SET_USAGE = (
+    "Send the intro text with the command, or reply to the message you want to "
+    "use:\n\n"
+    "<code>/set_handbook_intro Your intro text here</code>\n\n"
+    "Formatting from the replied-to message (bold, italic, links) is kept. "
+    "Send <code>/set_handbook_intro reset</code> to go back to the default."
+)
+HANDBOOK_INTRO_SET_SUCCESS = (
+    "\u2705 Handbook intro saved. Here\u2019s how it will look:"
+)
+HANDBOOK_INTRO_RESET = "\u2705 Handbook intro reset to the default."
+
+HANDBOOK_SET_USAGE = (
+    "Reply to the handbook PDF with /set_handbook to save it. Without one the "
+    "bot sends assets/handbook/top10_mistakes.pdf."
+)
+HANDBOOK_SET_SUCCESS = "\u2705 Top 10 Mistakes Handbook file saved successfully."
+
 BTN_GETTING_IN = "\u2728 Getting In: Manzilbek Karlibaev"
 
 GETTING_IN_INTRO = (

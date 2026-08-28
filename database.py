@@ -214,6 +214,7 @@ async def init_db() -> None:
         """)
         for _col in [
             "ALTER TABLE users ADD COLUMN guidebook_sent_at TEXT",
+            "ALTER TABLE users ADD COLUMN handbook_sent_at TEXT",
             "ALTER TABLE adv_english_applications ADD COLUMN video_file_id TEXT",
             "ALTER TABLE adv_english_applications ADD COLUMN video_type TEXT",
             "ALTER TABLE adv_english_applications ADD COLUMN sat_score TEXT",
@@ -912,6 +913,32 @@ async def count_guidebook_recipients() -> int:
     async with aiosqlite.connect(DB_PATH) as db:
         async with db.execute(
             "SELECT COUNT(*) FROM users WHERE guidebook_sent_at IS NOT NULL"
+        ) as cursor:
+            row = await cursor.fetchone()
+            return row[0] if row else 0
+
+
+# ---------------------------------------------------------------------------
+# Top 10 Mistakes handbook
+# ---------------------------------------------------------------------------
+
+async def mark_handbook_sent(chat_id: int) -> None:
+    """Record that this user received the handbook (keeps the first delivery time)."""
+    now = datetime.now(timezone.utc).isoformat()
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute(
+            "UPDATE users SET handbook_sent_at = COALESCE(handbook_sent_at, ?)"
+            " WHERE chat_id = ?",
+            (now, chat_id),
+        )
+        await db.commit()
+
+
+async def count_handbook_recipients() -> int:
+    """Number of unique users who have received the handbook at least once."""
+    async with aiosqlite.connect(DB_PATH) as db:
+        async with db.execute(
+            "SELECT COUNT(*) FROM users WHERE handbook_sent_at IS NOT NULL"
         ) as cursor:
             row = await cursor.fetchone()
             return row[0] if row else 0
