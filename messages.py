@@ -1315,6 +1315,16 @@ BTN_AE_LEARN_MORE = "📖 Learn More"
 BROADCAST_KEYBOARD_MENU_NOTE = "Your menu has been updated \U0001f447"
 BROADCAST_KEYBOARD_DONE = "Keyboard broadcast: {sent} sent, {failed} failed ({total} total users)."
 
+# /broadcastkeyboard announces both row-1 lead magnets in one message: the two
+# admin-set intros joined by this divider, with a button under each.
+BROADCAST_LEAD_MAGNETS_SEPARATOR = "\n\n\u2014\u2014\u2014\n\n"
+
+BROADCAST_TOO_LONG = (
+    "\u26a0\ufe0f The two intros come to {length} characters together \u2014 Telegram caps a "
+    "message at {limit}. Shorten one with /set_handbook_intro or "
+    "/set_guidebook_intro and try again."
+)
+
 
 # ---------------------------------------------------------------------------
 # Admin stats

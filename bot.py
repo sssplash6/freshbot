@@ -1703,15 +1703,40 @@ async def _stats_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     )
 
 
+# Telegram rejects a text message over 4096 characters, so a /broadcastkeyboard
+# carrying both intros is checked against this before the fan-out starts.
+_TELEGRAM_TEXT_LIMIT = 4096
+
+
+async def _lead_magnets_text() -> str:
+    """The handbook and guidebook intros joined into one announcement."""
+    return msg.BROADCAST_LEAD_MAGNETS_SEPARATOR.join(
+        [await _hb_intro_text(), await _guidebook_intro_text()]
+    )
+
+
+def _lead_magnets_keyboard() -> InlineKeyboardMarkup:
+    """One button per lead magnet, each reusing its own menu flow."""
+    return InlineKeyboardMarkup([
+        [InlineKeyboardButton(msg.BTN_HANDBOOK_GET, callback_data="hb_get")],
+        [InlineKeyboardButton(msg.BTN_GUIDEBOOK_GET, callback_data="guidebook_get")],
+    ])
+
+
 async def _broadcast_keyboard_command(
     update: Update, context: ContextTypes.DEFAULT_TYPE
 ) -> None:
     if update.effective_user.id != PERSON_X_CHAT_ID:
         return
     chat_ids = await db.get_all_chat_ids()
-    # Read the admin-set intro once up front rather than per send — whatever
-    # /set_handbook_intro saved is what goes out.
-    intro = await _hb_intro_text()
+    # Read both admin-set intros once up front rather than per send — whatever
+    # /set_handbook_intro and /set_guidebook_intro saved is what goes out.
+    intro = await _lead_magnets_text()
+    if len(intro) > _TELEGRAM_TEXT_LIMIT:
+        await update.message.reply_text(
+            msg.BROADCAST_TOO_LONG.format(length=len(intro), limit=_TELEGRAM_TEXT_LIMIT)
+        )
+        return
     await update.message.reply_text(f"📢 Broadcasting to {len(chat_ids)} users — I'll report back when done.")
 
     async def _run() -> None:
@@ -1726,14 +1751,14 @@ async def _broadcast_keyboard_command(
         async def _send_one(cid: int) -> None:
             nonlocal sent, failed, first_error
             try:
-                # Top 10 Mistakes Handbook promo — the button runs the same
-                # subscribe-then-deliver flow as the menu entry.
+                # Both row-1 lead magnets in one message — each button runs the
+                # same subscribe-then-deliver flow as its menu entry.
                 await context.bot.send_message(
                     chat_id=cid,
                     text=intro,
                     parse_mode="HTML",
                     disable_web_page_preview=True,
-                    reply_markup=_hb_get_keyboard(),
+                    reply_markup=_lead_magnets_keyboard(),
                 )
                 sent += 1
             except Exception as e:
