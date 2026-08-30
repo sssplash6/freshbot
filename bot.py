@@ -165,9 +165,9 @@ _NAV_BUTTONS: frozenset[str] = frozenset({
 def _main_keyboard() -> ReplyKeyboardMarkup:
     return ReplyKeyboardMarkup(
         [
-            [msg.BTN_GETTING_IN, msg.BTN_HANDBOOK],
-            [msg.BTN_VALERA_GIVEAWAY, msg.BTN_SAT_CONSULT],
-            [msg.BTN_MERCH, msg.BTN_GET_GUIDEBOOK],
+            [msg.BTN_HANDBOOK, msg.BTN_GET_GUIDEBOOK],
+            [msg.BTN_VALERA_GIVEAWAY, msg.BTN_GETTING_IN],
+            [msg.BTN_MERCH, msg.BTN_SAT_CONSULT],
             [msg.BTN_ADV_ENGLISH, msg.BTN_SAT_ENROLL],
             [msg.BTN_PROGRAMS, msg.BTN_GENERAL_INQUIRY],
         ],
@@ -499,7 +499,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     elif text == msg.BTN_PODCAST:
         await _handle_podcast(update, chat_id)
     elif text == msg.BTN_GET_GUIDEBOOK:
-        await _handle_guidebook(update, chat_id)
+        await _guidebook_begin(context.bot, chat_id)
     elif text == msg.BTN_HANDBOOK:
         await _hb_begin(context.bot, chat_id)
     elif text == msg.BTN_GETTING_IN:
@@ -1009,6 +1009,44 @@ async def _ae_set_terms_command(
     await update.message.reply_text(msg.AE_SET_TERMS_SUCCESS)
 
 
+async def _set_guidebook_intro_command(
+    update: Update, context: ContextTypes.DEFAULT_TYPE
+) -> None:
+    """Set the intro shown above the 'Get the guidebook' button.
+
+    Either reply to the message you want to use, or type the text straight
+    after the command. Both paths go through Telegram's *_html so bold, italic
+    and links survive; the saved text is sent with parse_mode="HTML".
+    """
+    if update.effective_chat.id != PERSON_X_CHAT_ID and update.effective_chat.id not in _AE_REVIEWER_IDS:
+        return
+    reply = update.message.reply_to_message
+    if reply is not None:
+        text = reply.text_html or reply.caption_html
+    else:
+        # text_html keeps the entities of everything after the command token,
+        # which is itself plain (bot_command entities carry no markup).
+        parts = (update.message.text_html or "").split(None, 1)
+        text = parts[1] if len(parts) > 1 else ""
+    text = (text or "").strip()
+    if not text:
+        await update.message.reply_text(msg.GUIDEBOOK_INTRO_SET_USAGE, parse_mode="HTML")
+        return
+    if text.lower() == "reset":
+        await db.set_setting("guidebook_intro", "")
+        await update.message.reply_text(msg.GUIDEBOOK_INTRO_RESET)
+        return
+    await db.set_setting("guidebook_intro", text)
+    await update.message.reply_text(msg.GUIDEBOOK_INTRO_SET_SUCCESS)
+    # Echo the saved intro exactly as users will see it, button included.
+    await update.message.reply_text(
+        text,
+        parse_mode="HTML",
+        disable_web_page_preview=True,
+        reply_markup=_guidebook_get_keyboard(),
+    )
+
+
 async def _set_guidebook_command(
     update: Update, context: ContextTypes.DEFAULT_TYPE
 ) -> None:
@@ -1018,7 +1056,7 @@ async def _set_guidebook_command(
     if not reply or not reply.document:
         await update.message.reply_text(msg.GUIDEBOOK_SET_USAGE)
         return
-    await db.set_setting("guidebook_file_id", reply.document.file_id)
+    await db.set_setting("admissions_guide_file_id", reply.document.file_id)
     await update.message.reply_text(msg.GUIDEBOOK_SET_SUCCESS)
 
 
@@ -1027,9 +1065,9 @@ async def _guidebook_count_command(
 ) -> None:
     if update.effective_chat.id != PERSON_X_CHAT_ID and update.effective_chat.id not in _AE_REVIEWER_IDS:
         return
-    count = await db.count_guidebook_recipients()
+    count = await db.count_admissions_guide_recipients()
     await update.message.reply_text(
-        f"📖 Guidebook delivered to {count} unique user(s)."
+        f"📘 Guidebook delivered to {count} unique user(s)."
     )
 
 
@@ -1876,14 +1914,32 @@ async def _podcast_check_callback(update: Update, context: ContextTypes.DEFAULT_
 
 
 # ---------------------------------------------------------------------------
-# Extracurriculars Guidebook — subscribe to both channels, then get the file
+# College Admissions Guidebook (SAT Freshman) — subscribe to both channels,
+# then get the PDF
 # ---------------------------------------------------------------------------
 
-GUIDEBOOK_REQUIRED_IDS = [-1001188644050, -1001481432083]
-GUIDEBOOK_REQUIRED_HANDLES = ["@valeranotes", "@freshmanblog"]
+# Coming-soon gate. True = the guidebook is live for everyone. False = only
+# /santix bypass users see it (everyone else gets GUIDEBOOK_COMING_SOON). Gated
+# in _guidebook_begin and the guidebook_get callback, so the menu button and any
+# broadcast button are both covered.
+GUIDEBOOK_LIVE = True
+
+# The bot must be an admin in both channels or the membership check fails open.
+# @freshmanblog goes in by numeric ID, @satfreshman by handle — get_chat_member
+# takes either.
+GUIDEBOOK_REQUIRED_IDS = [-1001481432083, "@satfreshman"]
+GUIDEBOOK_REQUIRED_HANDLES = ["@freshmanblog", "@satfreshman"]
+
+# Shipped with the repo so a fresh deploy serves the PDF without an admin
+# running /set_guidebook first. The file_id Telegram returns on the first send
+# is cached in bot_settings so later deliveries never re-upload it.
+_GUIDEBOOK_PDF = (
+    Path(__file__).resolve().parent / "assets" / "guidebook" / "college_admissions.pdf"
+)
+_GUIDEBOOK_FILENAME = "College Admissions Guidebook.pdf"
 
 
-async def _guidebook_is_member(bot, channel_id: int, chat_id: int) -> bool:
+async def _guidebook_is_member(bot, channel_id, chat_id: int) -> bool:
     """True if chat_id is a member of channel_id. Fails open on API error."""
     try:
         member = await bot.get_chat_member(channel_id, chat_id)
@@ -1902,41 +1958,92 @@ async def _guidebook_get_missing(bot, chat_id: int) -> list[str]:
     return [h for h, ok in zip(GUIDEBOOK_REQUIRED_HANDLES, results) if not ok]
 
 
+async def _guidebook_intro_text() -> str:
+    """The admin-set intro (/set_guidebook_intro), or the built-in default."""
+    return await db.get_setting("guidebook_intro") or msg.GUIDEBOOK_INTRO_DEFAULT
+
+
+def _guidebook_get_keyboard() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        [[InlineKeyboardButton(msg.BTN_GUIDEBOOK_GET, callback_data="guidebook_get")]]
+    )
+
+
+def _guidebook_check_keyboard() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        [[InlineKeyboardButton(msg.BTN_GUIDEBOOK_CHECK, callback_data="guidebook_check")]]
+    )
+
+
+async def _guidebook_begin(bot, chat_id: int) -> None:
+    """Menu entry — send the intro with the 'Get the guidebook' button under it."""
+    if not GUIDEBOOK_LIVE and chat_id not in _bypass_users:
+        await bot.send_message(chat_id=chat_id, text=msg.GUIDEBOOK_COMING_SOON)
+        return
+    await bot.send_message(
+        chat_id=chat_id,
+        text=await _guidebook_intro_text(),
+        parse_mode="HTML",
+        disable_web_page_preview=True,
+        reply_markup=_guidebook_get_keyboard(),
+    )
+
+
 async def _guidebook_deliver(bot, chat_id: int) -> None:
-    """Send the guidebook file once requirements are met."""
-    file_id = await db.get_setting("guidebook_file_id")
-    if not file_id:
-        logger.warning("guidebook_file_id is not set; cannot deliver guidebook.")
+    """Send the guidebook PDF once the channel requirements are met."""
+    file_id = await db.get_setting("admissions_guide_file_id")
+    if file_id:
+        try:
+            await bot.send_document(
+                chat_id=chat_id,
+                document=file_id,
+                caption=msg.GUIDEBOOK_ACCESS_GRANTED,
+                parse_mode="HTML",
+            )
+            await db.mark_admissions_guide_sent(chat_id)
+            logger.info("Guidebook delivered to chat_id=%d (cached file_id)", chat_id)
+            return
+        except TelegramError:
+            # Stale file_id (e.g. after a bot token change) — drop it and fall
+            # through to the on-disk upload, which re-caches a fresh one.
+            logger.exception("Cached admissions_guide_file_id failed; re-uploading from disk")
+            await db.set_setting("admissions_guide_file_id", "")
+
+    if not _GUIDEBOOK_PDF.exists():
+        logger.warning("%s is missing and no admissions_guide_file_id is set.", _GUIDEBOOK_PDF)
         await bot.send_message(chat_id=chat_id, text=msg.GUIDEBOOK_UNAVAILABLE)
         return
-    await bot.send_document(
-        chat_id=chat_id,
-        document=file_id,
-        caption=msg.GUIDEBOOK_ACCESS_GRANTED,
-        parse_mode="HTML",
-    )
-    await db.mark_guidebook_sent(chat_id)
-    logger.info("Guidebook delivered to chat_id=%d", chat_id)
+    try:
+        sent = await bot.send_document(
+            chat_id=chat_id,
+            document=_GUIDEBOOK_PDF.read_bytes(),
+            filename=_GUIDEBOOK_FILENAME,
+            caption=msg.GUIDEBOOK_ACCESS_GRANTED,
+            parse_mode="HTML",
+        )
+    except Exception:
+        logger.exception("Guidebook upload failed for chat_id=%d", chat_id)
+        await bot.send_message(chat_id=chat_id, text=msg.GUIDEBOOK_UNAVAILABLE)
+        return
+    if sent.document:
+        await db.set_setting("admissions_guide_file_id", sent.document.file_id)
+    await db.mark_admissions_guide_sent(chat_id)
+    logger.info("Guidebook delivered to chat_id=%d (uploaded from disk)", chat_id)
 
 
-async def _guidebook_send_flow(bot, chat_id: int) -> None:
+async def _guidebook_gate_or_deliver(bot, chat_id: int) -> None:
     missing = await _guidebook_get_missing(bot, chat_id)
     if missing:
-        channel_list = "\n".join(f"• {h}" for h in missing)
+        channel_list = "\n".join(f"\u2022 {h}" for h in missing)
+        # Sent as its own message so the check-again edits never wipe the intro.
         await bot.send_message(
             chat_id=chat_id,
             text=msg.GUIDEBOOK_MUST_JOIN.format(channel_list=channel_list),
             parse_mode="HTML",
-            reply_markup=InlineKeyboardMarkup(
-                [[InlineKeyboardButton(msg.BTN_GUIDEBOOK_CHECK, callback_data="guidebook_check")]]
-            ),
+            reply_markup=_guidebook_check_keyboard(),
         )
         return
     await _guidebook_deliver(bot, chat_id)
-
-
-async def _handle_guidebook(update: Update, chat_id: int) -> None:
-    await _guidebook_send_flow(update.get_bot(), chat_id)
 
 
 async def _safe_answer(query) -> None:
@@ -1953,11 +2060,15 @@ async def _safe_answer(query) -> None:
 
 
 async def _guidebook_get_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    # Inline "Get Extracurriculars Guidebook" button from /broadcastkeyboard —
-    # runs the same gate flow.
+    # "Get the guidebook" — under the menu intro and under any broadcast of it.
     query = update.callback_query
+    chat_id = update.effective_user.id
+    # The alert has to be the single answer to this query, so gate before ack.
+    if not GUIDEBOOK_LIVE and chat_id not in _bypass_users:
+        await query.answer(msg.GUIDEBOOK_COMING_SOON, show_alert=True)
+        return
     await _safe_answer(query)
-    await _guidebook_send_flow(context.bot, update.effective_user.id)
+    await _guidebook_gate_or_deliver(context.bot, chat_id)
 
 
 async def _guidebook_check_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -1966,14 +2077,12 @@ async def _guidebook_check_callback(update: Update, context: ContextTypes.DEFAUL
     chat_id = update.effective_user.id
     missing = await _guidebook_get_missing(context.bot, chat_id)
     if missing:
-        channel_list = "\n".join(f"• {h}" for h in missing)
+        channel_list = "\n".join(f"\u2022 {h}" for h in missing)
         try:
             await query.edit_message_text(
                 msg.GUIDEBOOK_MUST_JOIN.format(channel_list=channel_list),
                 parse_mode="HTML",
-                reply_markup=InlineKeyboardMarkup(
-                    [[InlineKeyboardButton(msg.BTN_GUIDEBOOK_CHECK, callback_data="guidebook_check")]]
-                ),
+                reply_markup=_guidebook_check_keyboard(),
             )
         except TelegramError as e:
             if "not modified" not in str(e).lower():
@@ -4173,6 +4282,7 @@ def build_app() -> Application:
     app.add_handler(CommandHandler("vg_list", _vg_list_command, filters=_private))
     app.add_handler(CommandHandler("satc_list", _satc_list_command, filters=_private))
     app.add_handler(CommandHandler("ae_set_terms", _ae_set_terms_command, filters=_private))
+    app.add_handler(CommandHandler("set_guidebook_intro", _set_guidebook_intro_command, filters=_private))
     app.add_handler(CommandHandler("set_guidebook", _set_guidebook_command, filters=_private))
     app.add_handler(CommandHandler("guidebook_count", _guidebook_count_command, filters=_private))
     app.add_handler(CommandHandler("set_handbook_intro", _set_handbook_intro_command, filters=_private))

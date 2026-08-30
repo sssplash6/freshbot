@@ -619,27 +619,68 @@ BTN_PODCAST_CHECK = "\u2705 I've subscribed \u2014 check again"
 BTN_ADMISSIONS_APPLY = "\U0001f4dd Learn More & Apply"
 ADMISSIONS_APPLY_URL = "https://freshman.academy/admissions"
 
-BTN_GET_GUIDEBOOK = "\U0001f4d6 Get the Extracurriculars Guidebook"
+# ---------------------------------------------------------------------------
+# College Admissions Guidebook (SAT Freshman) \u2014 subscribe to both channels,
+# then get the PDF. The intro is admin-editable via /set_guidebook_intro, so
+# GUIDEBOOK_INTRO_DEFAULT is only the fallback until one is saved.
+# ---------------------------------------------------------------------------
 
-GUIDEBOOK_MUST_JOIN = (
-    "To get the <b>Extracurriculars Guidebook</b>, please subscribe to both channels first:\n"
-    "{channel_list}\n\n"
-    "Once you've subscribed, tap the button below."
+BTN_GET_GUIDEBOOK = "\U0001f4d8 College Admissions Guidebook"
+
+GUIDEBOOK_INTRO_DEFAULT = (
+    "\U0001f4da <b>Your Complete College Admissions Guidebook is Here</b>\n\n"
+    "Applying to college can feel overwhelming \u2014 essays, deadlines, "
+    "requirements, strategy. We put together a full step-by-step guidebook.\n\n"
+    "Information you\u2019ll find inside:\n\n"
+    "1. Where to start your admissions journey\n"
+    "2. What steps to take, and in what order\n"
+    "3. Timeline breakdown\n\n"
+    "To get your free copy:\n"
+    "Subscribe to @freshmanblog &amp; @satfreshman \U0001f393"
 )
 
+BTN_GUIDEBOOK_GET = "\U0001f4e5 Get the guidebook"
+
+GUIDEBOOK_MUST_JOIN = (
+    "To get the <b>College Admissions Guidebook</b>, please subscribe to both "
+    "channels first:\n"
+    "{channel_list}\n\n"
+    "Once you\u2019ve subscribed, tap the button below."
+)
+
+BTN_GUIDEBOOK_CHECK = "\u2705 I\u2019ve subscribed \u2014 check again"
+
 GUIDEBOOK_ACCESS_GRANTED = (
-    "\U0001f4d5 You're all set \u2014 here's your <b>Extracurriculars Guidebook</b>. Enjoy!"
+    "\U0001f4d8 You\u2019re all set \u2014 here\u2019s your <b>College Admissions "
+    "Guidebook</b>. Enjoy!"
 )
 
 GUIDEBOOK_UNAVAILABLE = (
-    "\U0001f512 The Extracurriculars Guidebook isn't available right now. "
+    "\U0001f512 The College Admissions Guidebook isn\u2019t available right now. "
     "Please check back soon!"
 )
 
-GUIDEBOOK_SET_USAGE = "Reply to the guidebook document with /set_guidebook to save it."
-GUIDEBOOK_SET_SUCCESS = "\u2705 Extracurriculars Guidebook file saved successfully."
+GUIDEBOOK_COMING_SOON = (
+    "\U0001f6a7 The College Admissions Guidebook is coming soon. Stay tuned!"
+)
 
-BTN_GUIDEBOOK_CHECK = "\u2705 I've subscribed \u2014 check again"
+GUIDEBOOK_INTRO_SET_USAGE = (
+    "Send the intro text with the command, or reply to the message you want to "
+    "use:\n\n"
+    "<code>/set_guidebook_intro Your intro text here</code>\n\n"
+    "Formatting from the replied-to message (bold, italic, links) is kept. "
+    "Send <code>/set_guidebook_intro reset</code> to go back to the default."
+)
+GUIDEBOOK_INTRO_SET_SUCCESS = (
+    "\u2705 Guidebook intro saved. Here\u2019s how it will look:"
+)
+GUIDEBOOK_INTRO_RESET = "\u2705 Guidebook intro reset to the default."
+
+GUIDEBOOK_SET_USAGE = (
+    "Reply to the guidebook PDF with /set_guidebook to save it. Without one the "
+    "bot sends assets/guidebook/college_admissions.pdf."
+)
+GUIDEBOOK_SET_SUCCESS = "\u2705 College Admissions Guidebook file saved successfully."
 
 # ---------------------------------------------------------------------------
 # Top 10 Mistakes handbook (Freshman Global) — subscribe to both channels,

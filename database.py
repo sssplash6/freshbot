@@ -213,7 +213,11 @@ async def init_db() -> None:
             )
         """)
         for _col in [
+            # guidebook_sent_at holds deliveries of the retired
+            # Extracurriculars Guidebook; the College Admissions Guidebook
+            # that replaced it counts in admissions_guide_sent_at.
             "ALTER TABLE users ADD COLUMN guidebook_sent_at TEXT",
+            "ALTER TABLE users ADD COLUMN admissions_guide_sent_at TEXT",
             "ALTER TABLE users ADD COLUMN handbook_sent_at TEXT",
             "ALTER TABLE adv_english_applications ADD COLUMN video_file_id TEXT",
             "ALTER TABLE adv_english_applications ADD COLUMN video_type TEXT",
@@ -893,26 +897,26 @@ async def set_setting(key: str, value: str) -> None:
 
 
 # ---------------------------------------------------------------------------
-# Extracurriculars Guidebook
+# College Admissions Guidebook
 # ---------------------------------------------------------------------------
 
-async def mark_guidebook_sent(chat_id: int) -> None:
+async def mark_admissions_guide_sent(chat_id: int) -> None:
     """Record that this user received the guidebook (keeps the first delivery time)."""
     now = datetime.now(timezone.utc).isoformat()
     async with aiosqlite.connect(DB_PATH) as db:
         await db.execute(
-            "UPDATE users SET guidebook_sent_at = COALESCE(guidebook_sent_at, ?)"
-            " WHERE chat_id = ?",
+            "UPDATE users SET admissions_guide_sent_at ="
+            " COALESCE(admissions_guide_sent_at, ?) WHERE chat_id = ?",
             (now, chat_id),
         )
         await db.commit()
 
 
-async def count_guidebook_recipients() -> int:
+async def count_admissions_guide_recipients() -> int:
     """Number of unique users who have received the guidebook at least once."""
     async with aiosqlite.connect(DB_PATH) as db:
         async with db.execute(
-            "SELECT COUNT(*) FROM users WHERE guidebook_sent_at IS NOT NULL"
+            "SELECT COUNT(*) FROM users WHERE admissions_guide_sent_at IS NOT NULL"
         ) as cursor:
             row = await cursor.fetchone()
             return row[0] if row else 0
