@@ -166,7 +166,7 @@ def _main_keyboard() -> ReplyKeyboardMarkup:
     return ReplyKeyboardMarkup(
         [
             [msg.BTN_HANDBOOK, msg.BTN_GET_GUIDEBOOK],
-            [msg.BTN_VALERA_GIVEAWAY, msg.BTN_GETTING_IN],
+            [msg.BTN_VALERA_GIVEAWAY],
             [msg.BTN_MERCH, msg.BTN_SAT_CONSULT],
             [msg.BTN_ADV_ENGLISH, msg.BTN_SAT_ENROLL],
             [msg.BTN_PROGRAMS, msg.BTN_GENERAL_INQUIRY],
