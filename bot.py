@@ -146,7 +146,7 @@ _NAV_BUTTONS: frozenset[str] = frozenset({
     msg.BTN_ADV_ENGLISH, msg.BTN_SAT_ENROLL, msg.BTN_TRIAL_AP,
     msg.BTN_GET_GUIDEBOOK, msg.BTN_GETTING_IN, msg.BTN_MERCH, msg.BTN_SAT_CONSULT,
     msg.BTN_HANDBOOK,
-    msg.BTN_VALERA_GIVEAWAY,
+    msg.BTN_VALERA_GIVEAWAY, msg.BTN_FIRESIDE_CHAT,
     # Program sub-menu
     msg.BTN_SAT, msg.BTN_ADMISSIONS, msg.BTN_FULL_SUPPORT, msg.BTN_MASTERS,
     msg.BTN_ADV_PLACEMENT, msg.BTN_IMKON, msg.BTN_RESEARCH_INSTITUTE,
@@ -166,7 +166,7 @@ def _main_keyboard() -> ReplyKeyboardMarkup:
     return ReplyKeyboardMarkup(
         [
             [msg.BTN_HANDBOOK, msg.BTN_GET_GUIDEBOOK],
-            [msg.BTN_VALERA_GIVEAWAY],
+            [msg.BTN_VALERA_GIVEAWAY, msg.BTN_FIRESIDE_CHAT],
             [msg.BTN_MERCH, msg.BTN_SAT_CONSULT],
             [msg.BTN_ADV_ENGLISH, msg.BTN_SAT_ENROLL],
             [msg.BTN_PROGRAMS, msg.BTN_GENERAL_INQUIRY],
@@ -504,6 +504,8 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         await _hb_begin(context.bot, chat_id)
     elif text == msg.BTN_GETTING_IN:
         await _handle_getting_in(update, chat_id)
+    elif text == msg.BTN_FIRESIDE_CHAT:
+        await _fc_begin(context.bot, chat_id)
     elif text == msg.BTN_MERCH:
         await _merch_begin(context.bot, chat_id)
     elif text == msg.BTN_SAT_CONSULT:
@@ -1709,7 +1711,11 @@ _TELEGRAM_TEXT_LIMIT = 4096
 
 
 async def _lead_magnets_text() -> str:
-    """The handbook and guidebook intros joined into one announcement."""
+    """The handbook and guidebook intros joined into one announcement.
+
+    Parked while /broadcastkeyboard announces the Fireside Chat — swap these
+    two helpers back into _broadcast_keyboard_command (with the
+    _TELEGRAM_TEXT_LIMIT check) to fan the lead magnets out again."""
     return msg.BROADCAST_LEAD_MAGNETS_SEPARATOR.join(
         [await _hb_intro_text(), await _guidebook_intro_text()]
     )
@@ -1729,14 +1735,9 @@ async def _broadcast_keyboard_command(
     if update.effective_user.id != PERSON_X_CHAT_ID:
         return
     chat_ids = await db.get_all_chat_ids()
-    # Read both admin-set intros once up front rather than per send — whatever
-    # /set_handbook_intro and /set_guidebook_intro saved is what goes out.
-    intro = await _lead_magnets_text()
-    if len(intro) > _TELEGRAM_TEXT_LIMIT:
-        await update.message.reply_text(
-            msg.BROADCAST_TOO_LONG.format(length=len(intro), limit=_TELEGRAM_TEXT_LIMIT)
-        )
-        return
+    # Upload the poster once here — the admin gets it as a preview of what goes
+    # out, and the cached file_id it leaves behind is what the fan-out reuses.
+    await _fc_warm_poster(context.bot, update.effective_user.id)
     await update.message.reply_text(f"📢 Broadcasting to {len(chat_ids)} users — I'll report back when done.")
 
     async def _run() -> None:
@@ -1751,15 +1752,9 @@ async def _broadcast_keyboard_command(
         async def _send_one(cid: int) -> None:
             nonlocal sent, failed, first_error
             try:
-                # Both row-1 lead magnets in one message — each button runs the
-                # same subscribe-then-deliver flow as its menu entry.
-                await context.bot.send_message(
-                    chat_id=cid,
-                    text=intro,
-                    parse_mode="HTML",
-                    disable_web_page_preview=True,
-                    reply_markup=_lead_magnets_keyboard(),
-                )
+                # Fireside Chat announcement — the poster captioned with the
+                # same promo the menu button sends, register button included.
+                await _fc_send_promo(context.bot, cid)
                 sent += 1
             except Exception as e:
                 if first_error is None:
@@ -3169,6 +3164,145 @@ async def _rf_retired_callback(update: Update, context: ContextTypes.DEFAULT_TYP
 
 
 # ---------------------------------------------------------------------------
+# Fireside Chat on Culture & Psyche — poster, one-tap register, Meet link
+# ---------------------------------------------------------------------------
+
+# Coming-soon gate. True = the event is live for everyone. False = only
+# /santix bypass users see it (everyone else gets FC_COMING_SOON). Gated in
+# _fc_begin and the register callback, so the menu button and the broadcast
+# button are both covered.
+FC_LIVE = True
+
+FC_MEET_URL = "https://meet.google.com/vrx-ccrh-hit"
+
+# Shipped with the repo so a fresh deploy has the poster without an admin
+# uploading it. The file_id Telegram returns on the first send is cached in
+# bot_settings so later sends — a whole broadcast included — never re-upload.
+_FC_POSTER = (
+    Path(__file__).resolve().parent / "assets" / "fireside" / "culture_psyche.jpg"
+)
+_FC_POSTER_SETTING = "fireside_chat_poster_file_id"
+
+
+def _fc_register_keyboard() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        [[InlineKeyboardButton(msg.BTN_FC_REGISTER, callback_data="fc_register")]]
+    )
+
+
+def _fc_join_keyboard() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        [[InlineKeyboardButton(msg.BTN_FC_JOIN, url=FC_MEET_URL)]]
+    )
+
+
+async def _fc_send_promo(bot, chat_id: int):
+    """Send the poster captioned with FC_INTRO and the register button.
+
+    Falls back to a plain text message if the poster can't be sent, so the
+    register button always reaches the user."""
+    file_id = await db.get_setting(_FC_POSTER_SETTING)
+    if file_id:
+        try:
+            return await bot.send_photo(
+                chat_id=chat_id,
+                photo=file_id,
+                caption=msg.FC_INTRO,
+                parse_mode="HTML",
+                reply_markup=_fc_register_keyboard(),
+            )
+        except TelegramError:
+            # Stale file_id (e.g. after a bot token change) — drop it and fall
+            # through to the on-disk upload, which re-caches a fresh one.
+            logger.exception("Cached %s failed; re-uploading from disk", _FC_POSTER_SETTING)
+            await db.set_setting(_FC_POSTER_SETTING, "")
+
+    if _FC_POSTER.exists():
+        try:
+            sent = await bot.send_photo(
+                chat_id=chat_id,
+                photo=_FC_POSTER.read_bytes(),
+                caption=msg.FC_INTRO,
+                parse_mode="HTML",
+                reply_markup=_fc_register_keyboard(),
+            )
+            if sent.photo:
+                await db.set_setting(_FC_POSTER_SETTING, sent.photo[-1].file_id)
+            return sent
+        except Exception:
+            logger.exception("Fireside Chat poster upload failed for chat_id=%d", chat_id)
+    else:
+        logger.warning("%s is missing and no %s is set.", _FC_POSTER, _FC_POSTER_SETTING)
+
+    return await bot.send_message(
+        chat_id=chat_id,
+        text=msg.FC_INTRO,
+        parse_mode="HTML",
+        disable_web_page_preview=True,
+        reply_markup=_fc_register_keyboard(),
+    )
+
+
+async def _fc_warm_poster(bot, chat_id: int) -> None:
+    """Upload the poster once before a broadcast fans out, so the hundreds of
+    concurrent sends all reuse one cached file_id instead of re-uploading."""
+    if await db.get_setting(_FC_POSTER_SETTING):
+        return
+    await _fc_send_promo(bot, chat_id)
+
+
+async def _fc_begin(bot, chat_id: int) -> None:
+    if not FC_LIVE and chat_id not in _bypass_users:
+        await bot.send_message(chat_id=chat_id, text=msg.FC_COMING_SOON)
+        return
+    await _fc_send_promo(bot, chat_id)
+
+
+async def _fc_register_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Register button — under the menu promo and the broadcast alike. Logs the
+    registration and hands over the Meet link."""
+    query = update.callback_query
+    user = update.effective_user
+    if not FC_LIVE and user.id not in _bypass_users:
+        await query.answer(msg.FC_COMING_SOON, show_alert=True)
+        return
+    first = await db.fc_add_registration(user.id, user.first_name, user.username)
+    if not first:
+        # Already on the list — the link is in the chat from the first tap.
+        await query.answer(msg.FC_ALREADY_REGISTERED, show_alert=True)
+        return
+    await _safe_answer(query)
+    await context.bot.send_message(
+        chat_id=user.id,
+        text=msg.FC_REGISTERED,
+        parse_mode="HTML",
+        disable_web_page_preview=True,
+        reply_markup=_fc_join_keyboard(),
+    )
+
+
+async def _fc_list_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    if update.effective_user.id != PERSON_X_CHAT_ID:
+        return
+    rows = await db.fc_get_all()
+    if not rows:
+        await update.message.reply_text(msg.FC_LIST_EMPTY)
+        return
+    lines = [
+        f"{i + 1}. {r['first_name'] or '—'}" + (f" (@{r['username']})" if r.get("username") else "")
+        for i, r in enumerate(rows)
+    ]
+    current = f"🧠 Fireside Chat registrations: {len(rows)}\n\n"
+    for line in lines:
+        if len(current) + len(line) + 1 > 4096:
+            await update.message.reply_text(current)
+            current = ""
+        current += line + "\n"
+    if current:
+        await update.message.reply_text(current)
+
+
+# ---------------------------------------------------------------------------
 # SAT Freshman consultations — subscribe to both channels, then book a slot
 # ---------------------------------------------------------------------------
 
@@ -4287,6 +4421,7 @@ def build_app() -> Application:
     app.add_handler(CommandHandler("cancel", cancel, filters=_private))
     app.add_handler(CommandHandler("clarify", clarify_command, filters=_private))
     app.add_handler(CommandHandler("broadcastkeyboard", _broadcast_keyboard_command, filters=_private))
+    app.add_handler(CommandHandler("fireside_list", _fc_list_command, filters=_private))
     app.add_handler(CommandHandler("stats", _stats_command, filters=_private))
     app.add_handler(CommandHandler("export_db", _export_db_command, filters=_private))
     app.add_handler(CommandHandler("setvideo", _video_admin_command, filters=_private))
@@ -4345,6 +4480,7 @@ def build_app() -> Application:
     app.add_handler(CallbackQueryHandler(_merch_qty_back_callback, pattern="^merch_qty_back$"))
     app.add_handler(CallbackQueryHandler(_merch_checkout_callback, pattern="^merch_checkout$"))
     app.add_handler(CallbackQueryHandler(_rf_retired_callback, pattern="^rf_register$"))
+    app.add_handler(CallbackQueryHandler(_fc_register_callback, pattern="^fc_register$"))
     app.add_handler(CallbackQueryHandler(_satc_open_callback, pattern="^satc_open$"))
     app.add_handler(CallbackQueryHandler(_satc_check_callback, pattern="^satc_check$"))
     app.add_handler(CallbackQueryHandler(_consult_retired_callback, pattern="^consult_(open|check)$"))

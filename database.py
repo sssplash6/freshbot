@@ -212,6 +212,17 @@ async def init_db() -> None:
                 claimed_at  TEXT NOT NULL
             )
         """)
+        # The Sep 3 2026 Fireside Chat on Culture & Psyche. A fresh table
+        # rather than the retired fireside_registrations, so the Aug 18 event's
+        # registrations stay intact and this event's list starts clean.
+        await db.execute("""
+            CREATE TABLE IF NOT EXISTS fireside_chat_registrations (
+                chat_id        INTEGER PRIMARY KEY,
+                first_name     TEXT,
+                username       TEXT,
+                registered_at  TEXT NOT NULL
+            )
+        """)
         for _col in [
             # guidebook_sent_at holds deliveries of the retired
             # Extracurriculars Guidebook; the College Admissions Guidebook
@@ -1427,6 +1438,34 @@ async def satc_get_all_claims() -> list[dict]:
         db.row_factory = aiosqlite.Row
         async with db.execute(
             "SELECT * FROM sat_consult_claims ORDER BY claimed_at"
+        ) as cursor:
+            rows = await cursor.fetchall()
+            return [dict(r) for r in rows]
+
+
+async def fc_add_registration(
+    chat_id: int, first_name: str | None, username: str | None
+) -> bool:
+    """Register chat_id for the Fireside Chat. Returns True on the first
+    registration, False if they were already on the list (the original
+    timestamp is kept either way)."""
+    now = datetime.now(timezone.utc).isoformat()
+    async with aiosqlite.connect(DB_PATH) as db:
+        cursor = await db.execute(
+            """INSERT OR IGNORE INTO fireside_chat_registrations
+               (chat_id, first_name, username, registered_at)
+               VALUES (?, ?, ?, ?)""",
+            (chat_id, first_name, username, now),
+        )
+        await db.commit()
+        return cursor.rowcount > 0
+
+
+async def fc_get_all() -> list[dict]:
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute(
+            "SELECT * FROM fireside_chat_registrations ORDER BY registered_at"
         ) as cursor:
             rows = await cursor.fetchall()
             return [dict(r) for r in rows]

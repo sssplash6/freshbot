@@ -1408,3 +1408,47 @@ TAP_REVIEWER_LINK_FAILED = "⚠️ Confirmed, but creating the invite link faile
 
 BTN_TAP_APPROVE = "✅ Confirm"
 BTN_TAP_REJECT = "❌ Reject"
+
+
+# ---------------------------------------------------------------------------
+# Fireside Chat on Culture & Psyche (Freshman Research Institute, online,
+# Thursday 3 September 2026, 6 PM UZT) — tap register, get the Meet link
+# ---------------------------------------------------------------------------
+
+BTN_FIRESIDE_CHAT = "\U0001f9e0 Fireside Chat on Culture & Psyche"
+
+FC_COMING_SOON = (
+    "🚧 The Fireside Chat on Culture & Psyche is coming soon. Stay tuned!"
+)
+
+# Sent as the poster's caption, so it must stay under Telegram's 1024-character
+# caption limit (_TELEGRAM_CAPTION_LIMIT in bot.py checks this at startup).
+FC_INTRO = (
+    "🧠 <b>Fireside Chat on Culture &amp; Psyche</b>\n\n"
+    "An Introduction to Psychology &amp; Anthropology hosted by "
+    "<b>Faraaz Quazi</b>, a humanities Mentor at the Freshman Research "
+    "Institute.\n\n"
+    "With academic and clinical experiences in psychology. He is a graduate "
+    "of UT Austin, UChicago, and is pursuing his Master's at Columbia "
+    "University.\n\n"
+    "🗓 Thursday, 3 September\n"
+    "🕕 6 PM UZT\n"
+    "💻 Online\n\n"
+    "Tap the button below to register — we'll send you the link right away."
+)
+
+BTN_FC_REGISTER = "✅ Register for free"
+
+FC_REGISTERED = (
+    "🎉 <b>You're registered!</b>\n\n"
+    "Join the Fireside Chat on <b>Thursday, 3 September at 6 PM UZT</b> using "
+    "the button below. Save the link — it's the same one on the day of the "
+    "event."
+)
+
+BTN_FC_JOIN = "🔗 Join the Fireside Chat"
+
+# Shown on the inline button when someone taps register a second time.
+FC_ALREADY_REGISTERED = "You're already registered — the link is in the chat above."
+
+FC_LIST_EMPTY = "No one has registered for the Fireside Chat yet."
