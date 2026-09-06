@@ -223,7 +223,7 @@ async def init_db() -> None:
                 registered_at  TEXT NOT NULL
             )
         """)
-        # The Sep 5 2026 Fireside Chat on Nuclear Justice & Policy. Again a
+        # The Sep 9 2026 Fireside Chat on Nuclear Justice & Policy. Again a
         # fresh table: reusing fireside_chat_registrations would leave the
         # Culture & Psyche registrants flagged as already registered, so they
         # would never be handed this event's link.

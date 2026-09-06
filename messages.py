@@ -1412,7 +1412,7 @@ BTN_TAP_REJECT = "❌ Reject"
 
 # ---------------------------------------------------------------------------
 # Fireside Chat on Nuclear Justice & Policy (Freshman Research Institute,
-# online, 5 September 2026, 5 PM UZT) — tap register, get the Meet link.
+# online, 9 September 2026, 5 PM UZT) — tap register, get the Meet link.
 # Replaces the Sep 3 Culture & Psyche chat; same fc_ handlers and callback
 # data, so stale broadcast buttons now register for this event instead.
 # ---------------------------------------------------------------------------
@@ -1432,7 +1432,7 @@ FC_INTRO = (
     "<b>Yerdaulet Rakhmatulla</b>, who has a wealth of experience in nuclear "
     "activism and policy making from the United Nations to the International "
     "Campaign to Abolish Nuclear Weapons (ICAN).\n\n"
-    "🗓 5 September\n"
+    "🗓 9 September\n"
     "🕔 5 PM UZT\n"
     "💻 Online\n\n"
     "Tap the button below to register — we'll send you the link right away."
@@ -1442,7 +1442,7 @@ BTN_FC_REGISTER = "✅ Register for free"
 
 FC_REGISTERED = (
     "🎉 <b>You're registered!</b>\n\n"
-    "Join the Fireside Chat on <b>5 September at 5 PM UZT</b> using the button "
+    "Join the Fireside Chat on <b>9 September at 5 PM UZT</b> using the button "
     "below. Save the link — it's the same one on the day of the event."
 )
 
