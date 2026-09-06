@@ -223,6 +223,18 @@ async def init_db() -> None:
                 registered_at  TEXT NOT NULL
             )
         """)
+        # The Sep 5 2026 Fireside Chat on Nuclear Justice & Policy. Again a
+        # fresh table: reusing fireside_chat_registrations would leave the
+        # Culture & Psyche registrants flagged as already registered, so they
+        # would never be handed this event's link.
+        await db.execute("""
+            CREATE TABLE IF NOT EXISTS fireside_nuclear_registrations (
+                chat_id        INTEGER PRIMARY KEY,
+                first_name     TEXT,
+                username       TEXT,
+                registered_at  TEXT NOT NULL
+            )
+        """)
         for _col in [
             # guidebook_sent_at holds deliveries of the retired
             # Extracurriculars Guidebook; the College Admissions Guidebook
@@ -1446,13 +1458,13 @@ async def satc_get_all_claims() -> list[dict]:
 async def fc_add_registration(
     chat_id: int, first_name: str | None, username: str | None
 ) -> bool:
-    """Register chat_id for the Fireside Chat. Returns True on the first
-    registration, False if they were already on the list (the original
-    timestamp is kept either way)."""
+    """Register chat_id for the Nuclear Justice & Policy Fireside Chat.
+    Returns True on the first registration, False if they were already on the
+    list (the original timestamp is kept either way)."""
     now = datetime.now(timezone.utc).isoformat()
     async with aiosqlite.connect(DB_PATH) as db:
         cursor = await db.execute(
-            """INSERT OR IGNORE INTO fireside_chat_registrations
+            """INSERT OR IGNORE INTO fireside_nuclear_registrations
                (chat_id, first_name, username, registered_at)
                VALUES (?, ?, ?, ?)""",
             (chat_id, first_name, username, now),
@@ -1465,7 +1477,7 @@ async def fc_get_all() -> list[dict]:
     async with aiosqlite.connect(DB_PATH) as db:
         db.row_factory = aiosqlite.Row
         async with db.execute(
-            "SELECT * FROM fireside_chat_registrations ORDER BY registered_at"
+            "SELECT * FROM fireside_nuclear_registrations ORDER BY registered_at"
         ) as cursor:
             rows = await cursor.fetchall()
             return [dict(r) for r in rows]

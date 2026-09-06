@@ -1713,9 +1713,10 @@ _TELEGRAM_TEXT_LIMIT = 4096
 async def _lead_magnets_text() -> str:
     """The handbook and guidebook intros joined into one announcement.
 
-    Parked while /broadcastkeyboard announces the Fireside Chat — swap these
-    two helpers back into _broadcast_keyboard_command (with the
-    _TELEGRAM_TEXT_LIMIT check) to fan the lead magnets out again."""
+    Parked while /broadcastkeyboard announces the Nuclear Justice & Policy
+    Fireside Chat — swap these two helpers back into
+    _broadcast_keyboard_command (with the _TELEGRAM_TEXT_LIMIT check) to fan
+    the lead magnets out again."""
     return msg.BROADCAST_LEAD_MAGNETS_SEPARATOR.join(
         [await _hb_intro_text(), await _guidebook_intro_text()]
     )
@@ -1737,6 +1738,7 @@ async def _broadcast_keyboard_command(
     chat_ids = await db.get_all_chat_ids()
     # Upload the poster once here — the admin gets it as a preview of what goes
     # out, and the cached file_id it leaves behind is what the fan-out reuses.
+    # With no poster on disk the preview (and the fan-out) is FC_INTRO as text.
     await _fc_warm_poster(context.bot, update.effective_user.id)
     await update.message.reply_text(f"📢 Broadcasting to {len(chat_ids)} users — I'll report back when done.")
 
@@ -1752,8 +1754,9 @@ async def _broadcast_keyboard_command(
         async def _send_one(cid: int) -> None:
             nonlocal sent, failed, first_error
             try:
-                # Fireside Chat announcement — the poster captioned with the
-                # same promo the menu button sends, register button included.
+                # Fireside Chat on Nuclear Justice & Policy — the poster
+                # captioned with the same promo the menu button sends,
+                # register button included.
                 await _fc_send_promo(context.bot, cid)
                 sent += 1
             except Exception as e:
@@ -3164,7 +3167,7 @@ async def _rf_retired_callback(update: Update, context: ContextTypes.DEFAULT_TYP
 
 
 # ---------------------------------------------------------------------------
-# Fireside Chat on Culture & Psyche — poster, one-tap register, Meet link
+# Fireside Chat on Nuclear Justice & Policy — poster, one-tap register, link
 # ---------------------------------------------------------------------------
 
 # Coming-soon gate. True = the event is live for everyone. False = only
@@ -3173,15 +3176,18 @@ async def _rf_retired_callback(update: Update, context: ContextTypes.DEFAULT_TYP
 # button are both covered.
 FC_LIVE = True
 
-FC_MEET_URL = "https://meet.google.com/vrx-ccrh-hit"
+FC_MEET_URL = "https://meet.google.com/yxr-svyv-upz"
 
-# Shipped with the repo so a fresh deploy has the poster without an admin
-# uploading it. The file_id Telegram returns on the first send is cached in
-# bot_settings so later sends — a whole broadcast included — never re-upload.
+# Drop the poster here and it ships with the repo, so a fresh deploy has it
+# without an admin uploading anything. The file_id Telegram returns on the
+# first send is cached in bot_settings so later sends — a whole broadcast
+# included — never re-upload. The setting key is fresh per event, so the
+# retired Culture & Psyche poster can never be served for this one; while the
+# file is missing the promo simply goes out as text (see _fc_send_promo).
 _FC_POSTER = (
-    Path(__file__).resolve().parent / "assets" / "fireside" / "culture_psyche.jpg"
+    Path(__file__).resolve().parent / "assets" / "fireside" / "nuclear_justice.jpg"
 )
-_FC_POSTER_SETTING = "fireside_chat_poster_file_id"
+_FC_POSTER_SETTING = "fireside_nuclear_poster_file_id"
 
 
 def _fc_register_keyboard() -> InlineKeyboardMarkup:
@@ -3292,7 +3298,7 @@ async def _fc_list_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         f"{i + 1}. {r['first_name'] or '—'}" + (f" (@{r['username']})" if r.get("username") else "")
         for i, r in enumerate(rows)
     ]
-    current = f"🧠 Fireside Chat registrations: {len(rows)}\n\n"
+    current = f"💭 Fireside Chat registrations: {len(rows)}\n\n"
     for line in lines:
         if len(current) + len(line) + 1 > 4096:
             await update.message.reply_text(current)
